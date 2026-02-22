@@ -5,6 +5,8 @@ import com.internal.kpodmetrics.bpf.BpfProgramManager
 import com.internal.kpodmetrics.bpf.CgroupResolver
 import com.internal.kpodmetrics.collector.*
 import com.internal.kpodmetrics.k8s.PodWatcher
+import io.fabric8.kubernetes.client.KubernetesClient
+import io.fabric8.kubernetes.client.KubernetesClientBuilder
 import io.micrometer.core.instrument.MeterRegistry
 import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
@@ -21,6 +23,8 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
 
     private val log = LoggerFactory.getLogger(BpfAutoConfiguration::class.java)
     private var programManager: BpfProgramManager? = null
+    private var podWatcherInstance: PodWatcher? = null
+    private var metricsCollectorServiceInstance: MetricsCollectorService? = null
 
     @Bean
     fun resolvedConfig(): ResolvedConfig = props.resolveProfile()
@@ -29,8 +33,14 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
     fun cgroupResolver(): CgroupResolver = CgroupResolver()
 
     @Bean
-    fun podWatcher(cgroupResolver: CgroupResolver): PodWatcher =
-        PodWatcher(cgroupResolver, props.filter, props.nodeName)
+    fun kubernetesClient(): KubernetesClient = KubernetesClientBuilder().build()
+
+    @Bean
+    fun podWatcher(kubernetesClient: KubernetesClient, cgroupResolver: CgroupResolver): PodWatcher {
+        val watcher = PodWatcher(kubernetesClient, cgroupResolver, props)
+        this.podWatcherInstance = watcher
+        return watcher
+    }
 
     @Bean
     @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
@@ -94,7 +104,11 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         netCollector: NetworkCollector,
         memCollector: MemoryCollector,
         syscallCollector: SyscallCollector
-    ) = MetricsCollectorService(cpuCollector, netCollector, memCollector, syscallCollector)
+    ): MetricsCollectorService {
+        val service = MetricsCollectorService(cpuCollector, netCollector, memCollector, syscallCollector)
+        this.metricsCollectorServiceInstance = service
+        return service
+    }
 
     @EventListener(ContextRefreshedEvent::class)
     fun onStartup() {
@@ -103,10 +117,19 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
             it.loadAll()
             log.info("BPF programs loaded successfully")
         }
+        podWatcherInstance?.let {
+            try {
+                it.start()
+            } catch (e: Exception) {
+                log.warn("Failed to start PodWatcher (K8s API may be unavailable): {}", e.message)
+            }
+        }
     }
 
     @PreDestroy
     fun onShutdown() {
+        podWatcherInstance?.stop()
+        metricsCollectorServiceInstance?.close()
         programManager?.let {
             log.info("Destroying BPF programs")
             it.destroyAll()

@@ -3,6 +3,7 @@ package com.internal.kpodmetrics.collector
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 class MetricsCollectorService(
@@ -12,7 +13,8 @@ class MetricsCollectorService(
     private val syscallCollector: SyscallCollector
 ) {
     private val log = LoggerFactory.getLogger(MetricsCollectorService::class.java)
-    private val vtDispatcher = Executors.newVirtualThreadPerTaskExecutor().asCoroutineDispatcher()
+    private val vtExecutor: ExecutorService = Executors.newVirtualThreadPerTaskExecutor()
+    private val vtDispatcher = vtExecutor.asCoroutineDispatcher()
 
     @Scheduled(fixedDelayString = "\${kpod.poll-interval:15000}")
     fun collect() = runBlocking(vtDispatcher) {
@@ -32,5 +34,10 @@ class MetricsCollectorService(
                 }
             }
         }.joinAll()
+    }
+
+    fun close() {
+        vtDispatcher.close()
+        vtExecutor.close()
     }
 }

@@ -1,0 +1,21 @@
+# Gradle
+.gradle/
+build/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated
+bpf/vmlinux.h
+*.bpf.o
+jni/build/
+
+# Native
+*.so
+*.dylib
