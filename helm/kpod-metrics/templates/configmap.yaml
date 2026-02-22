@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+data:
+  application.yml: |
+    kpod:
+      profile: {{ .Values.config.profile }}
+      poll-interval: {{ .Values.config.pollInterval }}
+      node-name: ${NODE_NAME}
+      bpf:
+        program-dir: /app/bpf
+    spring:
+      threads:
+        virtual:
+          enabled: true
+    server:
+      port: 9090
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health, prometheus, info
+      metrics:
+        export:
+          prometheus:
+            enabled: true

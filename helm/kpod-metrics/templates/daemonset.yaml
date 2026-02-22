@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app.kubernetes.io/name: kpod-metrics
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kpod-metrics
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kpod-metrics
+      annotations:
+        {{- toYaml .Values.podAnnotations | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}
+      hostPID: true
+      containers:
+        - name: kpod-metrics
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 9090
+              name: metrics
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          securityContext:
+            privileged: false
+            capabilities:
+              add:
+                - BPF
+                - PERFMON
+                - SYS_RESOURCE
+                - NET_ADMIN
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: sys-kernel-btf
+              mountPath: /sys/kernel/btf
+              readOnly: true
+            - name: sys-fs-cgroup
+              mountPath: /sys/fs/cgroup
+              readOnly: true
+            - name: proc
+              mountPath: /host/proc
+              readOnly: true
+            - name: config
+              mountPath: /app/config
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 9090
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 9090
+            initialDelaySeconds: 15
+            periodSeconds: 5
+      volumes:
+        - name: sys-kernel-btf
+          hostPath:
+            path: /sys/kernel/btf
+        - name: sys-fs-cgroup
+          hostPath:
+            path: /sys/fs/cgroup
+        - name: proc
+          hostPath:
+            path: /proc
+            type: Directory
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-config
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
