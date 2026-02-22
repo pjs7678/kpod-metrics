@@ -86,14 +86,22 @@ class CpuSchedulingCollector(
         mapFd: Int, keySize: Int, valueSize: Int,
         handler: (ByteArray, ByteArray) -> Unit
     ) {
-        var key: ByteArray? = null
+        // Phase 1: Collect all keys (safe to iterate without deletion)
+        val keys = mutableListOf<ByteArray>()
+        var prevKey: ByteArray? = null
         while (true) {
-            val nextKey = bridge.mapGetNextKey(mapFd, key, keySize) ?: break
-            val value = bridge.mapLookup(mapFd, nextKey, valueSize)
+            val nextKey = bridge.mapGetNextKey(mapFd, prevKey, keySize) ?: break
+            keys.add(nextKey)
+            prevKey = nextKey
+        }
+
+        // Phase 2: Lookup, handle, and delete each key (snap-and-reset)
+        for (k in keys) {
+            val value = bridge.mapLookup(mapFd, k, valueSize)
             if (value != null) {
-                handler(nextKey, value)
+                handler(k, value)
             }
-            key = nextKey
+            bridge.mapDelete(mapFd, k)
         }
     }
 }
