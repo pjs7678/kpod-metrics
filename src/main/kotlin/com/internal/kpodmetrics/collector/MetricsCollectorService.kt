@@ -3,10 +3,8 @@ package com.internal.kpodmetrics.collector
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
-import org.springframework.stereotype.Component
 import java.util.concurrent.Executors
 
-@Component
 class MetricsCollectorService(
     private val cpuCollector: CpuSchedulingCollector,
     private val netCollector: NetworkCollector,
