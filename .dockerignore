@@ -1,0 +1,6 @@
+.git
+build/
+helm/
+*.md
+.gradle/
+.idea/

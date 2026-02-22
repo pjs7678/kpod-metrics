@@ -8,8 +8,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY bpf/ /build/bpf/
 
-# Generate vmlinux.h (will be provided at build time or pre-generated)
-# RUN bpftool btf dump file /sys/kernel/btf/vmlinux format c > /build/bpf/vmlinux.h
+# vmlinux.h must be pre-generated on a Linux host with BTF support and placed in bpf/vmlinux.h
+# See bpf/vmlinux.h for generation instructions
 
 RUN clang -O2 -g -target bpf -D__TARGET_ARCH_x86 \
     -c /build/bpf/cpu_sched.bpf.c -o /build/bpf/cpu_sched.bpf.o && \
@@ -49,5 +49,7 @@ COPY --from=jni-builder /build/jni/build/libkpod_bpf.so /app/lib/
 COPY --from=app-builder /build/build/libs/*.jar /app/kpod-metrics.jar
 
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+UseG1GC -Xss256k"
+
+EXPOSE 9090
 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -Djava.library.path=/app/lib -jar /app/kpod-metrics.jar"]

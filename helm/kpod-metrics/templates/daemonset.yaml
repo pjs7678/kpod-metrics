@@ -8,10 +8,12 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: kpod-metrics
+      app.kubernetes.io/instance: {{ .Release.Name }}
   template:
     metadata:
       labels:
         app.kubernetes.io/name: kpod-metrics
+        app.kubernetes.io/instance: {{ .Release.Name }}
       annotations:
         {{- toYaml .Values.podAnnotations | nindent 8 }}
     spec:
@@ -67,9 +69,11 @@ spec:
         - name: sys-kernel-btf
           hostPath:
             path: /sys/kernel/btf
+            type: Directory
         - name: sys-fs-cgroup
           hostPath:
             path: /sys/fs/cgroup
+            type: Directory
         - name: proc
           hostPath:
             path: /proc
@@ -77,5 +81,7 @@ spec:
         - name: config
           configMap:
             name: {{ .Release.Name }}-config
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
       tolerations:
         {{- toYaml .Values.tolerations | nindent 8 }}

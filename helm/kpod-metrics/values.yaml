@@ -16,6 +16,9 @@ podAnnotations:
   prometheus.io/port: "9090"
   prometheus.io/path: "/actuator/prometheus"
 
+nodeSelector:
+  kubernetes.io/os: linux
+
 tolerations:
   - operator: Exists
 
