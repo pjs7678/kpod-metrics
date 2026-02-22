@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: kpod-metrics
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: 9090
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus, info
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+kpod:
+  profile: standard
+  poll-interval: 15000
+  node-name: ${NODE_NAME:unknown}
+  bpf:
+    enabled: true
+    program-dir: /app/bpf
