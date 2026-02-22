@@ -23,20 +23,6 @@ struct {
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
     __uint(max_entries, MAX_ENTRIES);
-    __type(key, __u64);
-    __type(value, __u64);
-} conn_start SEC(".maps");
-
-struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
-    __uint(max_entries, MAX_ENTRIES);
-    __type(key, struct hist_key);
-    __type(value, struct hist_value);
-} conn_latency SEC(".maps");
-
-struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
-    __uint(max_entries, MAX_ENTRIES);
     __type(key, struct hist_key);
     __type(value, struct hist_value);
 } rtt_hist SEC(".maps");
@@ -55,6 +41,14 @@ int BPF_KPROBE(handle_tcp_sendmsg, struct sock *sk, struct msghdr *msg, size_t s
     return 0;
 }
 
+/*
+ * TODO: 'len' is the userspace buffer size, not the actual number of bytes
+ * received. This makes bytes_received an upper-bound approximation. To get
+ * the true received byte count, a kretprobe on tcp_recvmsg would be needed
+ * (the return value is the actual byte count), combined with this kprobe to
+ * capture the socket pointer and cgroup_id. Acceptable as-is for monitoring
+ * purposes where an upper-bound estimate is sufficient.
+ */
 SEC("kprobe/tcp_recvmsg")
 int BPF_KPROBE(handle_tcp_recvmsg, struct sock *sk, struct msghdr *msg,
                size_t len, int flags, int *addr_len) {

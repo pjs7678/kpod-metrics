@@ -36,6 +36,22 @@ int handle_sched_wakeup(struct trace_event_raw_sched_wakeup_template *ctx) {
 SEC("tp/sched/sched_switch")
 int handle_sched_switch(struct trace_event_raw_sched_switch *ctx) {
     __u32 next_pid = ctx->next_pid;
+    /*
+     * bpf_get_current_cgroup_id() returns the cgroup of the outgoing task
+     * (i.e. the task being switched OUT), not the incoming task (next_pid).
+     *
+     * For ctx_switches this is semantically correct: the outgoing task is
+     * the one performing the context switch.
+     *
+     * TODO: For runq_latency below, the latency value is correct (time
+     * next_pid spent waiting in the run queue), but it is attributed to the
+     * outgoing task's cgroup rather than next_pid's cgroup. Properly
+     * resolving the incoming task's cgroup requires reading from the
+     * task_struct via bpf_get_current_task_btf() or maintaining a separate
+     * pid-to-cgroup map, which adds significant complexity. This is a known
+     * limitation -- the cgroup attribution for runq_latency may be wrong
+     * when the incoming and outgoing tasks belong to different cgroups.
+     */
     __u64 cgroup_id = bpf_get_current_cgroup_id();
 
     struct counter_key ckey = { .cgroup_id = cgroup_id };

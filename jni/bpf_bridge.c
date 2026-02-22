@@ -7,6 +7,14 @@
 #include <stdarg.h>
 #include <stdint.h>
 
+#define MAX_BPF_LINKS 32
+
+struct bpf_obj_wrapper {
+    struct bpf_object *obj;
+    struct bpf_link *links[MAX_BPF_LINKS];
+    int link_count;
+};
+
 static void throw_bpf_exception(JNIEnv *env, const char *class_name, const char *fmt, ...) {
     char buf[512];
     va_list args;
@@ -43,7 +51,14 @@ JNIEXPORT jlong JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeOpenOb
         throw_load_exception(env, errmsg);
         return 0;
     }
-    return (jlong)(uintptr_t)obj;
+    struct bpf_obj_wrapper *wrapper = calloc(1, sizeof(*wrapper));
+    if (!wrapper) {
+        bpf_object__close(obj);
+        throw_load_exception(env, "Failed to allocate BPF object wrapper");
+        return 0;
+    }
+    wrapper->obj = obj;
+    return (jlong)(uintptr_t)wrapper;
 }
 
 JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeLoadObject(
@@ -52,8 +67,8 @@ JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeLoadObj
         throw_load_exception(env, "Null BPF object pointer");
         return -1;
     }
-    struct bpf_object *obj = (struct bpf_object *)(uintptr_t)ptr;
-    int err = bpf_object__load(obj);
+    struct bpf_obj_wrapper *wrapper = (struct bpf_obj_wrapper *)(uintptr_t)ptr;
+    int err = bpf_object__load(wrapper->obj);
     if (err) {
         char errmsg[256];
         snprintf(errmsg, sizeof(errmsg), "Failed to load BPF object: %s (errno=%d)",
@@ -70,9 +85,13 @@ JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeAttachA
         throw_load_exception(env, "Null BPF object pointer");
         return -1;
     }
-    struct bpf_object *obj = (struct bpf_object *)(uintptr_t)ptr;
+    struct bpf_obj_wrapper *wrapper = (struct bpf_obj_wrapper *)(uintptr_t)ptr;
     struct bpf_program *prog;
-    bpf_object__for_each_program(prog, obj) {
+    bpf_object__for_each_program(prog, wrapper->obj) {
+        if (wrapper->link_count >= MAX_BPF_LINKS) {
+            throw_load_exception(env, "Too many BPF programs to attach (max 32)");
+            return -1;
+        }
         struct bpf_link *link = bpf_program__attach(prog);
         if (!link) {
             char errmsg[256];
@@ -81,6 +100,7 @@ JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeAttachA
             throw_load_exception(env, errmsg);
             return -1;
         }
+        wrapper->links[wrapper->link_count++] = link;
     }
     return 0;
 }
@@ -88,8 +108,12 @@ JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeAttachA
 JNIEXPORT void JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeDestroyObject(
     JNIEnv *env, jobject self, jlong ptr) {
     if (ptr == 0) return;
-    struct bpf_object *obj = (struct bpf_object *)(uintptr_t)ptr;
-    bpf_object__close(obj);
+    struct bpf_obj_wrapper *wrapper = (struct bpf_obj_wrapper *)(uintptr_t)ptr;
+    for (int i = 0; i < wrapper->link_count; i++) {
+        bpf_link__destroy(wrapper->links[i]);
+    }
+    bpf_object__close(wrapper->obj);
+    free(wrapper);
 }
 
 JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeGetMapFd(
@@ -103,8 +127,8 @@ JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeGetMapF
         throw_map_exception(env, "Failed to get map name string");
         return -1;
     }
-    struct bpf_object *obj = (struct bpf_object *)(uintptr_t)objPtr;
-    struct bpf_map *map = bpf_object__find_map_by_name(obj, name_str);
+    struct bpf_obj_wrapper *wrapper = (struct bpf_obj_wrapper *)(uintptr_t)objPtr;
+    struct bpf_map *map = bpf_object__find_map_by_name(wrapper->obj, name_str);
     (*env)->ReleaseStringUTFChars(env, mapName, name_str);
     if (!map) {
         throw_map_exception(env, "Map not found");
