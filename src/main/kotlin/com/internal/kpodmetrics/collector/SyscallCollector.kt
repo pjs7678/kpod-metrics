@@ -26,12 +26,23 @@ class SyscallCollector(
         private const val VALUE_SIZE = 240
         private const val MAX_SLOTS = 27
 
-        private val SYSCALL_NAMES = mapOf(
+        // Syscall number-to-name mappings per architecture
+        private val SYSCALL_NAMES_X86_64 = mapOf(
             0 to "read", 1 to "write", 2 to "open", 3 to "close",
             42 to "connect", 43 to "accept", 44 to "sendto", 45 to "recvfrom",
             46 to "sendmsg", 47 to "recvmsg", 232 to "epoll_wait",
             257 to "openat", 288 to "accept4", 202 to "futex"
         )
+        private val SYSCALL_NAMES_ARM64 = mapOf(
+            56 to "openat", 57 to "close", 63 to "read", 64 to "write",
+            198 to "socket", 200 to "bind", 203 to "connect", 202 to "accept",
+            206 to "sendto", 207 to "recvfrom", 211 to "sendmsg", 212 to "recvmsg",
+            22 to "epoll_pwait", 242 to "accept4", 98 to "futex"
+        )
+        private val SYSCALL_NAMES: Map<Int, String> = run {
+            val arch = System.getProperty("os.arch") ?: ""
+            if (arch == "aarch64" || arch == "arm64") SYSCALL_NAMES_ARM64 else SYSCALL_NAMES_X86_64
+        }
     }
 
     fun collect() {

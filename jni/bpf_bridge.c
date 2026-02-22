@@ -37,6 +37,7 @@ static void throw_map_exception(JNIEnv *env, const char *msg) {
 
 JNIEXPORT jlong JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeOpenObject(
     JNIEnv *env, jobject self, jstring path) {
+    (void)self;
     const char *path_str = (*env)->GetStringUTFChars(env, path, NULL);
     if (!path_str) {
         throw_load_exception(env, "Failed to get path string");
@@ -63,6 +64,7 @@ JNIEXPORT jlong JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeOpenOb
 
 JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeLoadObject(
     JNIEnv *env, jobject self, jlong ptr) {
+    (void)self;
     if (ptr == 0) {
         throw_load_exception(env, "Null BPF object pointer");
         return -1;
@@ -81,6 +83,7 @@ JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeLoadObj
 
 JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeAttachAll(
     JNIEnv *env, jobject self, jlong ptr) {
+    (void)self;
     if (ptr == 0) {
         throw_load_exception(env, "Null BPF object pointer");
         return -1;
@@ -107,6 +110,7 @@ JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeAttachA
 
 JNIEXPORT void JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeDestroyObject(
     JNIEnv *env, jobject self, jlong ptr) {
+    (void)env; (void)self;
     if (ptr == 0) return;
     struct bpf_obj_wrapper *wrapper = (struct bpf_obj_wrapper *)(uintptr_t)ptr;
     for (int i = 0; i < wrapper->link_count; i++) {
@@ -118,6 +122,7 @@ JNIEXPORT void JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeDestroy
 
 JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeGetMapFd(
     JNIEnv *env, jobject self, jlong objPtr, jstring mapName) {
+    (void)self;
     if (objPtr == 0) {
         throw_map_exception(env, "Null BPF object pointer");
         return -1;
@@ -139,7 +144,7 @@ JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeGetMapF
 
 JNIEXPORT jbyteArray JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeMapLookup(
     JNIEnv *env, jobject self, jint mapFd, jbyteArray key, jint valueSize) {
-    jsize keyLen = (*env)->GetArrayLength(env, key);
+    (void)self;
     jbyte *keyBuf = (*env)->GetByteArrayElements(env, key, NULL);
     if (!keyBuf) return NULL;
     void *valueBuf = malloc(valueSize);
@@ -164,6 +169,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeM
 
 JNIEXPORT jbyteArray JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeMapGetNextKey(
     JNIEnv *env, jobject self, jint mapFd, jbyteArray key, jint keySize) {
+    (void)self;
     void *nextKeyBuf = malloc(keySize);
     if (!nextKeyBuf) {
         throw_map_exception(env, "malloc failed for next key buffer");
@@ -195,6 +201,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeM
 
 JNIEXPORT void JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeMapDelete(
     JNIEnv *env, jobject self, jint mapFd, jbyteArray key) {
+    (void)self;
     jbyte *keyBuf = (*env)->GetByteArrayElements(env, key, NULL);
     if (!keyBuf) return;
     bpf_map_delete_elem(mapFd, keyBuf);

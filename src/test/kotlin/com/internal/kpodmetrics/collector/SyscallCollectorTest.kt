@@ -19,6 +19,12 @@ class SyscallCollectorTest {
     private lateinit var registry: MeterRegistry
     private lateinit var collector: SyscallCollector
 
+    private val isArm64 = System.getProperty("os.arch").let { it == "aarch64" || it == "arm64" }
+    // Syscall numbers differ per architecture
+    private val writeSyscallNr = if (isArm64) 64 else 1
+    private val readSyscallNr = if (isArm64) 63 else 0
+    private val connectSyscallNr = if (isArm64) 203 else 42
+
     @BeforeEach
     fun setup() {
         bridge = mockk(relaxed = true)
@@ -39,7 +45,7 @@ class SyscallCollectorTest {
     fun `collect reads syscall stats map and registers metrics with syscall label`() {
         every { programManager.getMapFd("syscall", "syscall_stats_map") } returns 30
 
-        val keyBytes = buildSyscallKey(cgroupId = 100L, syscallNr = 1) // write
+        val keyBytes = buildSyscallKey(cgroupId = 100L, syscallNr = writeSyscallNr) // write
         every { bridge.mapGetNextKey(30, null, 16) } returns keyBytes
         every { bridge.mapGetNextKey(30, keyBytes, 16) } returns null
 
@@ -113,10 +119,8 @@ class SyscallCollectorTest {
     fun `collect resolves known syscall names correctly`() {
         every { programManager.getMapFd("syscall", "syscall_stats_map") } returns 30
 
-        // Test with "read" (syscall 0)
-        val keyRead = buildSyscallKey(cgroupId = 100L, syscallNr = 0)
-        // Test with "connect" (syscall 42)
-        val keyConnect = buildSyscallKey(cgroupId = 100L, syscallNr = 42)
+        val keyRead = buildSyscallKey(cgroupId = 100L, syscallNr = readSyscallNr)
+        val keyConnect = buildSyscallKey(cgroupId = 100L, syscallNr = connectSyscallNr)
 
         every { bridge.mapGetNextKey(30, null, 16) } returns keyRead
         every { bridge.mapGetNextKey(30, keyRead, 16) } returns keyConnect

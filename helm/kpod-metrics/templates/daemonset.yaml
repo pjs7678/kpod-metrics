@@ -34,7 +34,7 @@ spec:
             - name: SPRING_CONFIG_ADDITIONAL_LOCATION
               value: /app/config/
           securityContext:
-            privileged: false
+            privileged: {{ .Values.securityContext.privileged }}
             capabilities:
               add:
                 - BPF
@@ -49,6 +49,12 @@ spec:
               readOnly: true
             - name: sys-fs-cgroup
               mountPath: /sys/fs/cgroup
+              readOnly: true
+            - name: tracefs
+              mountPath: /sys/kernel/tracing
+              readOnly: true
+            - name: debugfs
+              mountPath: /sys/kernel/debug
               readOnly: true
             - name: proc
               mountPath: /host/proc
@@ -75,6 +81,14 @@ spec:
         - name: sys-fs-cgroup
           hostPath:
             path: /sys/fs/cgroup
+            type: Directory
+        - name: tracefs
+          hostPath:
+            path: /sys/kernel/tracing
+            type: Directory
+        - name: debugfs
+          hostPath:
+            path: /sys/kernel/debug
             type: Directory
         - name: proc
           hostPath:
