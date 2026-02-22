@@ -41,7 +41,7 @@ RUN gradle bootJar --no-daemon
 # Stage 4: Runtime
 FROM eclipse-temurin:21-jre-jammy
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libelf1 zlib1g \
+    libelf1 zlib1g libbpf0 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=bpf-builder /build/bpf/*.bpf.o /app/bpf/

@@ -31,6 +31,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: SPRING_CONFIG_ADDITIONAL_LOCATION
+              value: /app/config/
           securityContext:
             privileged: false
             capabilities:
