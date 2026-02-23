@@ -186,8 +186,12 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
     fun onStartup() {
         programManager?.let {
             log.info("Loading BPF programs from {}", props.bpf.programDir)
-            it.loadAll()
-            log.info("BPF programs loaded successfully")
+            try {
+                it.loadAll()
+                log.info("BPF programs loaded successfully")
+            } catch (e: Exception) {
+                log.warn("BPF program loading failed (kernel may not support tracing); cgroup collectors will still run: {}", e.message)
+            }
         }
         podWatcherInstance?.let {
             try {

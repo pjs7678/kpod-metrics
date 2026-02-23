@@ -1,0 +1,176 @@
+# Stress workloads for kpod-metrics local K8s testing.
+# Exercises CPU, memory, disk I/O, and network metrics collection.
+# All pods run for ~5 minutes with restartPolicy: Never.
+---
+# 1. CPU + Memory stress (exercises kpod_cpu_* and kpod_mem_* metrics)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: stress-cpu-mem
+  labels:
+    app: stress-test
+    workload: cpu-mem
+spec:
+  restartPolicy: Never
+  containers:
+    - name: stress
+      image: alexeiled/stress-ng:latest
+      args:
+        - --cpu
+        - "2"
+        - --vm
+        - "1"
+        - --vm-bytes
+        - "64M"
+        - --timeout
+        - "300"
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 256Mi
+---
+# 2. Disk I/O stress (exercises kpod_disk_* metrics)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: stress-disk-io
+  labels:
+    app: stress-test
+    workload: disk-io
+spec:
+  restartPolicy: Never
+  containers:
+    - name: disk-io
+      image: busybox:latest
+      command:
+        - /bin/sh
+        - -c
+        - |
+          end=$(($(date +%s) + 300))
+          while [ $(date +%s) -lt $end ]; do
+            dd if=/dev/zero of=/tmp/testfile bs=1M count=10 conv=fsync 2>/dev/null
+            dd if=/tmp/testfile of=/dev/null bs=1M 2>/dev/null
+            rm -f /tmp/testfile
+            sleep 1
+          done
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 200m
+          memory: 128Mi
+---
+# 3a. Network server (exercises kpod_net_iface_* and kpod_net_tcp_* metrics)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: stress-net-server
+  labels:
+    app: stress-test
+    workload: net-server
+spec:
+  restartPolicy: Never
+  containers:
+    - name: nginx
+      image: nginx:alpine
+      ports:
+        - containerPort: 80
+      resources:
+        requests:
+          cpu: 50m
+          memory: 32Mi
+        limits:
+          cpu: 200m
+          memory: 64Mi
+      # Keep running for 5 min then exit
+      lifecycle:
+        preStop:
+          exec:
+            command: ["/bin/sh", "-c", "nginx -s quit"]
+---
+# 3b. Service to expose the network server
+apiVersion: v1
+kind: Service
+metadata:
+  name: stress-net-server
+  labels:
+    app: stress-test
+spec:
+  selector:
+    workload: net-server
+  ports:
+    - port: 80
+      targetPort: 80
+---
+# 3c. Network client (generates traffic to the server)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: stress-net-client
+  labels:
+    app: stress-test
+    workload: net-client
+spec:
+  restartPolicy: Never
+  containers:
+    - name: wget-loop
+      image: busybox:latest
+      command:
+        - /bin/sh
+        - -c
+        - |
+          # Wait for server to be ready
+          sleep 10
+          end=$(($(date +%s) + 290))
+          while [ $(date +%s) -lt $end ]; do
+            wget -q -O /dev/null http://stress-net-server/ 2>/dev/null || true
+            sleep 0.5
+          done
+      resources:
+        requests:
+          cpu: 50m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 64Mi
+---
+# 4. Mixed workload (filesystem reads, syscalls, small writes)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: stress-mixed
+  labels:
+    app: stress-test
+    workload: mixed
+spec:
+  restartPolicy: Never
+  containers:
+    - name: mixed
+      image: busybox:latest
+      command:
+        - /bin/sh
+        - -c
+        - |
+          end=$(($(date +%s) + 300))
+          while [ $(date +%s) -lt $end ]; do
+            # Filesystem reads
+            ls -laR /etc >/dev/null 2>&1
+            cat /proc/meminfo >/dev/null 2>&1
+            cat /proc/stat >/dev/null 2>&1
+            # Small file writes
+            echo "test data $(date)" >> /tmp/mixed-log.txt
+            # Syscall activity (stat, open, read, write)
+            wc -l /tmp/mixed-log.txt >/dev/null 2>&1
+            sleep 2
+          done
+      resources:
+        requests:
+          cpu: 50m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 64Mi
