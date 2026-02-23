@@ -61,4 +61,28 @@ class MetricsPropertiesTest {
     fun `node name is bound correctly`() {
         assertEquals("test-node", props.nodeName)
     }
+
+    @Test
+    fun `standard profile enables diskIO, interfaceNet, and filesystem cgroup collectors`() {
+        val resolved = props.resolveProfile()
+        assertTrue(resolved.cgroup.diskIO)
+        assertTrue(resolved.cgroup.interfaceNetwork)
+        assertTrue(resolved.cgroup.filesystem)
+    }
+
+    @Test
+    fun `minimal profile enables only diskIO cgroup collector`() {
+        val resolved = props.resolveProfile(override = "minimal")
+        assertTrue(resolved.cgroup.diskIO)
+        assertFalse(resolved.cgroup.interfaceNetwork)
+        assertFalse(resolved.cgroup.filesystem)
+    }
+
+    @Test
+    fun `comprehensive profile enables all cgroup collectors`() {
+        val resolved = props.resolveProfile(override = "comprehensive")
+        assertTrue(resolved.cgroup.diskIO)
+        assertTrue(resolved.cgroup.interfaceNetwork)
+        assertTrue(resolved.cgroup.filesystem)
+    }
 }
