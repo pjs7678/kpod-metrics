@@ -1,5 +1,7 @@
 package com.internal.kpodmetrics.collector
 
+import com.internal.kpodmetrics.discovery.PodCgroupMapper
+import com.internal.kpodmetrics.model.PodCgroupTarget
 import io.mockk.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.BeforeEach
@@ -37,5 +39,26 @@ class MetricsCollectorServiceTest {
         verify { cpuCollector.collect() }
         verify { memCollector.collect() }
         verify { syscallCollector.collect() }
+    }
+
+    @Test
+    fun `collect runs cgroup collectors with resolved targets`() {
+        val diskIOCollector = mockk<DiskIOCollector>(relaxed = true)
+        val ifaceNetCollector = mockk<InterfaceNetworkCollector>(relaxed = true)
+        val fsCollector = mockk<FilesystemCollector>(relaxed = true)
+        val mapper = mockk<PodCgroupMapper>()
+        val targets = listOf(PodCgroupTarget("pod", "ns", "c", "/cg", "node"))
+        every { mapper.resolve() } returns targets
+
+        val serviceWithCgroup = MetricsCollectorService(
+            cpuCollector, netCollector, memCollector, syscallCollector,
+            diskIOCollector, ifaceNetCollector, fsCollector, mapper
+        )
+        serviceWithCgroup.collect()
+
+        verify { diskIOCollector.collect(targets) }
+        verify { ifaceNetCollector.collect(targets) }
+        verify { fsCollector.collect(targets) }
+        serviceWithCgroup.close()
     }
 }
