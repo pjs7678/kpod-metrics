@@ -8,8 +8,20 @@ data:
       profile: {{ .Values.config.profile }}
       poll-interval: {{ .Values.config.pollInterval }}
       node-name: ${NODE_NAME}
+      discovery:
+        mode: ${KPOD_DISCOVERY_MODE:informer}
+        kubelet-poll-interval: {{ .Values.config.discovery.kubeletPollInterval }}
+        node-ip: ${NODE_IP:}
       bpf:
         program-dir: /app/bpf
+      cgroup:
+        root: {{ .Values.config.cgroup.root }}
+        proc-root: {{ .Values.config.cgroup.procRoot }}
+      filter:
+        namespaces: []
+        exclude-namespaces:
+          - kube-system
+          - kube-public
     spring:
       threads:
         virtual:

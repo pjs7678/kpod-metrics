@@ -31,6 +31,12 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: KPOD_DISCOVERY_MODE
+              value: {{ .Values.config.discovery.mode }}
             - name: SPRING_CONFIG_ADDITIONAL_LOCATION
               value: /app/config/
           securityContext:

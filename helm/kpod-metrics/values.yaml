@@ -30,3 +30,9 @@ securityContext:
 config:
   profile: standard
   pollInterval: 15000
+  discovery:
+    mode: informer
+    kubeletPollInterval: 30
+  cgroup:
+    root: /sys/fs/cgroup
+    procRoot: /host/proc
