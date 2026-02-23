@@ -3,6 +3,9 @@ package com.internal.kpodmetrics.k8s
 import com.internal.kpodmetrics.bpf.CgroupResolver
 import com.internal.kpodmetrics.bpf.PodInfo
 import com.internal.kpodmetrics.config.FilterProperties
+import com.internal.kpodmetrics.config.MetricsProperties
+import com.internal.kpodmetrics.discovery.PodProvider
+import com.internal.kpodmetrics.model.QosClass
 import io.fabric8.kubernetes.api.model.ContainerStatusBuilder
 import io.fabric8.kubernetes.api.model.PodBuilder
 import io.fabric8.kubernetes.api.model.PodStatusBuilder
@@ -102,5 +105,48 @@ class PodWatcherTest {
         val path = PodWatcher.parseCgroupPathFromProc(content)
         // Should return the v2 path (starts with 0::)
         assertEquals("/kubepods.slice/kubepods-burstable.slice/cri-containerd-xyz.scope", path)
+    }
+
+    @Test
+    fun `toDiscoveredPod converts fabric8 Pod to DiscoveredPod`() {
+        val pod = PodBuilder()
+            .withNewMetadata()
+                .withName("nginx-abc")
+                .withNamespace("default")
+                .withUid("pod-uid-123")
+            .endMetadata()
+            .withNewSpec()
+                .addNewContainer().withName("nginx").endContainer()
+            .endSpec()
+            .withStatus(PodStatusBuilder()
+                .withQosClass("Burstable")
+                .withContainerStatuses(
+                    ContainerStatusBuilder()
+                        .withName("nginx")
+                        .withContainerID("containerd://aabbccdd1122")
+                        .build()
+                )
+                .build())
+            .build()
+
+        val discovered = PodWatcher.toDiscoveredPod(pod)
+        assertNotNull(discovered)
+        assertEquals("pod-uid-123", discovered!!.uid)
+        assertEquals("nginx-abc", discovered.name)
+        assertEquals("default", discovered.namespace)
+        assertEquals(QosClass.BURSTABLE, discovered.qosClass)
+        assertEquals(1, discovered.containers.size)
+        assertEquals("nginx", discovered.containers[0].name)
+        assertEquals("aabbccdd1122", discovered.containers[0].containerId)
+    }
+
+    @Test
+    fun `PodWatcher implements PodProvider`() {
+        val resolver = CgroupResolver()
+        val props = MetricsProperties(nodeName = "test-node")
+        val client = io.mockk.mockk<io.fabric8.kubernetes.client.KubernetesClient>(relaxed = true)
+        val watcher = PodWatcher(client, resolver, props)
+        assertTrue(watcher is PodProvider)
+        assertTrue(watcher.getDiscoveredPods().isEmpty())
     }
 }

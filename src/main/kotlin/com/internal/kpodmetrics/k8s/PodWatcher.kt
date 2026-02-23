@@ -4,6 +4,10 @@ import com.internal.kpodmetrics.bpf.CgroupResolver
 import com.internal.kpodmetrics.bpf.PodInfo
 import com.internal.kpodmetrics.config.FilterProperties
 import com.internal.kpodmetrics.config.MetricsProperties
+import com.internal.kpodmetrics.discovery.PodProvider
+import com.internal.kpodmetrics.model.ContainerInfo
+import com.internal.kpodmetrics.model.DiscoveredPod
+import com.internal.kpodmetrics.model.QosClass
 import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.Watch
@@ -13,14 +17,19 @@ import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.BasicFileAttributes
+import java.util.concurrent.ConcurrentHashMap
 
 class PodWatcher(
     private val kubernetesClient: KubernetesClient,
     private val cgroupResolver: CgroupResolver,
     private val properties: MetricsProperties
-) {
+) : PodProvider {
     private val log = LoggerFactory.getLogger(PodWatcher::class.java)
     private var watch: Watch? = null
+    private val discoveredPods = ConcurrentHashMap<String, DiscoveredPod>()
+
+    override fun getDiscoveredPods(): Map<String, DiscoveredPod> =
+        discoveredPods.toMap()
 
     fun start() {
         val nodeName = properties.nodeName
@@ -63,6 +72,8 @@ class PodWatcher(
                             log.debug(
                                 "Pod deleted: {}/{}", pod.metadata.namespace, pod.metadata.name
                             )
+                            // Remove from discoveredPods so cgroup collectors stop targeting it
+                            pod.metadata?.uid?.let { uid -> discoveredPods.remove(uid) }
                             // Cgroup entries become stale but will not match new BPF events;
                             // a periodic eviction could be added later if memory is a concern.
                         }
@@ -89,7 +100,8 @@ class PodWatcher(
     }
 
     /**
-     * Registers all containers from a pod into the CgroupResolver.
+     * Registers all containers from a pod into the CgroupResolver,
+     * and tracks the pod as a DiscoveredPod for cgroup-based collectors.
      * Returns the number of containers successfully registered.
      */
     private fun registerPod(pod: Pod): Int {
@@ -106,6 +118,12 @@ class PodWatcher(
                 pod.metadata.namespace, pod.metadata.name, podInfos.size
             )
         }
+
+        // Track as DiscoveredPod for cgroup-based collectors
+        toDiscoveredPod(pod)?.let { discovered ->
+            discoveredPods[discovered.uid] = discovered
+        }
+
         return count
     }
 
@@ -187,6 +205,35 @@ class PodWatcher(
                 }
             }
             return null
+        }
+
+        fun toDiscoveredPod(pod: Pod): DiscoveredPod? {
+            val metadata = pod.metadata ?: return null
+            val uid = metadata.uid ?: return null
+            val status = pod.status ?: return null
+
+            val qosClass = when (status.qosClass?.uppercase()) {
+                "GUARANTEED" -> QosClass.GUARANTEED
+                "BURSTABLE" -> QosClass.BURSTABLE
+                "BESTEFFORT" -> QosClass.BEST_EFFORT
+                else -> QosClass.BEST_EFFORT
+            }
+
+            val containers = (status.containerStatuses ?: emptyList()).mapNotNull { cs ->
+                val rawId = cs.containerID ?: return@mapNotNull null
+                ContainerInfo(
+                    name = cs.name,
+                    containerId = rawId.substringAfter("://")
+                )
+            }
+
+            return DiscoveredPod(
+                uid = uid,
+                name = metadata.name ?: return null,
+                namespace = metadata.namespace ?: return null,
+                qosClass = qosClass,
+                containers = containers
+            )
         }
 
         fun extractPodInfos(pod: Pod): List<PodInfo> {
