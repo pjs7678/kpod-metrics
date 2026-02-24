@@ -227,6 +227,8 @@ JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeMapBatc
     jint mapFd, jbyteArray keys, jbyteArray values,
     jint keySize, jint valueSize, jint maxBatch) {
     (void)self;
+    (void)keySize;
+    (void)valueSize;
 
     jbyte *keysBuf = (*env)->GetByteArrayElements(env, keys, NULL);
     if (!keysBuf) return -1;
