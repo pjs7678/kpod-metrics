@@ -46,11 +46,9 @@ class SyscallCollectorTest {
         every { programManager.getMapFd("syscall", "syscall_stats_map") } returns 30
 
         val keyBytes = buildSyscallKey(cgroupId = 100L, syscallNr = writeSyscallNr) // write
-        every { bridge.mapGetNextKey(30, null, 16) } returns keyBytes
-        every { bridge.mapGetNextKey(30, keyBytes, 16) } returns null
 
         val valueBytes = buildSyscallStatsValue(count = 50, errorCount = 2, latencySumNs = 5_000_000L)
-        every { bridge.mapLookup(30, keyBytes, 240) } returns valueBytes
+        every { bridge.mapBatchLookupAndDelete(30, 16, 240, any()) } returns listOf(keyBytes to valueBytes)
 
         collector.collect()
 
@@ -75,11 +73,9 @@ class SyscallCollectorTest {
         every { programManager.getMapFd("syscall", "syscall_stats_map") } returns 30
 
         val keyBytes = buildSyscallKey(cgroupId = 100L, syscallNr = 999)
-        every { bridge.mapGetNextKey(30, null, 16) } returns keyBytes
-        every { bridge.mapGetNextKey(30, keyBytes, 16) } returns null
 
         val valueBytes = buildSyscallStatsValue(count = 10, errorCount = 0, latencySumNs = 1000L)
-        every { bridge.mapLookup(30, keyBytes, 240) } returns valueBytes
+        every { bridge.mapBatchLookupAndDelete(30, 16, 240, any()) } returns listOf(keyBytes to valueBytes)
 
         collector.collect()
 
@@ -93,9 +89,9 @@ class SyscallCollectorTest {
         every { programManager.getMapFd("syscall", "syscall_stats_map") } returns 30
 
         val keyBytes = buildSyscallKey(cgroupId = 999L, syscallNr = 0)
-        every { bridge.mapGetNextKey(30, null, 16) } returns keyBytes
-        every { bridge.mapGetNextKey(30, keyBytes, 16) } returns null
-        every { bridge.mapLookup(30, keyBytes, 240) } returns buildSyscallStatsValue(5, 0, 500L)
+        every { bridge.mapBatchLookupAndDelete(30, 16, 240, any()) } returns listOf(
+            keyBytes to buildSyscallStatsValue(5, 0, 500L)
+        )
 
         collector.collect()
 
@@ -122,12 +118,10 @@ class SyscallCollectorTest {
         val keyRead = buildSyscallKey(cgroupId = 100L, syscallNr = readSyscallNr)
         val keyConnect = buildSyscallKey(cgroupId = 100L, syscallNr = connectSyscallNr)
 
-        every { bridge.mapGetNextKey(30, null, 16) } returns keyRead
-        every { bridge.mapGetNextKey(30, keyRead, 16) } returns keyConnect
-        every { bridge.mapGetNextKey(30, keyConnect, 16) } returns null
-
-        every { bridge.mapLookup(30, keyRead, 240) } returns buildSyscallStatsValue(10, 1, 100L)
-        every { bridge.mapLookup(30, keyConnect, 240) } returns buildSyscallStatsValue(20, 0, 200L)
+        every { bridge.mapBatchLookupAndDelete(30, 16, 240, any()) } returns listOf(
+            keyRead to buildSyscallStatsValue(10, 1, 100L),
+            keyConnect to buildSyscallStatsValue(20, 0, 200L)
+        )
 
         collector.collect()
 

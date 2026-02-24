@@ -97,6 +97,14 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
 
     @Bean
     @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun bpfMapStatsCollector(
+        bridge: BpfBridge,
+        manager: BpfProgramManager,
+        registry: MeterRegistry
+    ) = BpfMapStatsCollector(bridge, manager, registry)
+
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
     fun syscallCollector(
         bridge: BpfBridge,
         manager: BpfProgramManager,
@@ -169,14 +177,22 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         diskIOCollector: Optional<DiskIOCollector>,
         ifaceNetCollector: Optional<InterfaceNetworkCollector>,
         fsCollector: Optional<FilesystemCollector>,
-        podCgroupMapper: PodCgroupMapper
+        podCgroupMapper: PodCgroupMapper,
+        bridge: BpfBridge,
+        manager: BpfProgramManager,
+        cgroupResolver: CgroupResolver,
+        bpfMapStatsCollector: BpfMapStatsCollector
     ): MetricsCollectorService {
         val service = MetricsCollectorService(
             cpuCollector, netCollector, memCollector, syscallCollector,
             diskIOCollector.orElse(null),
             ifaceNetCollector.orElse(null),
             fsCollector.orElse(null),
-            podCgroupMapper
+            podCgroupMapper,
+            bridge,
+            manager,
+            cgroupResolver,
+            bpfMapStatsCollector
         )
         this.metricsCollectorServiceInstance = service
         return service
@@ -193,9 +209,14 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
                 log.warn("BPF program loading failed (kernel may not support tracing); cgroup collectors will still run: {}", e.message)
             }
         }
-        podWatcherInstance?.let {
+        podWatcherInstance?.let { watcher ->
+            metricsCollectorServiceInstance?.let { service ->
+                watcher.setOnPodDeletedCallback { cgroupId ->
+                    service.cleanupCgroupEntries(cgroupId)
+                }
+            }
             try {
-                it.start()
+                watcher.start()
             } catch (e: Exception) {
                 log.warn("Failed to start PodWatcher (K8s API may be unavailable): {}", e.message)
             }

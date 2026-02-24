@@ -24,6 +24,7 @@ class NetworkCollector(
     companion object {
         private const val KEY_SIZE = 8
         private const val TCP_STATS_VALUE_SIZE = 48
+        private const val MAX_ENTRIES = 10240
     }
 
     fun collect() {
@@ -34,9 +35,9 @@ class NetworkCollector(
 
     private fun collectTcpStats() {
         val mapFd = programManager.getMapFd("net", "tcp_stats_map")
-        iterateMap(mapFd, KEY_SIZE, TCP_STATS_VALUE_SIZE) { keyBytes, valueBytes ->
+        collectMap(mapFd, KEY_SIZE, TCP_STATS_VALUE_SIZE) { keyBytes, valueBytes ->
             val cgroupId = ByteBuffer.wrap(keyBytes).order(ByteOrder.LITTLE_ENDIAN).long
-            val podInfo = cgroupResolver.resolve(cgroupId) ?: return@iterateMap
+            val podInfo = cgroupResolver.resolve(cgroupId) ?: return@collectMap
 
             val buf = ByteBuffer.wrap(valueBytes).order(ByteOrder.LITTLE_ENDIAN)
             val bytesSent = buf.long
@@ -69,26 +70,11 @@ class NetworkCollector(
         }
     }
 
-    private fun iterateMap(
+    private fun collectMap(
         mapFd: Int, keySize: Int, valueSize: Int,
         handler: (ByteArray, ByteArray) -> Unit
     ) {
-        // Phase 1: Collect all keys (safe to iterate without deletion)
-        val keys = mutableListOf<ByteArray>()
-        var prevKey: ByteArray? = null
-        while (true) {
-            val nextKey = bridge.mapGetNextKey(mapFd, prevKey, keySize) ?: break
-            keys.add(nextKey)
-            prevKey = nextKey
-        }
-
-        // Phase 2: Lookup, handle, and delete each key (snap-and-reset)
-        for (k in keys) {
-            val value = bridge.mapLookup(mapFd, k, valueSize)
-            if (value != null) {
-                handler(k, value)
-            }
-            bridge.mapDelete(mapFd, k)
-        }
+        val entries = bridge.mapBatchLookupAndDelete(mapFd, keySize, valueSize, MAX_ENTRIES)
+        entries.forEach { (key, value) -> handler(key, value) }
     }
 }

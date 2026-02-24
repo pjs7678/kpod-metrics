@@ -42,13 +42,11 @@ class CpuSchedulingCollectorTest {
 
         val keyBytes = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN)
             .putLong(100L).array()
-        every { bridge.mapGetNextKey(5, null, 8) } returns keyBytes
-        every { bridge.mapGetNextKey(5, keyBytes, 8) } returns null
 
         val valueBytes = buildHistValue(slot = 10, count = 10, sumNs = 10000)
-        every { bridge.mapLookup(5, keyBytes, any()) } returns valueBytes
+        every { bridge.mapBatchLookupAndDelete(5, 8, 232, any()) } returns listOf(keyBytes to valueBytes)
 
-        every { bridge.mapGetNextKey(6, null, 8) } returns null
+        every { bridge.mapBatchLookupAndDelete(6, 8, 8, any()) } returns emptyList()
 
         collector.collect()
 
@@ -63,10 +61,8 @@ class CpuSchedulingCollectorTest {
 
         val keyBytes = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN)
             .putLong(999L).array()
-        every { bridge.mapGetNextKey(5, null, 8) } returns keyBytes
-        every { bridge.mapGetNextKey(5, keyBytes, 8) } returns null
-        every { bridge.mapLookup(5, keyBytes, any()) } returns buildHistValue(10, 5, 5000)
-        every { bridge.mapGetNextKey(6, null, 8) } returns null
+        every { bridge.mapBatchLookupAndDelete(5, 8, 232, any()) } returns listOf(keyBytes to buildHistValue(10, 5, 5000))
+        every { bridge.mapBatchLookupAndDelete(6, 8, 8, any()) } returns emptyList()
 
         collector.collect()
 

@@ -27,9 +27,15 @@ class PodWatcher(
     private val log = LoggerFactory.getLogger(PodWatcher::class.java)
     private var watch: Watch? = null
     private val discoveredPods = ConcurrentHashMap<String, DiscoveredPod>()
+    private val podCgroupIds = ConcurrentHashMap<String, MutableSet<Long>>()
+    private var onPodDeletedCallback: ((Long) -> Unit)? = null
 
     override fun getDiscoveredPods(): Map<String, DiscoveredPod> =
         discoveredPods.toMap()
+
+    fun setOnPodDeletedCallback(callback: (Long) -> Unit) {
+        this.onPodDeletedCallback = callback
+    }
 
     fun start() {
         val nodeName = properties.nodeName
@@ -72,10 +78,13 @@ class PodWatcher(
                             log.debug(
                                 "Pod deleted: {}/{}", pod.metadata.namespace, pod.metadata.name
                             )
-                            // Remove from discoveredPods so cgroup collectors stop targeting it
-                            pod.metadata?.uid?.let { uid -> discoveredPods.remove(uid) }
-                            // Cgroup entries become stale but will not match new BPF events;
-                            // a periodic eviction could be added later if memory is a concern.
+                            pod.metadata?.uid?.let { uid ->
+                                discoveredPods.remove(uid)
+                                podCgroupIds.remove(uid)?.forEach { cgroupId ->
+                                    cgroupResolver.onPodDeleted(cgroupId)
+                                    onPodDeletedCallback?.invoke(cgroupId)
+                                }
+                            }
                         }
                         else -> {}
                     }
@@ -106,10 +115,14 @@ class PodWatcher(
      */
     private fun registerPod(pod: Pod): Int {
         val podInfos = extractPodInfos(pod)
+        val podUid = pod.metadata?.uid
         var count = 0
         for (info in podInfos) {
             val cgroupId = resolveCgroupId(info) ?: continue
             cgroupResolver.register(cgroupId, info)
+            if (podUid != null) {
+                podCgroupIds.getOrPut(podUid) { ConcurrentHashMap.newKeySet() }.add(cgroupId)
+            }
             count++
         }
         if (podInfos.isNotEmpty() && count == 0) {

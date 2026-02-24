@@ -33,7 +33,7 @@ struct {
 } syscall_nr_map SEC(".maps");
 
 struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(type, BPF_MAP_TYPE_LRU_HASH);
     __uint(max_entries, MAX_ENTRIES);
     __type(key, struct syscall_key);
     __type(value, struct syscall_stats);
@@ -45,6 +45,8 @@ struct {
     __type(key, __u32);
     __type(value, __u8);
 } tracked_syscalls SEC(".maps");
+
+DEFINE_STATS_MAP(syscall_stats_map)
 
 SEC("raw_tracepoint/sys_enter")
 int handle_sys_enter(struct bpf_raw_tracepoint_args *ctx) {
@@ -94,7 +96,11 @@ int handle_sys_exit(struct bpf_raw_tracepoint_args *ctx) {
         __u32 slot = log2l(delta_ns);
         if (slot >= MAX_SLOTS) slot = MAX_SLOTS - 1;
         new_stats.latency_slots[slot] = 1;
-        bpf_map_update_elem(&syscall_stats_map, &key, &new_stats, BPF_NOEXIST);
+        int err = bpf_map_update_elem(&syscall_stats_map, &key, &new_stats, BPF_NOEXIST);
+        if (err)
+            STATS_INC(syscall_stats_map_stats, MAP_STAT_UPDATE_ERRORS);
+        else
+            STATS_INC(syscall_stats_map_stats, MAP_STAT_ENTRIES);
     }
     bpf_map_delete_elem(&syscall_start, &pid_tgid);
     bpf_map_delete_elem(&syscall_nr_map, &pid_tgid);

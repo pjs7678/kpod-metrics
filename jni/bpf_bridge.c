@@ -199,6 +199,12 @@ JNIEXPORT jbyteArray JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeM
     return result;
 }
 
+JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeGetNumPossibleCpus(
+    JNIEnv *env, jobject self) {
+    (void)env; (void)self;
+    return libbpf_num_possible_cpus();
+}
+
 JNIEXPORT void JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeMapDelete(
     JNIEnv *env, jobject self, jint mapFd, jbyteArray key) {
     (void)self;
@@ -206,4 +212,49 @@ JNIEXPORT void JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeMapDele
     if (!keyBuf) return;
     bpf_map_delete_elem(mapFd, keyBuf);
     (*env)->ReleaseByteArrayElements(env, key, keyBuf, JNI_ABORT);
+}
+
+/*
+ * Batch lookup-and-delete: reads up to maxBatch entries from a BPF map,
+ * copies keys and values into the caller-provided byte arrays, and deletes
+ * the entries atomically.
+ *
+ * Returns: number of entries read (>= 0), or -1 on error, or -2 if batch
+ * operations are not supported (caller should fall back to legacy path).
+ */
+JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeMapBatchLookupAndDelete(
+    JNIEnv *env, jobject self,
+    jint mapFd, jbyteArray keys, jbyteArray values,
+    jint keySize, jint valueSize, jint maxBatch) {
+    (void)self;
+
+    jbyte *keysBuf = (*env)->GetByteArrayElements(env, keys, NULL);
+    if (!keysBuf) return -1;
+    jbyte *valuesBuf = (*env)->GetByteArrayElements(env, values, NULL);
+    if (!valuesBuf) {
+        (*env)->ReleaseByteArrayElements(env, keys, keysBuf, JNI_ABORT);
+        return -1;
+    }
+
+    __u32 count = (__u32)maxBatch;
+    DECLARE_LIBBPF_OPTS(bpf_map_batch_opts, opts,
+        .elem_flags = 0,
+        .flags = 0,
+    );
+
+    int err = bpf_map_lookup_and_delete_batch(mapFd, NULL, NULL,
+        keysBuf, valuesBuf, &count, &opts);
+
+    (*env)->ReleaseByteArrayElements(env, keys, keysBuf, 0);
+    (*env)->ReleaseByteArrayElements(env, values, valuesBuf, 0);
+
+    if (err && errno == ENOSYS) {
+        return -2; /* batch not supported */
+    }
+    /* ENOENT means we read all entries (map is now empty) -- not an error */
+    if (err && errno != ENOENT) {
+        return -1;
+    }
+
+    return (jint)count;
 }

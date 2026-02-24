@@ -12,18 +12,21 @@ struct {
 } wakeup_ts SEC(".maps");
 
 struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(type, BPF_MAP_TYPE_LRU_HASH);
     __uint(max_entries, MAX_ENTRIES);
     __type(key, struct hist_key);
     __type(value, struct hist_value);
 } runq_latency SEC(".maps");
 
 struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(type, BPF_MAP_TYPE_LRU_HASH);
     __uint(max_entries, MAX_ENTRIES);
     __type(key, struct counter_key);
     __type(value, struct counter_value);
 } ctx_switches SEC(".maps");
+
+DEFINE_STATS_MAP(runq_latency)
+DEFINE_STATS_MAP(ctx_switches)
 
 SEC("tp/sched/sched_wakeup")
 int handle_sched_wakeup(struct trace_event_raw_sched_wakeup_template *ctx) {
@@ -60,7 +63,11 @@ int handle_sched_switch(struct trace_event_raw_sched_switch *ctx) {
         __sync_fetch_and_add(&cval->count, 1);
     } else {
         struct counter_value new_val = { .count = 1 };
-        bpf_map_update_elem(&ctx_switches, &ckey, &new_val, BPF_NOEXIST);
+        int err = bpf_map_update_elem(&ctx_switches, &ckey, &new_val, BPF_NOEXIST);
+        if (err)
+            STATS_INC(ctx_switches_stats, MAP_STAT_UPDATE_ERRORS);
+        else
+            STATS_INC(ctx_switches_stats, MAP_STAT_ENTRIES);
     }
 
     __u64 *tsp = bpf_map_lookup_elem(&wakeup_ts, &next_pid);
@@ -84,7 +91,11 @@ int handle_sched_switch(struct trace_event_raw_sched_switch *ctx) {
         new_val.slots[slot] = 1;
         new_val.count = 1;
         new_val.sum_ns = delta_ns;
-        bpf_map_update_elem(&runq_latency, &hkey, &new_val, BPF_NOEXIST);
+        int err = bpf_map_update_elem(&runq_latency, &hkey, &new_val, BPF_NOEXIST);
+        if (err)
+            STATS_INC(runq_latency_stats, MAP_STAT_UPDATE_ERRORS);
+        else
+            STATS_INC(runq_latency_stats, MAP_STAT_ENTRIES);
     }
 
     return 0;
