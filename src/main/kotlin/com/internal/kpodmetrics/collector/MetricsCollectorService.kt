@@ -31,7 +31,7 @@ class MetricsCollectorService(
     private val vtExecutor: ExecutorService = Executors.newVirtualThreadPerTaskExecutor()
     private val vtDispatcher = vtExecutor.asCoroutineDispatcher()
 
-    @Scheduled(fixedDelayString = "\${kpod.poll-interval:15000}")
+    @Scheduled(fixedDelayString = "\${kpod.poll-interval:30000}")
     fun collect() = runBlocking(vtDispatcher) {
         val bpfCollectors = listOfNotNull(
             "cpu" to cpuCollector::collect,

@@ -23,6 +23,8 @@ class CgroupResolver {
     private val graceCache = ConcurrentHashMap<Long, GraceCacheEntry>()
 
     companion object {
+        private const val MAX_GRACE_CACHE_SIZE = 10_000
+
         private val SYSTEMD_PATTERN = Regex(
             "kubepods-(?:burstable|besteffort|guaranteed)-pod([a-f0-9]+)\\.slice/" +
             "cri-containerd-([a-f0-9]+)\\.scope$"
@@ -67,6 +69,12 @@ class CgroupResolver {
     fun pruneGraceCache() {
         val cutoff = Instant.now().minusSeconds(5)
         graceCache.entries.removeIf { it.value.deletedAt.isBefore(cutoff) }
+        if (graceCache.size > MAX_GRACE_CACHE_SIZE) {
+            graceCache.entries
+                .sortedBy { it.value.deletedAt }
+                .take(graceCache.size - MAX_GRACE_CACHE_SIZE)
+                .forEach { graceCache.remove(it.key) }
+        }
     }
 
     fun size(): Int = cache.size
