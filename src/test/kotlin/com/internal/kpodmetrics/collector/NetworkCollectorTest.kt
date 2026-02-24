@@ -41,15 +41,13 @@ class NetworkCollectorTest {
 
         val keyBytes = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN)
             .putLong(100L).array()
-        every { bridge.mapGetNextKey(10, null, 8) } returns keyBytes
-        every { bridge.mapGetNextKey(10, keyBytes, 8) } returns null
 
         val valueBytes = buildTcpStatsValue(
             bytesSent = 1024, bytesReceived = 2048,
             retransmits = 3, connections = 5,
             rttSumUs = 50000, rttCount = 10
         )
-        every { bridge.mapLookup(10, keyBytes, 48) } returns valueBytes
+        every { bridge.mapBatchLookupAndDelete(10, 8, 48, any()) } returns listOf(keyBytes to valueBytes)
 
         collector.collect()
 
@@ -83,10 +81,8 @@ class NetworkCollectorTest {
 
         val keyBytes = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN)
             .putLong(999L).array()
-        every { bridge.mapGetNextKey(10, null, 8) } returns keyBytes
-        every { bridge.mapGetNextKey(10, keyBytes, 8) } returns null
-        every { bridge.mapLookup(10, keyBytes, 48) } returns buildTcpStatsValue(
-            100, 200, 1, 1, 1000, 1
+        every { bridge.mapBatchLookupAndDelete(10, 8, 48, any()) } returns listOf(
+            keyBytes to buildTcpStatsValue(100, 200, 1, 1, 1000, 1)
         )
 
         collector.collect()
@@ -102,15 +98,13 @@ class NetworkCollectorTest {
 
         val keyBytes = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN)
             .putLong(100L).array()
-        every { bridge.mapGetNextKey(10, null, 8) } returns keyBytes
-        every { bridge.mapGetNextKey(10, keyBytes, 8) } returns null
 
         val valueBytes = buildTcpStatsValue(
             bytesSent = 512, bytesReceived = 256,
             retransmits = 0, connections = 1,
             rttSumUs = 0, rttCount = 0
         )
-        every { bridge.mapLookup(10, keyBytes, 48) } returns valueBytes
+        every { bridge.mapBatchLookupAndDelete(10, 8, 48, any()) } returns listOf(keyBytes to valueBytes)
 
         collector.collect()
 

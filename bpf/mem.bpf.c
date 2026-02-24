@@ -5,18 +5,21 @@
 #include "common.h"
 
 struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(type, BPF_MAP_TYPE_LRU_HASH);
     __uint(max_entries, MAX_ENTRIES);
     __type(key, struct counter_key);
     __type(value, struct counter_value);
 } oom_kills SEC(".maps");
 
 struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(type, BPF_MAP_TYPE_LRU_HASH);
     __uint(max_entries, MAX_ENTRIES);
     __type(key, struct counter_key);
     __type(value, struct counter_value);
 } major_faults SEC(".maps");
+
+DEFINE_STATS_MAP(oom_kills)
+DEFINE_STATS_MAP(major_faults)
 
 SEC("tp/oom/mark_victim")
 int handle_oom_kill(struct trace_event_raw_mark_victim *ctx) {
@@ -27,7 +30,11 @@ int handle_oom_kill(struct trace_event_raw_mark_victim *ctx) {
         __sync_fetch_and_add(&val->count, 1);
     } else {
         struct counter_value new_val = { .count = 1 };
-        bpf_map_update_elem(&oom_kills, &key, &new_val, BPF_NOEXIST);
+        int err = bpf_map_update_elem(&oom_kills, &key, &new_val, BPF_NOEXIST);
+        if (err)
+            STATS_INC(oom_kills_stats, MAP_STAT_UPDATE_ERRORS);
+        else
+            STATS_INC(oom_kills_stats, MAP_STAT_ENTRIES);
     }
     return 0;
 }
@@ -44,7 +51,11 @@ int BPF_KPROBE(handle_page_fault, struct vm_area_struct *vma,
         __sync_fetch_and_add(&val->count, 1);
     } else {
         struct counter_value new_val = { .count = 1 };
-        bpf_map_update_elem(&major_faults, &key, &new_val, BPF_NOEXIST);
+        int err = bpf_map_update_elem(&major_faults, &key, &new_val, BPF_NOEXIST);
+        if (err)
+            STATS_INC(major_faults_stats, MAP_STAT_UPDATE_ERRORS);
+        else
+            STATS_INC(major_faults_stats, MAP_STAT_ENTRIES);
     }
     return 0;
 }

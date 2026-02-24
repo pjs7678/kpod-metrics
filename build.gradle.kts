@@ -30,6 +30,9 @@ dependencies {
     // Prometheus metrics
     implementation("io.micrometer:micrometer-registry-prometheus")
 
+    // JSON parsing
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+
     // Kubernetes client
     implementation("io.fabric8:kubernetes-client:7.1.0")
 

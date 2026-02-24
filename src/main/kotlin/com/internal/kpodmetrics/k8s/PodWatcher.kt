@@ -4,6 +4,10 @@ import com.internal.kpodmetrics.bpf.CgroupResolver
 import com.internal.kpodmetrics.bpf.PodInfo
 import com.internal.kpodmetrics.config.FilterProperties
 import com.internal.kpodmetrics.config.MetricsProperties
+import com.internal.kpodmetrics.discovery.PodProvider
+import com.internal.kpodmetrics.model.ContainerInfo
+import com.internal.kpodmetrics.model.DiscoveredPod
+import com.internal.kpodmetrics.model.QosClass
 import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.Watch
@@ -13,14 +17,25 @@ import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.BasicFileAttributes
+import java.util.concurrent.ConcurrentHashMap
 
 class PodWatcher(
     private val kubernetesClient: KubernetesClient,
     private val cgroupResolver: CgroupResolver,
     private val properties: MetricsProperties
-) {
+) : PodProvider {
     private val log = LoggerFactory.getLogger(PodWatcher::class.java)
     private var watch: Watch? = null
+    private val discoveredPods = ConcurrentHashMap<String, DiscoveredPod>()
+    private val podCgroupIds = ConcurrentHashMap<String, MutableSet<Long>>()
+    private var onPodDeletedCallback: ((Long) -> Unit)? = null
+
+    override fun getDiscoveredPods(): Map<String, DiscoveredPod> =
+        discoveredPods.toMap()
+
+    fun setOnPodDeletedCallback(callback: (Long) -> Unit) {
+        this.onPodDeletedCallback = callback
+    }
 
     fun start() {
         val nodeName = properties.nodeName
@@ -63,8 +78,13 @@ class PodWatcher(
                             log.debug(
                                 "Pod deleted: {}/{}", pod.metadata.namespace, pod.metadata.name
                             )
-                            // Cgroup entries become stale but will not match new BPF events;
-                            // a periodic eviction could be added later if memory is a concern.
+                            pod.metadata?.uid?.let { uid ->
+                                discoveredPods.remove(uid)
+                                podCgroupIds.remove(uid)?.forEach { cgroupId ->
+                                    cgroupResolver.onPodDeleted(cgroupId)
+                                    onPodDeletedCallback?.invoke(cgroupId)
+                                }
+                            }
                         }
                         else -> {}
                     }
@@ -89,15 +109,20 @@ class PodWatcher(
     }
 
     /**
-     * Registers all containers from a pod into the CgroupResolver.
+     * Registers all containers from a pod into the CgroupResolver,
+     * and tracks the pod as a DiscoveredPod for cgroup-based collectors.
      * Returns the number of containers successfully registered.
      */
     private fun registerPod(pod: Pod): Int {
         val podInfos = extractPodInfos(pod)
+        val podUid = pod.metadata?.uid
         var count = 0
         for (info in podInfos) {
             val cgroupId = resolveCgroupId(info) ?: continue
             cgroupResolver.register(cgroupId, info)
+            if (podUid != null) {
+                podCgroupIds.getOrPut(podUid) { ConcurrentHashMap.newKeySet() }.add(cgroupId)
+            }
             count++
         }
         if (podInfos.isNotEmpty() && count == 0) {
@@ -106,6 +131,12 @@ class PodWatcher(
                 pod.metadata.namespace, pod.metadata.name, podInfos.size
             )
         }
+
+        // Track as DiscoveredPod for cgroup-based collectors
+        toDiscoveredPod(pod)?.let { discovered ->
+            discoveredPods[discovered.uid] = discovered
+        }
+
         return count
     }
 
@@ -187,6 +218,35 @@ class PodWatcher(
                 }
             }
             return null
+        }
+
+        fun toDiscoveredPod(pod: Pod): DiscoveredPod? {
+            val metadata = pod.metadata ?: return null
+            val uid = metadata.uid ?: return null
+            val status = pod.status ?: return null
+
+            val qosClass = when (status.qosClass?.uppercase()) {
+                "GUARANTEED" -> QosClass.GUARANTEED
+                "BURSTABLE" -> QosClass.BURSTABLE
+                "BESTEFFORT" -> QosClass.BEST_EFFORT
+                else -> QosClass.BEST_EFFORT
+            }
+
+            val containers = (status.containerStatuses ?: emptyList()).mapNotNull { cs ->
+                val rawId = cs.containerID ?: return@mapNotNull null
+                ContainerInfo(
+                    name = cs.name,
+                    containerId = rawId.substringAfter("://")
+                )
+            }
+
+            return DiscoveredPod(
+                uid = uid,
+                name = metadata.name ?: return null,
+                namespace = metadata.namespace ?: return null,
+                qosClass = qosClass,
+                containers = containers
+            )
         }
 
         fun extractPodInfos(pod: Pod): List<PodInfo> {

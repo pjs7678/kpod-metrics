@@ -5,11 +5,11 @@ image:
 
 resources:
   requests:
-    cpu: 50m
-    memory: 128Mi
-  limits:
-    cpu: 200m
+    cpu: 150m
     memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
 
 podAnnotations:
   prometheus.io/scrape: "true"
@@ -29,4 +29,10 @@ securityContext:
 
 config:
   profile: standard
-  pollInterval: 15000
+  pollInterval: 30000
+  discovery:
+    mode: informer
+    kubeletPollInterval: 30
+  cgroup:
+    root: /sys/fs/cgroup
+    procRoot: /host/proc

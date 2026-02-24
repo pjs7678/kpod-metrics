@@ -22,6 +22,18 @@ kpod:
   profile: standard
   poll-interval: 15000
   node-name: ${NODE_NAME:unknown}
+  discovery:
+    mode: ${KPOD_DISCOVERY_MODE:informer}
+    kubelet-poll-interval: ${KUBELET_POLL_INTERVAL:30}
+    node-ip: ${NODE_IP:}
   bpf:
     enabled: true
     program-dir: /app/bpf
+  cgroup:
+    root: ${KPOD_CGROUP_ROOT:/host/sys/fs/cgroup}
+    proc-root: ${KPOD_PROC_ROOT:/host/proc}
+  filter:
+    namespaces: []
+    exclude-namespaces:
+      - kube-system
+      - kube-public

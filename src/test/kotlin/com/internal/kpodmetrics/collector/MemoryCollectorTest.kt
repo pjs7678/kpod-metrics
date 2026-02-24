@@ -44,14 +44,12 @@ class MemoryCollectorTest {
 
         val keyBytes = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN)
             .putLong(100L).array()
-        every { bridge.mapGetNextKey(20, null, 8) } returns keyBytes
-        every { bridge.mapGetNextKey(20, keyBytes, 8) } returns null
 
         val valueBytes = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN)
             .putLong(3L).array()
-        every { bridge.mapLookup(20, keyBytes, 8) } returns valueBytes
+        every { bridge.mapBatchLookupAndDelete(20, 8, 8, any()) } returns listOf(keyBytes to valueBytes)
 
-        every { bridge.mapGetNextKey(21, null, 8) } returns null
+        every { bridge.mapBatchLookupAndDelete(21, 8, 8, any()) } returns emptyList()
 
         collector.collect()
 
@@ -65,16 +63,14 @@ class MemoryCollectorTest {
         every { programManager.getMapFd("mem", "oom_kills") } returns 20
         every { programManager.getMapFd("mem", "major_faults") } returns 21
 
-        every { bridge.mapGetNextKey(20, null, 8) } returns null
+        every { bridge.mapBatchLookupAndDelete(20, 8, 8, any()) } returns emptyList()
 
         val keyBytes = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN)
             .putLong(100L).array()
-        every { bridge.mapGetNextKey(21, null, 8) } returns keyBytes
-        every { bridge.mapGetNextKey(21, keyBytes, 8) } returns null
 
         val valueBytes = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN)
             .putLong(42L).array()
-        every { bridge.mapLookup(21, keyBytes, 8) } returns valueBytes
+        every { bridge.mapBatchLookupAndDelete(21, 8, 8, any()) } returns listOf(keyBytes to valueBytes)
 
         collector.collect()
 
@@ -90,12 +86,11 @@ class MemoryCollectorTest {
 
         val keyBytes = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN)
             .putLong(999L).array()
-        every { bridge.mapGetNextKey(20, null, 8) } returns keyBytes
-        every { bridge.mapGetNextKey(20, keyBytes, 8) } returns null
-        every { bridge.mapLookup(20, keyBytes, 8) } returns ByteBuffer.allocate(8)
-            .order(ByteOrder.LITTLE_ENDIAN).putLong(1L).array()
+        every { bridge.mapBatchLookupAndDelete(20, 8, 8, any()) } returns listOf(
+            keyBytes to ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(1L).array()
+        )
 
-        every { bridge.mapGetNextKey(21, null, 8) } returns null
+        every { bridge.mapBatchLookupAndDelete(21, 8, 8, any()) } returns emptyList()
 
         collector.collect()
 
@@ -130,7 +125,7 @@ class MemoryCollectorTest {
         val collector = MemoryCollector(bridge, programManager, cgroupResolver, registry, config, "test-node")
 
         every { programManager.getMapFd("mem", "oom_kills") } returns 20
-        every { bridge.mapGetNextKey(20, null, 8) } returns null
+        every { bridge.mapBatchLookupAndDelete(20, 8, 8, any()) } returns emptyList()
 
         collector.collect()
 

@@ -5,14 +5,16 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 @ConfigurationProperties(prefix = "kpod")
 data class MetricsProperties(
     val profile: String = "standard",
-    val pollInterval: Long = 15000,
+    val pollInterval: Long = 30000,
     val nodeName: String = "unknown",
     val cpu: CpuProperties = CpuProperties(),
     val network: NetworkProperties = NetworkProperties(),
     val memory: MemoryProperties = MemoryProperties(),
     val syscall: SyscallProperties = SyscallProperties(),
     val filter: FilterProperties = FilterProperties(),
-    val bpf: BpfProperties = BpfProperties()
+    val bpf: BpfProperties = BpfProperties(),
+    val discovery: DiscoveryProperties = DiscoveryProperties(),
+    val cgroup: CgroupProperties = CgroupProperties()
 ) {
     fun resolveProfile(override: String? = null): ResolvedConfig {
         return when (override ?: profile) {
@@ -23,7 +25,8 @@ data class MetricsProperties(
                 ),
                 network = NetworkProperties(tcp = TcpProperties(enabled = false)),
                 memory = MemoryProperties(oom = true, pageFaults = false, cgroupStats = true),
-                syscall = SyscallProperties(enabled = false)
+                syscall = SyscallProperties(enabled = false),
+                cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = false, filesystem = false)
             )
             "standard" -> ResolvedConfig(
                 cpu = CpuProperties(
@@ -32,7 +35,8 @@ data class MetricsProperties(
                 ),
                 network = NetworkProperties(tcp = TcpProperties(enabled = true)),
                 memory = MemoryProperties(oom = true, pageFaults = true, cgroupStats = true),
-                syscall = SyscallProperties(enabled = false)
+                syscall = SyscallProperties(enabled = false),
+                cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = true, filesystem = true)
             )
             "comprehensive" -> ResolvedConfig(
                 cpu = CpuProperties(
@@ -44,9 +48,10 @@ data class MetricsProperties(
                 syscall = SyscallProperties(
                     enabled = true,
                     trackedSyscalls = DEFAULT_TRACKED_SYSCALLS
-                )
+                ),
+                cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = true, filesystem = true)
             )
-            "custom" -> ResolvedConfig(cpu = cpu, network = network, memory = memory, syscall = syscall)
+            "custom" -> ResolvedConfig(cpu = cpu, network = network, memory = memory, syscall = syscall, cgroup = CgroupCollectorProperties())
             else -> throw IllegalArgumentException("Unknown profile: ${override ?: profile}")
         }
     }
@@ -56,7 +61,8 @@ data class ResolvedConfig(
     val cpu: CpuProperties,
     val network: NetworkProperties,
     val memory: MemoryProperties,
-    val syscall: SyscallProperties
+    val syscall: SyscallProperties,
+    val cgroup: CgroupCollectorProperties = CgroupCollectorProperties()
 )
 
 data class CpuProperties(
@@ -104,6 +110,23 @@ data class FilterProperties(
 data class BpfProperties(
     val enabled: Boolean = true,
     val programDir: String = "/app/bpf"
+)
+
+data class DiscoveryProperties(
+    val mode: String = "informer",
+    val kubeletPollInterval: Long = 30,
+    val nodeIp: String = ""
+)
+
+data class CgroupProperties(
+    val root: String = "/host/sys/fs/cgroup",
+    val procRoot: String = "/host/proc"
+)
+
+data class CgroupCollectorProperties(
+    val diskIO: Boolean = true,
+    val interfaceNetwork: Boolean = true,
+    val filesystem: Boolean = true
 )
 
 val DEFAULT_TRACKED_SYSCALLS = listOf(

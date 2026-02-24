@@ -1,0 +1,49 @@
+package com.internal.kpodmetrics.collector
+
+import com.internal.kpodmetrics.cgroup.CgroupReader
+import com.internal.kpodmetrics.model.PodCgroupTarget
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Tags
+import java.util.concurrent.atomic.AtomicLong
+
+class FilesystemCollector(
+    private val reader: CgroupReader,
+    private val procRoot: String,
+    private val registry: MeterRegistry
+) {
+    private data class GaugeKey(val pod: String, val ns: String, val container: String, val node: String, val mount: String)
+    private val capacityValues = java.util.concurrent.ConcurrentHashMap<GaugeKey, AtomicLong>()
+    private val usageValues = java.util.concurrent.ConcurrentHashMap<GaugeKey, AtomicLong>()
+    private val availableValues = java.util.concurrent.ConcurrentHashMap<GaugeKey, AtomicLong>()
+
+    fun collect(targets: List<PodCgroupTarget>) {
+        for (target in targets) {
+            val pid = reader.readInitPid(target.cgroupPath) ?: continue
+            val stats = reader.readFilesystemStats(procRoot, pid)
+            for (stat in stats) {
+                val key = GaugeKey(target.podName, target.namespace, target.containerName, target.nodeName, stat.mountPoint)
+                val tags = Tags.of(
+                    "namespace", target.namespace,
+                    "pod", target.podName,
+                    "container", target.containerName,
+                    "node", target.nodeName,
+                    "mountpoint", stat.mountPoint
+                )
+                getOrRegisterGauge(capacityValues, key, "kpod.fs.capacity.bytes", tags).set(stat.totalBytes)
+                getOrRegisterGauge(usageValues, key, "kpod.fs.usage.bytes", tags).set(stat.usedBytes)
+                getOrRegisterGauge(availableValues, key, "kpod.fs.available.bytes", tags).set(stat.availableBytes)
+            }
+        }
+    }
+
+    private fun getOrRegisterGauge(
+        store: java.util.concurrent.ConcurrentHashMap<GaugeKey, AtomicLong>,
+        key: GaugeKey, name: String, tags: Tags
+    ): AtomicLong {
+        return store.computeIfAbsent(key) { _ ->
+            val value = AtomicLong(0)
+            registry.gauge(name, tags, value) { it.toDouble() }
+            value
+        }
+    }
+}

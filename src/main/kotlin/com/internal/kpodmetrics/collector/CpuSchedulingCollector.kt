@@ -26,6 +26,7 @@ class CpuSchedulingCollector(
         private const val HIST_VALUE_SIZE = 232
         private const val COUNTER_VALUE_SIZE = 8
         private const val MAX_SLOTS = 27
+        private const val MAX_ENTRIES = 10240
     }
 
     fun collect() {
@@ -39,9 +40,9 @@ class CpuSchedulingCollector(
 
     private fun collectRunqueueLatency() {
         val mapFd = programManager.getMapFd("cpu_sched", "runq_latency")
-        iterateMap(mapFd, KEY_SIZE, HIST_VALUE_SIZE) { keyBytes, valueBytes ->
+        collectMap(mapFd, KEY_SIZE, HIST_VALUE_SIZE) { keyBytes, valueBytes ->
             val cgroupId = ByteBuffer.wrap(keyBytes).order(ByteOrder.LITTLE_ENDIAN).long
-            val podInfo = cgroupResolver.resolve(cgroupId) ?: return@iterateMap
+            val podInfo = cgroupResolver.resolve(cgroupId) ?: return@collectMap
 
             val buf = ByteBuffer.wrap(valueBytes).order(ByteOrder.LITTLE_ENDIAN)
             val slots = LongArray(MAX_SLOTS) { buf.long }
@@ -65,9 +66,9 @@ class CpuSchedulingCollector(
 
     private fun collectContextSwitches() {
         val mapFd = programManager.getMapFd("cpu_sched", "ctx_switches")
-        iterateMap(mapFd, KEY_SIZE, COUNTER_VALUE_SIZE) { keyBytes, valueBytes ->
+        collectMap(mapFd, KEY_SIZE, COUNTER_VALUE_SIZE) { keyBytes, valueBytes ->
             val cgroupId = ByteBuffer.wrap(keyBytes).order(ByteOrder.LITTLE_ENDIAN).long
-            val podInfo = cgroupResolver.resolve(cgroupId) ?: return@iterateMap
+            val podInfo = cgroupResolver.resolve(cgroupId) ?: return@collectMap
 
             val count = ByteBuffer.wrap(valueBytes).order(ByteOrder.LITTLE_ENDIAN).long
 
@@ -82,26 +83,11 @@ class CpuSchedulingCollector(
         }
     }
 
-    private fun iterateMap(
+    private fun collectMap(
         mapFd: Int, keySize: Int, valueSize: Int,
         handler: (ByteArray, ByteArray) -> Unit
     ) {
-        // Phase 1: Collect all keys (safe to iterate without deletion)
-        val keys = mutableListOf<ByteArray>()
-        var prevKey: ByteArray? = null
-        while (true) {
-            val nextKey = bridge.mapGetNextKey(mapFd, prevKey, keySize) ?: break
-            keys.add(nextKey)
-            prevKey = nextKey
-        }
-
-        // Phase 2: Lookup, handle, and delete each key (snap-and-reset)
-        for (k in keys) {
-            val value = bridge.mapLookup(mapFd, k, valueSize)
-            if (value != null) {
-                handler(k, value)
-            }
-            bridge.mapDelete(mapFd, k)
-        }
+        val entries = bridge.mapBatchLookupAndDelete(mapFd, keySize, valueSize, MAX_ENTRIES)
+        entries.forEach { (key, value) -> handler(key, value) }
     }
 }

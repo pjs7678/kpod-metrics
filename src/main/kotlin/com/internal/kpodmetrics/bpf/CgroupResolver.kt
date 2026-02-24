@@ -1,5 +1,6 @@
 package com.internal.kpodmetrics.bpf
 
+import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
 data class PodInfo(
@@ -15,10 +16,15 @@ data class CgroupContainerInfo(
     val containerId: String
 )
 
+data class GraceCacheEntry(val podInfo: PodInfo, val deletedAt: Instant)
+
 class CgroupResolver {
     private val cache = ConcurrentHashMap<Long, PodInfo>()
+    private val graceCache = ConcurrentHashMap<Long, GraceCacheEntry>()
 
     companion object {
+        private const val MAX_GRACE_CACHE_SIZE = 10_000
+
         private val SYSTEMD_PATTERN = Regex(
             "kubepods-(?:burstable|besteffort|guaranteed)-pod([a-f0-9]+)\\.slice/" +
             "cri-containerd-([a-f0-9]+)\\.scope$"
@@ -49,10 +55,26 @@ class CgroupResolver {
         cache[cgroupId] = podInfo
     }
 
-    fun resolve(cgroupId: Long): PodInfo? = cache[cgroupId]
+    fun resolve(cgroupId: Long): PodInfo? = cache[cgroupId] ?: graceCache[cgroupId]?.podInfo
 
     fun evict(cgroupId: Long) {
         cache.remove(cgroupId)
+    }
+
+    fun onPodDeleted(cgroupId: Long) {
+        val podInfo = cache.remove(cgroupId) ?: return
+        graceCache[cgroupId] = GraceCacheEntry(podInfo, Instant.now())
+    }
+
+    fun pruneGraceCache() {
+        val cutoff = Instant.now().minusSeconds(5)
+        graceCache.entries.removeIf { it.value.deletedAt.isBefore(cutoff) }
+        if (graceCache.size > MAX_GRACE_CACHE_SIZE) {
+            graceCache.entries
+                .sortedBy { it.value.deletedAt }
+                .take(graceCache.size - MAX_GRACE_CACHE_SIZE)
+                .forEach { graceCache.remove(it.key) }
+        }
     }
 
     fun size(): Int = cache.size

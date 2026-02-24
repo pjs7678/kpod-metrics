@@ -23,6 +23,12 @@ JNIEXPORT jbyteArray JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeM
     JNIEnv *env, jobject self, jint mapFd, jbyteArray key, jint keySize);
 JNIEXPORT void JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeMapDelete(
     JNIEnv *env, jobject self, jint mapFd, jbyteArray key);
+JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeGetNumPossibleCpus(
+    JNIEnv *env, jobject self);
+JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeMapBatchLookupAndDelete(
+    JNIEnv *env, jobject self,
+    jint mapFd, jbyteArray keys, jbyteArray values,
+    jint keySize, jint valueSize, jint maxBatch);
 
 #ifdef __cplusplus
 }

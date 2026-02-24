@@ -39,6 +39,13 @@ class BpfBridge {
 
     private external fun nativeMapDelete(mapFd: Int, key: ByteArray)
 
+    private external fun nativeGetNumPossibleCpus(): Int
+
+    private external fun nativeMapBatchLookupAndDelete(
+        mapFd: Int, keys: ByteArray, values: ByteArray,
+        keySize: Int, valueSize: Int, maxBatch: Int
+    ): Int
+
     // --- Public API wrapping JNI with handle safety ---
 
     fun openObject(path: String): Long {
@@ -77,6 +84,71 @@ class BpfBridge {
 
     fun mapDelete(mapFd: Int, key: ByteArray) {
         nativeMapDelete(mapFd, key)
+    }
+
+    fun getNumPossibleCpus(): Int = nativeGetNumPossibleCpus()
+
+    /**
+     * Lookup a PERCPU_ARRAY element and sum values across all CPUs.
+     * Returns the sum as a Long, or null if lookup fails.
+     */
+    fun mapLookupPercpuSum(mapFd: Int, key: ByteArray, valueSize: Int): Long? {
+        val numCpus = getNumPossibleCpus()
+        val totalSize = numCpus * valueSize
+        val rawBytes = nativeMapLookup(mapFd, key, totalSize) ?: return null
+        val buf = java.nio.ByteBuffer.wrap(rawBytes).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        var sum = 0L
+        for (i in 0 until numCpus) {
+            sum += buf.long
+        }
+        return sum
+    }
+
+    /**
+     * Batch lookup-and-delete: atomically reads and removes up to maxEntries from a BPF map.
+     * Returns a list of (key, value) pairs.
+     * Falls back to legacy iterate+lookup+delete if batch is not supported.
+     */
+    fun mapBatchLookupAndDelete(
+        mapFd: Int, keySize: Int, valueSize: Int, maxEntries: Int
+    ): List<Pair<ByteArray, ByteArray>> {
+        val keysArray = ByteArray(maxEntries * keySize)
+        val valuesArray = ByteArray(maxEntries * valueSize)
+
+        val count = nativeMapBatchLookupAndDelete(mapFd, keysArray, valuesArray, keySize, valueSize, maxEntries)
+
+        if (count == -2) {
+            // Batch not supported, fall back to legacy path
+            return legacyLookupAndDelete(mapFd, keySize, valueSize)
+        }
+        if (count <= 0) return emptyList()
+
+        val results = ArrayList<Pair<ByteArray, ByteArray>>(count)
+        for (i in 0 until count) {
+            val key = keysArray.copyOfRange(i * keySize, (i + 1) * keySize)
+            val value = valuesArray.copyOfRange(i * valueSize, (i + 1) * valueSize)
+            results.add(key to value)
+        }
+        return results
+    }
+
+    private fun legacyLookupAndDelete(mapFd: Int, keySize: Int, valueSize: Int): List<Pair<ByteArray, ByteArray>> {
+        val keys = mutableListOf<ByteArray>()
+        var prevKey: ByteArray? = null
+        while (true) {
+            val nextKey = mapGetNextKey(mapFd, prevKey, keySize) ?: break
+            keys.add(nextKey)
+            prevKey = nextKey
+        }
+        val results = mutableListOf<Pair<ByteArray, ByteArray>>()
+        for (k in keys) {
+            val value = mapLookup(mapFd, k, valueSize)
+            if (value != null) {
+                results.add(k to value)
+            }
+            mapDelete(mapFd, k)
+        }
+        return results
     }
 
     fun <T> withBpfObject(path: String, block: (Long) -> T): T {

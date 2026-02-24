@@ -25,6 +25,7 @@ class SyscallCollector(
         private const val KEY_SIZE = 16
         private const val VALUE_SIZE = 240
         private const val MAX_SLOTS = 27
+        private const val MAX_ENTRIES = 10240
 
         // Syscall number-to-name mappings per architecture
         private val SYSCALL_NAMES_X86_64 = mapOf(
@@ -53,14 +54,14 @@ class SyscallCollector(
 
     private fun collectSyscallStats() {
         val mapFd = programManager.getMapFd("syscall", "syscall_stats_map")
-        iterateMap(mapFd, KEY_SIZE, VALUE_SIZE) { keyBytes, valueBytes ->
+        collectMap(mapFd, KEY_SIZE, VALUE_SIZE) { keyBytes, valueBytes ->
             val keyBuf = ByteBuffer.wrap(keyBytes).order(ByteOrder.LITTLE_ENDIAN)
             val cgroupId = keyBuf.long
             val syscallNr = keyBuf.int
             // skip padding
             keyBuf.int
 
-            val podInfo = cgroupResolver.resolve(cgroupId) ?: return@iterateMap
+            val podInfo = cgroupResolver.resolve(cgroupId) ?: return@collectMap
 
             val syscallName = SYSCALL_NAMES[syscallNr] ?: "syscall_$syscallNr"
 
@@ -92,26 +93,11 @@ class SyscallCollector(
         }
     }
 
-    private fun iterateMap(
+    private fun collectMap(
         mapFd: Int, keySize: Int, valueSize: Int,
         handler: (ByteArray, ByteArray) -> Unit
     ) {
-        // Phase 1: Collect all keys (safe to iterate without deletion)
-        val keys = mutableListOf<ByteArray>()
-        var prevKey: ByteArray? = null
-        while (true) {
-            val nextKey = bridge.mapGetNextKey(mapFd, prevKey, keySize) ?: break
-            keys.add(nextKey)
-            prevKey = nextKey
-        }
-
-        // Phase 2: Lookup, handle, and delete each key (snap-and-reset)
-        for (k in keys) {
-            val value = bridge.mapLookup(mapFd, k, valueSize)
-            if (value != null) {
-                handler(k, value)
-            }
-            bridge.mapDelete(mapFd, k)
-        }
+        val entries = bridge.mapBatchLookupAndDelete(mapFd, keySize, valueSize, MAX_ENTRIES)
+        entries.forEach { (key, value) -> handler(key, value) }
     }
 }

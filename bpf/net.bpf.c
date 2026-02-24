@@ -14,18 +14,21 @@ struct tcp_stats {
 };
 
 struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(type, BPF_MAP_TYPE_LRU_HASH);
     __uint(max_entries, MAX_ENTRIES);
     __type(key, struct counter_key);
     __type(value, struct tcp_stats);
 } tcp_stats_map SEC(".maps");
 
 struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(type, BPF_MAP_TYPE_LRU_HASH);
     __uint(max_entries, MAX_ENTRIES);
     __type(key, struct hist_key);
     __type(value, struct hist_value);
 } rtt_hist SEC(".maps");
+
+DEFINE_STATS_MAP(tcp_stats_map)
+DEFINE_STATS_MAP(rtt_hist)
 
 SEC("kprobe/tcp_sendmsg")
 int BPF_KPROBE(handle_tcp_sendmsg, struct sock *sk, struct msghdr *msg, size_t size) {
@@ -36,7 +39,11 @@ int BPF_KPROBE(handle_tcp_sendmsg, struct sock *sk, struct msghdr *msg, size_t s
         __sync_fetch_and_add(&stats->bytes_sent, size);
     } else {
         struct tcp_stats new_stats = { .bytes_sent = size };
-        bpf_map_update_elem(&tcp_stats_map, &key, &new_stats, BPF_NOEXIST);
+        int err = bpf_map_update_elem(&tcp_stats_map, &key, &new_stats, BPF_NOEXIST);
+        if (err)
+            STATS_INC(tcp_stats_map_stats, MAP_STAT_UPDATE_ERRORS);
+        else
+            STATS_INC(tcp_stats_map_stats, MAP_STAT_ENTRIES);
     }
     return 0;
 }
@@ -59,7 +66,11 @@ int BPF_KPROBE(handle_tcp_recvmsg, struct sock *sk, struct msghdr *msg,
         __sync_fetch_and_add(&stats->bytes_received, len);
     } else {
         struct tcp_stats new_stats = { .bytes_received = len };
-        bpf_map_update_elem(&tcp_stats_map, &key, &new_stats, BPF_NOEXIST);
+        int err = bpf_map_update_elem(&tcp_stats_map, &key, &new_stats, BPF_NOEXIST);
+        if (err)
+            STATS_INC(tcp_stats_map_stats, MAP_STAT_UPDATE_ERRORS);
+        else
+            STATS_INC(tcp_stats_map_stats, MAP_STAT_ENTRIES);
     }
     return 0;
 }
@@ -73,7 +84,11 @@ int handle_tcp_retransmit(struct trace_event_raw_tcp_event_sk_skb *ctx) {
         __sync_fetch_and_add(&stats->retransmits, 1);
     } else {
         struct tcp_stats new_stats = { .retransmits = 1 };
-        bpf_map_update_elem(&tcp_stats_map, &key, &new_stats, BPF_NOEXIST);
+        int err = bpf_map_update_elem(&tcp_stats_map, &key, &new_stats, BPF_NOEXIST);
+        if (err)
+            STATS_INC(tcp_stats_map_stats, MAP_STAT_UPDATE_ERRORS);
+        else
+            STATS_INC(tcp_stats_map_stats, MAP_STAT_ENTRIES);
     }
     return 0;
 }
@@ -89,7 +104,11 @@ int handle_inet_sock_set_state(struct trace_event_raw_inet_sock_set_state *ctx) 
             __sync_fetch_and_add(&stats->connections, 1);
         } else {
             struct tcp_stats new_stats = { .connections = 1 };
-            bpf_map_update_elem(&tcp_stats_map, &key, &new_stats, BPF_NOEXIST);
+            int err = bpf_map_update_elem(&tcp_stats_map, &key, &new_stats, BPF_NOEXIST);
+            if (err)
+                STATS_INC(tcp_stats_map_stats, MAP_STAT_UPDATE_ERRORS);
+            else
+                STATS_INC(tcp_stats_map_stats, MAP_STAT_ENTRIES);
         }
     }
     return 0;
@@ -121,7 +140,11 @@ int handle_tcp_probe(struct trace_event_raw_tcp_probe *ctx) {
         new_val.slots[slot] = 1;
         new_val.count = 1;
         new_val.sum_ns = rtt_ns;
-        bpf_map_update_elem(&rtt_hist, &hkey, &new_val, BPF_NOEXIST);
+        int err = bpf_map_update_elem(&rtt_hist, &hkey, &new_val, BPF_NOEXIST);
+        if (err)
+            STATS_INC(rtt_hist_stats, MAP_STAT_UPDATE_ERRORS);
+        else
+            STATS_INC(rtt_hist_stats, MAP_STAT_ENTRIES);
     }
     return 0;
 }

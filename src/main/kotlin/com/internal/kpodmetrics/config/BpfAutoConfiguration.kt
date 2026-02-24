@@ -3,7 +3,13 @@ package com.internal.kpodmetrics.config
 import com.internal.kpodmetrics.bpf.BpfBridge
 import com.internal.kpodmetrics.bpf.BpfProgramManager
 import com.internal.kpodmetrics.bpf.CgroupResolver
+import com.internal.kpodmetrics.cgroup.CgroupPathResolver
+import com.internal.kpodmetrics.cgroup.CgroupReader
+import com.internal.kpodmetrics.cgroup.CgroupVersionDetector
 import com.internal.kpodmetrics.collector.*
+import com.internal.kpodmetrics.discovery.KubeletPodProvider
+import com.internal.kpodmetrics.discovery.PodCgroupMapper
+import com.internal.kpodmetrics.discovery.PodProvider
 import com.internal.kpodmetrics.k8s.PodWatcher
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientBuilder
@@ -16,6 +22,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.event.ContextRefreshedEvent
 import org.springframework.context.event.EventListener
+import java.util.Optional
 
 @Configuration
 @EnableConfigurationProperties(MetricsProperties::class)
@@ -25,6 +32,7 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
     private var programManager: BpfProgramManager? = null
     private var podWatcherInstance: PodWatcher? = null
     private var metricsCollectorServiceInstance: MetricsCollectorService? = null
+    private var kubeletPodProviderInstance: KubeletPodProvider? = null
 
     @Bean
     fun resolvedConfig(): ResolvedConfig = props.resolveProfile()
@@ -89,6 +97,14 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
 
     @Bean
     @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun bpfMapStatsCollector(
+        bridge: BpfBridge,
+        manager: BpfProgramManager,
+        registry: MeterRegistry
+    ) = BpfMapStatsCollector(bridge, manager, registry)
+
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
     fun syscallCollector(
         bridge: BpfBridge,
         manager: BpfProgramManager,
@@ -97,15 +113,87 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         config: ResolvedConfig
     ) = SyscallCollector(bridge, manager, resolver, registry, config, props.nodeName)
 
+    // --- Cgroup infrastructure beans ---
+
+    @Bean
+    fun cgroupVersionDetector(): CgroupVersionDetector =
+        CgroupVersionDetector(props.cgroup.root)
+
+    @Bean
+    fun cgroupReader(detector: CgroupVersionDetector): CgroupReader =
+        CgroupReader(detector.detect())
+
+    @Bean
+    fun cgroupPathResolver(detector: CgroupVersionDetector): CgroupPathResolver =
+        CgroupPathResolver(props.cgroup.root, detector.detect())
+
+    @Bean
+    fun podProvider(podWatcher: PodWatcher): PodProvider {
+        if (props.discovery.mode == "kubelet") {
+            val provider = KubeletPodProvider(
+                props.discovery.nodeIp,
+                10250,
+                props.discovery.kubeletPollInterval
+            )
+            this.kubeletPodProviderInstance = provider
+            return provider
+        }
+        return podWatcher
+    }
+
+    @Bean
+    fun podCgroupMapper(podProvider: PodProvider, resolver: CgroupPathResolver): PodCgroupMapper =
+        PodCgroupMapper(podProvider, resolver, props.nodeName)
+
+    // --- Cgroup-based collectors (conditionally created) ---
+
+    @Bean
+    fun diskIOCollector(reader: CgroupReader, registry: MeterRegistry, config: ResolvedConfig): DiskIOCollector? {
+        if (!config.cgroup.diskIO) return null
+        return DiskIOCollector(reader, registry)
+    }
+
+    @Bean
+    fun interfaceNetworkCollector(reader: CgroupReader, registry: MeterRegistry, config: ResolvedConfig): InterfaceNetworkCollector? {
+        if (!config.cgroup.interfaceNetwork) return null
+        return InterfaceNetworkCollector(reader, props.cgroup.procRoot, registry)
+    }
+
+    @Bean
+    fun filesystemCollector(reader: CgroupReader, registry: MeterRegistry, config: ResolvedConfig): FilesystemCollector? {
+        if (!config.cgroup.filesystem) return null
+        return FilesystemCollector(reader, props.cgroup.procRoot, registry)
+    }
+
+    // --- Aggregated service ---
+
     @Bean
     @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
     fun metricsCollectorService(
         cpuCollector: CpuSchedulingCollector,
         netCollector: NetworkCollector,
         memCollector: MemoryCollector,
-        syscallCollector: SyscallCollector
+        syscallCollector: SyscallCollector,
+        diskIOCollector: Optional<DiskIOCollector>,
+        ifaceNetCollector: Optional<InterfaceNetworkCollector>,
+        fsCollector: Optional<FilesystemCollector>,
+        podCgroupMapper: PodCgroupMapper,
+        bridge: BpfBridge,
+        manager: BpfProgramManager,
+        cgroupResolver: CgroupResolver,
+        bpfMapStatsCollector: BpfMapStatsCollector
     ): MetricsCollectorService {
-        val service = MetricsCollectorService(cpuCollector, netCollector, memCollector, syscallCollector)
+        val service = MetricsCollectorService(
+            cpuCollector, netCollector, memCollector, syscallCollector,
+            diskIOCollector.orElse(null),
+            ifaceNetCollector.orElse(null),
+            fsCollector.orElse(null),
+            podCgroupMapper,
+            bridge,
+            manager,
+            cgroupResolver,
+            bpfMapStatsCollector
+        )
         this.metricsCollectorServiceInstance = service
         return service
     }
@@ -114,14 +202,30 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
     fun onStartup() {
         programManager?.let {
             log.info("Loading BPF programs from {}", props.bpf.programDir)
-            it.loadAll()
-            log.info("BPF programs loaded successfully")
+            try {
+                it.loadAll()
+                log.info("BPF programs loaded successfully")
+            } catch (e: Exception) {
+                log.warn("BPF program loading failed (kernel may not support tracing); cgroup collectors will still run: {}", e.message)
+            }
         }
-        podWatcherInstance?.let {
+        podWatcherInstance?.let { watcher ->
+            metricsCollectorServiceInstance?.let { service ->
+                watcher.setOnPodDeletedCallback { cgroupId ->
+                    service.cleanupCgroupEntries(cgroupId)
+                }
+            }
+            try {
+                watcher.start()
+            } catch (e: Exception) {
+                log.warn("Failed to start PodWatcher (K8s API may be unavailable): {}", e.message)
+            }
+        }
+        kubeletPodProviderInstance?.let {
             try {
                 it.start()
             } catch (e: Exception) {
-                log.warn("Failed to start PodWatcher (K8s API may be unavailable): {}", e.message)
+                log.warn("Failed to start KubeletPodProvider: {}", e.message)
             }
         }
     }
@@ -129,6 +233,7 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
     @PreDestroy
     fun onShutdown() {
         podWatcherInstance?.stop()
+        kubeletPodProviderInstance?.stop()
         metricsCollectorServiceInstance?.close()
         programManager?.let {
             log.info("Destroying BPF programs")
