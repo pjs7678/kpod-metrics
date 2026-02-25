@@ -18,6 +18,10 @@ repositories {
     mavenCentral()
 }
 
+sourceSets {
+    create("bpfGenerator")
+}
+
 dependencies {
     // Spring Boot
     implementation("org.springframework.boot:spring-boot-starter-web")
@@ -43,6 +47,12 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("io.mockk:mockk:1.13.16")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.1")
+    testImplementation(sourceSets["bpfGenerator"].output)
+    testImplementation("dev.ebpf:kotlin-ebpf-dsl")
+
+    // bpfGenerator source set
+    "bpfGeneratorImplementation"("dev.ebpf:kotlin-ebpf-dsl")
+    "bpfGeneratorImplementation"("org.jetbrains.kotlin:kotlin-stdlib")
 }
 
 kotlin {
@@ -53,15 +63,6 @@ kotlin {
 
 tasks.withType<Test> {
     useJUnitPlatform()
-}
-
-sourceSets {
-    create("bpfGenerator")
-}
-
-dependencies {
-    "bpfGeneratorImplementation"("dev.ebpf:kotlin-ebpf-dsl")
-    "bpfGeneratorImplementation"("org.jetbrains.kotlin:kotlin-stdlib")
 }
 
 val generateBpf = tasks.register<JavaExec>("generateBpf") {
