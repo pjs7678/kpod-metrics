@@ -36,6 +36,9 @@ dependencies {
     // Kubernetes client
     implementation("io.fabric8:kubernetes-client:7.1.0")
 
+    // eBPF DSL (composite build)
+    implementation("dev.ebpf:kotlin-ebpf-dsl")
+
     // Test
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("io.mockk:mockk:1.13.16")
@@ -50,4 +53,26 @@ kotlin {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+sourceSets {
+    create("bpfGenerator")
+}
+
+dependencies {
+    "bpfGeneratorImplementation"("dev.ebpf:kotlin-ebpf-dsl")
+    "bpfGeneratorImplementation"("org.jetbrains.kotlin:kotlin-stdlib")
+}
+
+val generateBpf = tasks.register<JavaExec>("generateBpf") {
+    classpath = sourceSets["bpfGenerator"].runtimeClasspath
+    mainClass.set("com.internal.kpodmetrics.bpf.programs.GenerateBpfKt")
+    outputs.dir(layout.buildDirectory.dir("generated/bpf"))
+    outputs.dir(layout.buildDirectory.dir("generated/kotlin"))
+}
+
+sourceSets["main"].kotlin.srcDir(layout.buildDirectory.dir("generated/kotlin"))
+
+tasks.named("compileKotlin") {
+    dependsOn(generateBpf)
 }
