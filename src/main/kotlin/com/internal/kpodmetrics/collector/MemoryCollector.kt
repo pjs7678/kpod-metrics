@@ -3,12 +3,11 @@ package com.internal.kpodmetrics.collector
 import com.internal.kpodmetrics.bpf.BpfBridge
 import com.internal.kpodmetrics.bpf.BpfProgramManager
 import com.internal.kpodmetrics.bpf.CgroupResolver
+import com.internal.kpodmetrics.bpf.generated.MemMapReader
 import com.internal.kpodmetrics.config.ResolvedConfig
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
 import org.slf4j.LoggerFactory
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 
 class MemoryCollector(
     private val bridge: BpfBridge,
@@ -21,8 +20,6 @@ class MemoryCollector(
     private val log = LoggerFactory.getLogger(MemoryCollector::class.java)
 
     companion object {
-        private const val KEY_SIZE = 8
-        private const val COUNTER_VALUE_SIZE = 8
         private const val MAX_ENTRIES = 10240
     }
 
@@ -37,11 +34,11 @@ class MemoryCollector(
 
     private fun collectOomKills() {
         val mapFd = programManager.getMapFd("mem", "oom_kills")
-        collectMap(mapFd, KEY_SIZE, COUNTER_VALUE_SIZE) { keyBytes, valueBytes ->
-            val cgroupId = ByteBuffer.wrap(keyBytes).order(ByteOrder.LITTLE_ENDIAN).long
+        collectMap(mapFd, MemMapReader.CounterKeyLayout.SIZE, MemMapReader.CounterValueLayout.SIZE) { keyBytes, valueBytes ->
+            val cgroupId = MemMapReader.CounterKeyLayout.decodeCgroupId(keyBytes)
             val podInfo = cgroupResolver.resolve(cgroupId) ?: return@collectMap
 
-            val count = ByteBuffer.wrap(valueBytes).order(ByteOrder.LITTLE_ENDIAN).long
+            val count = MemMapReader.CounterValueLayout.decodeCount(valueBytes)
 
             val tags = Tags.of(
                 "namespace", podInfo.namespace,
@@ -56,11 +53,11 @@ class MemoryCollector(
 
     private fun collectMajorFaults() {
         val mapFd = programManager.getMapFd("mem", "major_faults")
-        collectMap(mapFd, KEY_SIZE, COUNTER_VALUE_SIZE) { keyBytes, valueBytes ->
-            val cgroupId = ByteBuffer.wrap(keyBytes).order(ByteOrder.LITTLE_ENDIAN).long
+        collectMap(mapFd, MemMapReader.CounterKeyLayout.SIZE, MemMapReader.CounterValueLayout.SIZE) { keyBytes, valueBytes ->
+            val cgroupId = MemMapReader.CounterKeyLayout.decodeCgroupId(keyBytes)
             val podInfo = cgroupResolver.resolve(cgroupId) ?: return@collectMap
 
-            val count = ByteBuffer.wrap(valueBytes).order(ByteOrder.LITTLE_ENDIAN).long
+            val count = MemMapReader.CounterValueLayout.decodeCount(valueBytes)
 
             val tags = Tags.of(
                 "namespace", podInfo.namespace,

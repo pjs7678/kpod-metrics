@@ -3,13 +3,12 @@ package com.internal.kpodmetrics.collector
 import com.internal.kpodmetrics.bpf.BpfBridge
 import com.internal.kpodmetrics.bpf.BpfProgramManager
 import com.internal.kpodmetrics.bpf.CgroupResolver
+import com.internal.kpodmetrics.bpf.generated.NetMapReader
 import com.internal.kpodmetrics.config.ResolvedConfig
 import io.micrometer.core.instrument.DistributionSummary
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
 import org.slf4j.LoggerFactory
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 
 class NetworkCollector(
     private val bridge: BpfBridge,
@@ -22,8 +21,6 @@ class NetworkCollector(
     private val log = LoggerFactory.getLogger(NetworkCollector::class.java)
 
     companion object {
-        private const val KEY_SIZE = 8
-        private const val TCP_STATS_VALUE_SIZE = 48
         private const val MAX_ENTRIES = 10240
     }
 
@@ -35,17 +32,16 @@ class NetworkCollector(
 
     private fun collectTcpStats() {
         val mapFd = programManager.getMapFd("net", "tcp_stats_map")
-        collectMap(mapFd, KEY_SIZE, TCP_STATS_VALUE_SIZE) { keyBytes, valueBytes ->
-            val cgroupId = ByteBuffer.wrap(keyBytes).order(ByteOrder.LITTLE_ENDIAN).long
+        collectMap(mapFd, NetMapReader.CounterKeyLayout.SIZE, NetMapReader.TcpStatsLayout.SIZE) { keyBytes, valueBytes ->
+            val cgroupId = NetMapReader.CounterKeyLayout.decodeCgroupId(keyBytes)
             val podInfo = cgroupResolver.resolve(cgroupId) ?: return@collectMap
 
-            val buf = ByteBuffer.wrap(valueBytes).order(ByteOrder.LITTLE_ENDIAN)
-            val bytesSent = buf.long
-            val bytesReceived = buf.long
-            val retransmits = buf.long
-            val connections = buf.long
-            val rttSumUs = buf.long
-            val rttCount = buf.long
+            val bytesSent = NetMapReader.TcpStatsLayout.decodeBytesSent(valueBytes)
+            val bytesReceived = NetMapReader.TcpStatsLayout.decodeBytesReceived(valueBytes)
+            val retransmits = NetMapReader.TcpStatsLayout.decodeRetransmits(valueBytes)
+            val connections = NetMapReader.TcpStatsLayout.decodeConnections(valueBytes)
+            val rttSumUs = NetMapReader.TcpStatsLayout.decodeRttSumUs(valueBytes)
+            val rttCount = NetMapReader.TcpStatsLayout.decodeRttCount(valueBytes)
 
             val tags = Tags.of(
                 "namespace", podInfo.namespace,

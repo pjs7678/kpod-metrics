@@ -1,28 +1,29 @@
-#ifndef KPOD_COMMON_H
-#define KPOD_COMMON_H
+package com.internal.kpodmetrics.bpf.programs
 
+import dev.ebpf.dsl.types.BpfScalar
+import dev.ebpf.dsl.types.BpfStruct
+
+object CounterKey : BpfStruct("counter_key") {
+    val cgroupId by u64()
+}
+
+object CounterValue : BpfStruct("counter_value") {
+    val count by u64()
+}
+
+object HistKey : BpfStruct("hist_key") {
+    val cgroupId by u64()
+}
+
+object HistValue : BpfStruct("hist_value") {
+    val slots by array(BpfScalar.U64, 27)
+    val count by u64()
+    val sumNs by u64()
+}
+
+val COMMON_PREAMBLE = """
 #define MAX_ENTRIES 10240
 #define MAX_SLOTS 27
-
-struct hist_key {
-    __u64 cgroup_id;
-};
-
-struct hist_value {
-    __u64 slots[MAX_SLOTS];
-    __u64 count;
-    __u64 sum_ns;
-};
-
-struct counter_key {
-    __u64 cgroup_id;
-};
-
-struct counter_value {
-    __u64 count;
-};
-
-/* --- Map stats infrastructure --- */
 
 enum map_stat_idx {
     MAP_STAT_ENTRIES = 0,
@@ -58,5 +59,4 @@ static __always_inline __u32 log2l(__u64 v) {
     }
     return r;
 }
-
-#endif
+""".trimIndent()

@@ -43,7 +43,7 @@ class SyscallCollectorTest {
 
     @Test
     fun `collect reads syscall stats map and registers metrics with syscall label`() {
-        every { programManager.getMapFd("syscall", "syscall_stats_map") } returns 30
+        every { programManager.getMapFd("syscall", "syscall_stats") } returns 30
 
         val keyBytes = buildSyscallKey(cgroupId = 100L, syscallNr = writeSyscallNr) // write
 
@@ -70,7 +70,7 @@ class SyscallCollectorTest {
 
     @Test
     fun `collect uses fallback name for unknown syscall number`() {
-        every { programManager.getMapFd("syscall", "syscall_stats_map") } returns 30
+        every { programManager.getMapFd("syscall", "syscall_stats") } returns 30
 
         val keyBytes = buildSyscallKey(cgroupId = 100L, syscallNr = 999)
 
@@ -86,7 +86,7 @@ class SyscallCollectorTest {
 
     @Test
     fun `collect skips unknown cgroup ids`() {
-        every { programManager.getMapFd("syscall", "syscall_stats_map") } returns 30
+        every { programManager.getMapFd("syscall", "syscall_stats") } returns 30
 
         val keyBytes = buildSyscallKey(cgroupId = 999L, syscallNr = 0)
         every { bridge.mapBatchLookupAndDelete(30, 16, 240, any()) } returns listOf(
@@ -113,7 +113,7 @@ class SyscallCollectorTest {
 
     @Test
     fun `collect resolves known syscall names correctly`() {
-        every { programManager.getMapFd("syscall", "syscall_stats_map") } returns 30
+        every { programManager.getMapFd("syscall", "syscall_stats") } returns 30
 
         val keyRead = buildSyscallKey(cgroupId = 100L, syscallNr = readSyscallNr)
         val keyConnect = buildSyscallKey(cgroupId = 100L, syscallNr = connectSyscallNr)

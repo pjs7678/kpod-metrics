@@ -3,13 +3,12 @@ package com.internal.kpodmetrics.collector
 import com.internal.kpodmetrics.bpf.BpfBridge
 import com.internal.kpodmetrics.bpf.BpfProgramManager
 import com.internal.kpodmetrics.bpf.CgroupResolver
+import com.internal.kpodmetrics.bpf.generated.SyscallMapReader
 import com.internal.kpodmetrics.config.ResolvedConfig
 import io.micrometer.core.instrument.DistributionSummary
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
 import org.slf4j.LoggerFactory
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 
 class SyscallCollector(
     private val bridge: BpfBridge,
@@ -22,9 +21,6 @@ class SyscallCollector(
     private val log = LoggerFactory.getLogger(SyscallCollector::class.java)
 
     companion object {
-        private const val KEY_SIZE = 16
-        private const val VALUE_SIZE = 240
-        private const val MAX_SLOTS = 27
         private const val MAX_ENTRIES = 10240
 
         // Syscall number-to-name mappings per architecture
@@ -53,23 +49,19 @@ class SyscallCollector(
     }
 
     private fun collectSyscallStats() {
-        val mapFd = programManager.getMapFd("syscall", "syscall_stats_map")
-        collectMap(mapFd, KEY_SIZE, VALUE_SIZE) { keyBytes, valueBytes ->
-            val keyBuf = ByteBuffer.wrap(keyBytes).order(ByteOrder.LITTLE_ENDIAN)
-            val cgroupId = keyBuf.long
-            val syscallNr = keyBuf.int
-            // skip padding
-            keyBuf.int
+        val mapFd = programManager.getMapFd("syscall", "syscall_stats")
+        collectMap(mapFd, SyscallMapReader.SyscallKeyLayout.SIZE, SyscallMapReader.SyscallStatsLayout.SIZE) { keyBytes, valueBytes ->
+            val cgroupId = SyscallMapReader.SyscallKeyLayout.decodeCgroupId(keyBytes)
+            val syscallNr = SyscallMapReader.SyscallKeyLayout.decodeSyscallNr(keyBytes)
 
             val podInfo = cgroupResolver.resolve(cgroupId) ?: return@collectMap
 
             val syscallName = SYSCALL_NAMES[syscallNr] ?: "syscall_$syscallNr"
 
-            val valueBuf = ByteBuffer.wrap(valueBytes).order(ByteOrder.LITTLE_ENDIAN)
-            val count = valueBuf.long
-            val errorCount = valueBuf.long
-            val latencySumNs = valueBuf.long
-            // skip latency_slots (27 u64s) - not needed for summary metrics
+            val count = SyscallMapReader.SyscallStatsLayout.decodeCount(valueBytes)
+            val errorCount = SyscallMapReader.SyscallStatsLayout.decodeErrorCount(valueBytes)
+            val latencySumNs = SyscallMapReader.SyscallStatsLayout.decodeLatencySumNs(valueBytes)
+            // skip latency_slots - not needed for summary metrics
 
             val tags = Tags.of(
                 "namespace", podInfo.namespace,
