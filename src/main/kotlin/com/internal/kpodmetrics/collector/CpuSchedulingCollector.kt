@@ -3,13 +3,12 @@ package com.internal.kpodmetrics.collector
 import com.internal.kpodmetrics.bpf.BpfBridge
 import com.internal.kpodmetrics.bpf.BpfProgramManager
 import com.internal.kpodmetrics.bpf.CgroupResolver
+import com.internal.kpodmetrics.bpf.generated.CpuSchedMapReader
 import com.internal.kpodmetrics.config.ResolvedConfig
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
 import io.micrometer.core.instrument.DistributionSummary
 import org.slf4j.LoggerFactory
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 
 class CpuSchedulingCollector(
     private val bridge: BpfBridge,
@@ -22,10 +21,6 @@ class CpuSchedulingCollector(
     private val log = LoggerFactory.getLogger(CpuSchedulingCollector::class.java)
 
     companion object {
-        private const val KEY_SIZE = 8
-        private const val HIST_VALUE_SIZE = 232
-        private const val COUNTER_VALUE_SIZE = 8
-        private const val MAX_SLOTS = 27
         private const val MAX_ENTRIES = 10240
     }
 
@@ -40,14 +35,13 @@ class CpuSchedulingCollector(
 
     private fun collectRunqueueLatency() {
         val mapFd = programManager.getMapFd("cpu_sched", "runq_latency")
-        collectMap(mapFd, KEY_SIZE, HIST_VALUE_SIZE) { keyBytes, valueBytes ->
-            val cgroupId = ByteBuffer.wrap(keyBytes).order(ByteOrder.LITTLE_ENDIAN).long
+        collectMap(mapFd, CpuSchedMapReader.HistKeyLayout.SIZE, CpuSchedMapReader.HistValueLayout.SIZE) { keyBytes, valueBytes ->
+            val cgroupId = CpuSchedMapReader.HistKeyLayout.decodeCgroupId(keyBytes)
             val podInfo = cgroupResolver.resolve(cgroupId) ?: return@collectMap
 
-            val buf = ByteBuffer.wrap(valueBytes).order(ByteOrder.LITTLE_ENDIAN)
-            val slots = LongArray(MAX_SLOTS) { buf.long }
-            val count = buf.long
-            val sumNs = buf.long
+            val slots = CpuSchedMapReader.HistValueLayout.decodeSlotsArray(valueBytes)
+            val count = CpuSchedMapReader.HistValueLayout.decodeCount(valueBytes)
+            val sumNs = CpuSchedMapReader.HistValueLayout.decodeSumNs(valueBytes)
 
             val tags = Tags.of(
                 "namespace", podInfo.namespace,
@@ -66,11 +60,11 @@ class CpuSchedulingCollector(
 
     private fun collectContextSwitches() {
         val mapFd = programManager.getMapFd("cpu_sched", "ctx_switches")
-        collectMap(mapFd, KEY_SIZE, COUNTER_VALUE_SIZE) { keyBytes, valueBytes ->
-            val cgroupId = ByteBuffer.wrap(keyBytes).order(ByteOrder.LITTLE_ENDIAN).long
+        collectMap(mapFd, CpuSchedMapReader.CounterKeyLayout.SIZE, CpuSchedMapReader.CounterValueLayout.SIZE) { keyBytes, valueBytes ->
+            val cgroupId = CpuSchedMapReader.CounterKeyLayout.decodeCgroupId(keyBytes)
             val podInfo = cgroupResolver.resolve(cgroupId) ?: return@collectMap
 
-            val count = ByteBuffer.wrap(valueBytes).order(ByteOrder.LITTLE_ENDIAN).long
+            val count = CpuSchedMapReader.CounterValueLayout.decodeCount(valueBytes)
 
             val tags = Tags.of(
                 "namespace", podInfo.namespace,
