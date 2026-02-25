@@ -9,7 +9,7 @@ Node (DaemonSet pod)
 ┌─────────────────────────────────────────────────┐
 │  Spring Boot (JDK 21 + Virtual Threads)         │
 │                                                  │
-│  MetricsCollectorService (every 30s)            │
+│  MetricsCollectorService (every 15-30s)         │
 │  ├── eBPF Collectors ──► JNI ──► BPF Maps      │
 │  │   ├── CpuSchedulingCollector                 │
 │  │   ├── NetworkCollector                       │
@@ -39,7 +39,7 @@ Node (DaemonSet pod)
     └─────────────────────────────┘
 ```
 
-eBPF programs are compiled once with CO-RE (Compile Once, Run Everywhere) using kernel BTF, so no per-kernel compilation is needed.
+eBPF programs are defined in Kotlin using [kotlin-ebpf-dsl](https://github.com/pjs7678/kotlin-ebpf-dsl), which generates both the C code for kernel-side programs and Kotlin `MapReader` classes for userspace deserialization. Programs are compiled once with CO-RE (Compile Once, Run Everywhere) using kernel BTF, so no per-kernel compilation is needed.
 
 ## Metrics
 
@@ -190,51 +190,96 @@ config:
 
 ### Docker (recommended)
 
-```bash
-docker build -t kpod-metrics:latest .
+The build context requires both this repo and [kotlin-ebpf-dsl](https://github.com/pjs7678/kotlin-ebpf-dsl) as a sibling directory:
+
+```
+parent/
+├── kpod-metrics/
+└── kotlin-ebpf-dsl/
 ```
 
-The multi-stage Dockerfile handles:
-1. BPF program compilation (clang + llvm)
-2. JNI bridge compilation (cmake + libbpf)
-3. Spring Boot JAR build (Gradle + JDK 21)
-4. Minimal runtime image (Temurin JRE 21)
+```bash
+docker build -f kpod-metrics/Dockerfile -t kpod-metrics:latest .
+```
+
+The 5-stage Dockerfile handles:
+
+1. **Codegen** -- Gradle runs kotlin-ebpf-dsl to generate BPF C code and Kotlin MapReader classes
+2. **BPF compile** -- clang compiles generated `.bpf.c` into CO-RE `.bpf.o` objects
+3. **JNI build** -- CMake compiles the JNI bridge (`libkpod_bpf.so`) against libbpf
+4. **App build** -- Gradle builds the Spring Boot executable JAR
+5. **Runtime** -- Eclipse Temurin JRE 21, minimal image with compiled artifacts
 
 ### Local Development
 
-Requires JDK 21:
+Requires JDK 21 and kotlin-ebpf-dsl as a sibling directory:
 
 ```bash
-./gradlew build        # Compile + test (88 tests)
-./gradlew bootJar      # Build executable JAR
+./gradlew generateBpf  # Generate BPF C code + Kotlin MapReader classes
+./gradlew build         # Compile + test (140 tests)
+./gradlew bootJar       # Build executable JAR
 ```
 
 BPF programs and JNI library must be cross-compiled in a Linux environment (the Dockerfile handles this).
+
+## BPF Code Generation
+
+eBPF programs are defined as Kotlin DSL in `src/bpfGenerator/kotlin/`:
+
+```kotlin
+val memProgram = ebpfProgram("mem") {
+    val counterKey = struct("counter_key") { u64("cgroup_id") }
+    val oomKills = hashMap("oom_kills", counterKey, BpfScalar.U64, maxEntries = 10240)
+
+    tracepoint("oom", "mark_victim") {
+        val cgId = getCurrentCgroupId()
+        val ptr = mapLookupElem(oomKills, cgId)
+        ifNonNull(ptr) { atomicIncrement(it) }
+    }
+}
+```
+
+Running `./gradlew generateBpf` produces:
+
+- `build/generated/bpf/*.bpf.c` -- kernel-side C programs
+- `build/generated/kotlin/*MapReader.kt` -- type-safe map deserialization
+
+Collectors use generated `MapReader` layout classes instead of manual `ByteBuffer` parsing:
+
+```kotlin
+// Before (manual)
+val cgroupId = ByteBuffer.wrap(keyBytes).order(ByteOrder.LITTLE_ENDIAN).long
+
+// After (generated)
+val cgroupId = MemMapReader.CounterKeyLayout.decodeCgroupId(keyBytes)
+```
 
 ## Testing
 
 ### Unit Tests
 
 ```bash
-./gradlew test
+./gradlew test  # 140 tests
 ```
 
 ### Integration Test (minikube)
 
 ```bash
+# Full test: minikube start, Docker build, Helm deploy, stress test, cleanup
 ./scripts/test-local-k8s.sh
+
+# Reuse existing minikube and skip Docker build
+./scripts/test-local-k8s.sh --skip-minikube --skip-build
+
+# Cleanup only
+./scripts/test-local-k8s.sh --teardown
 ```
 
-Automates: minikube setup, Docker build, Helm deploy, stress workload, metric validation, and teardown.
-
-Options:
-- `--skip-build` — skip Docker image build
-- `--skip-minikube` — reuse existing minikube cluster
-- `--teardown` — cleanup only
+The integration test validates: health endpoint, Prometheus metrics, cgroup collector output, pod stability under stress (zero restarts, <5s scrape latency, <10% error rate).
 
 ## Scaling
 
-Tested for clusters up to **1000 nodes / 100,000 pods**.
+Tested for clusters up to **1,000 nodes / 100,000 pods**.
 
 | Component | Capacity |
 |-----------|----------|
@@ -250,27 +295,43 @@ For large clusters, use the `standard` profile (not `comprehensive`) to keep Pro
 
 ```
 kpod-metrics/
-├── bpf/                    # eBPF C programs (cpu, net, mem, syscall)
-├── jni/                    # JNI bridge (C wrapper around libbpf)
-├── src/main/kotlin/
-│   └── com/internal/kpodmetrics/
-│       ├── bpf/            # BpfBridge, BpfProgramManager, CgroupResolver
-│       ├── cgroup/         # CgroupReader, CgroupPathResolver, CgroupVersionDetector
-│       ├── collector/      # All metric collectors
-│       ├── config/         # MetricsProperties, BpfAutoConfiguration
-│       ├── discovery/      # PodProvider, PodCgroupMapper, KubeletPodProvider
-│       ├── k8s/            # PodWatcher (K8s informer)
-│       └── model/          # DTOs (CgroupVersion, DiscoveredPod, PodCgroupTarget)
-├── helm/kpod-metrics/      # Helm chart (DaemonSet, RBAC, ConfigMap)
-├── scripts/                # test-local-k8s.sh, stress-workload.yaml
-├── Dockerfile              # Multi-stage build
-└── build.gradle.kts        # Gradle build config
+├── bpf/
+│   └── vmlinux.h               # Kernel BTF headers for CO-RE
+├── jni/
+│   ├── bpf_bridge.c            # JNI bridge (libbpf wrapper)
+│   └── CMakeLists.txt
+├── src/
+│   ├── bpfGenerator/kotlin/    # eBPF program definitions (Kotlin DSL)
+│   │   └── .../bpf/programs/
+│   │       ├── Structs.kt      # Shared BPF struct definitions
+│   │       ├── MemProgram.kt
+│   │       ├── CpuSchedProgram.kt
+│   │       ├── NetProgram.kt
+│   │       ├── SyscallProgram.kt
+│   │       └── GenerateBpf.kt  # Code generation entry point
+│   ├── main/kotlin/
+│   │   └── com/internal/kpodmetrics/
+│   │       ├── bpf/            # BpfBridge, BpfProgramManager, CgroupResolver
+│   │       ├── cgroup/         # CgroupReader, CgroupPathResolver
+│   │       ├── collector/      # All metric collectors (eBPF + cgroup)
+│   │       ├── config/         # MetricsProperties, profiles, auto-configuration
+│   │       ├── discovery/      # PodProvider, PodCgroupMapper
+│   │       ├── k8s/            # PodWatcher (K8s informer)
+│   │       └── model/          # DTOs
+│   └── test/kotlin/            # 140 unit tests
+├── helm/kpod-metrics/          # Helm chart (DaemonSet, RBAC, ConfigMap)
+├── scripts/
+│   ├── test-local-k8s.sh       # Integration test (minikube)
+│   └── stress-workload.yaml
+├── Dockerfile                  # 5-stage build (codegen → BPF → JNI → app → runtime)
+├── build.gradle.kts
+└── settings.gradle.kts         # Composite build with kotlin-ebpf-dsl
 ```
 
 ## Tech Stack
 
 - **Runtime**: Kotlin 2.1.10, Spring Boot 3.4.3, JDK 21 (virtual threads)
-- **eBPF**: CO-RE programs compiled with clang, loaded via libbpf + JNI
+- **eBPF**: CO-RE programs generated by [kotlin-ebpf-dsl](https://github.com/pjs7678/kotlin-ebpf-dsl), compiled with clang, loaded via libbpf + JNI
 - **Metrics**: Micrometer + Prometheus registry
 - **K8s**: Fabric8 Kubernetes Client 7.1.0
-- **Build**: Gradle 8.12, multi-stage Docker
+- **Build**: Gradle 8.12 (composite build), multi-stage Docker
