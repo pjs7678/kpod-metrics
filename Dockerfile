@@ -21,7 +21,7 @@ COPY kpod-metrics/gradle/ gradle/
 RUN gradle -PebpfDslPath=/kotlin-ebpf-dsl dependencies --no-daemon || true
 # Copy sources and generate BPF C code
 COPY kpod-metrics/src/ src/
-RUN gradle -PebpfDslPath=/kotlin-ebpf-dsl generateBpf --no-daemon
+RUN gradle -PebpfDslPath=/kotlin-ebpf-dsl -Pkotlin.compiler.execution.strategy=in-process generateBpf --no-daemon
 
 # Stage 2: Compile eBPF programs from generated C code
 FROM ubuntu:24.04 AS bpf-builder
@@ -65,7 +65,7 @@ COPY kpod-metrics/build.gradle.kts kpod-metrics/settings.gradle.kts kpod-metrics
 COPY kpod-metrics/gradle/ gradle/
 RUN gradle -PebpfDslPath=/kotlin-ebpf-dsl dependencies --no-daemon || true
 COPY kpod-metrics/src/ src/
-RUN gradle -PebpfDslPath=/kotlin-ebpf-dsl bootJar --no-daemon
+RUN gradle -PebpfDslPath=/kotlin-ebpf-dsl -Pkotlin.compiler.execution.strategy=in-process bootJar --no-daemon
 
 # Stage 5: Runtime (noble = Ubuntu 24.04, matches builder GLIBC)
 FROM eclipse-temurin:21-jre-noble

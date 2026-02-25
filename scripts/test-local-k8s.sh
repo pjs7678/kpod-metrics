@@ -117,8 +117,23 @@ if ! $SKIP_BUILD; then
     info "Configuring Docker to use minikube's daemon..."
     eval $(minikube docker-env)
 
+    # The Dockerfile expects both kpod-metrics/ and kotlin-ebpf-dsl/ in the build context.
+    # Create a temp context directory with both repos.
+    DSL_DIR="${DSL_DIR:-$(cd "$PROJECT_DIR/../../kotlin-ebpf-dsl" 2>/dev/null && pwd)}"
+    if [ ! -d "$DSL_DIR" ]; then
+        fail "kotlin-ebpf-dsl not found. Set DSL_DIR=/path/to/kotlin-ebpf-dsl"
+        exit 1
+    fi
+
+    BUILD_CTX=$(mktemp -d)
+    trap "rm -rf $BUILD_CTX" EXIT
+    info "Creating build context at $BUILD_CTX..."
+    cp -a "$PROJECT_DIR" "$BUILD_CTX/kpod-metrics"
+    cp -a "$DSL_DIR" "$BUILD_CTX/kotlin-ebpf-dsl"
+
     info "Building $IMAGE_NAME:$IMAGE_TAG inside minikube..."
-    docker build -t "$IMAGE_NAME:$IMAGE_TAG" "$PROJECT_DIR"
+    docker build -f "$BUILD_CTX/kpod-metrics/Dockerfile" -t "$IMAGE_NAME:$IMAGE_TAG" "$BUILD_CTX"
+    rm -rf "$BUILD_CTX"
 
     info "Docker image built successfully."
 else
