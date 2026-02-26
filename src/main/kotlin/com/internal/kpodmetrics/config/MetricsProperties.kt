@@ -53,7 +53,7 @@ data class MetricsProperties(
                     trackedSyscalls = DEFAULT_TRACKED_SYSCALLS
                 ),
                 extended = ExtendedProperties(
-                    biolatency = true, cachestat = true, vfsstat = true,
+                    biolatency = true, cachestat = true,
                     tcpdrop = true, hardirqs = true, softirqs = true, execsnoop = true
                 ),
                 cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = true, filesystem = true)
@@ -134,7 +134,6 @@ data class CgroupProperties(
 data class ExtendedProperties(
     val biolatency: Boolean = false,
     val cachestat: Boolean = false,
-    val vfsstat: Boolean = false,
     val tcpdrop: Boolean = false,
     val hardirqs: Boolean = false,
     val softirqs: Boolean = false,

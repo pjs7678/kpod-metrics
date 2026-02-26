@@ -29,7 +29,6 @@ class BpfProgramManager(
         val ext = config.extended
         if (ext.biolatency) loadProgram("biolatency")
         if (ext.cachestat) loadProgram("cachestat")
-        if (ext.vfsstat) loadProgram("vfsstat")
         if (ext.tcpdrop) loadProgram("tcpdrop")
         if (ext.hardirqs) loadProgram("hardirqs")
         if (ext.softirqs) loadProgram("softirqs")

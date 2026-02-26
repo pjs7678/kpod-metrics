@@ -10,7 +10,7 @@ fun main() {
         // Custom programs
         memProgram, cpuSchedProgram, netProgram, syscallProgram,
         // BCC-style tools from kotlin-ebpf-dsl
-        biolatency(), cachestat(), vfsstat(), tcpdrop(),
+        biolatency(), cachestat(), tcpdrop(),
         hardirqs(), softirqs(), execsnoop()
     )
 

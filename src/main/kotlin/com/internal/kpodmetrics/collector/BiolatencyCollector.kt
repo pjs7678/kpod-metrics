@@ -26,11 +26,7 @@ class BiolatencyCollector(
 
     fun collect() {
         if (!config.extended.biolatency) return
-        collectLatency()
-        collectCount()
-    }
 
-    private fun collectLatency() {
         val mapFd = programManager.getMapFd("biolatency", "bio_latency")
         val entries = bridge.mapBatchLookupAndDelete(
             mapFd, BiolatencyMapReader.HistKeyLayout.SIZE,
@@ -57,29 +53,6 @@ class BiolatencyCollector(
                     .register(registry)
                     .record(sumNs.toDouble() / 1_000_000_000.0)
             }
-        }
-    }
-
-    private fun collectCount() {
-        val mapFd = programManager.getMapFd("biolatency", "bio_count")
-        val entries = bridge.mapBatchLookupAndDelete(
-            mapFd, BiolatencyMapReader.CgroupKeyLayout.SIZE,
-            BiolatencyMapReader.CounterLayout.SIZE, MAX_ENTRIES
-        )
-        entries.forEach { (keyBytes, valueBytes) ->
-            val cgroupId = BiolatencyMapReader.CgroupKeyLayout.decodeCgroupId(keyBytes)
-            val podInfo = cgroupResolver.resolve(cgroupId) ?: return@forEach
-
-            val count = BiolatencyMapReader.CounterLayout.decodeCount(valueBytes)
-
-            val tags = Tags.of(
-                "namespace", podInfo.namespace,
-                "pod", podInfo.podName,
-                "container", podInfo.containerName,
-                "node", nodeName
-            )
-
-            registry.counter("kpod.disk.io.requests", tags).increment(count.toDouble())
         }
     }
 }

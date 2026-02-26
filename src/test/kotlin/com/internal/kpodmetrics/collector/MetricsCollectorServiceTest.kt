@@ -14,7 +14,6 @@ class MetricsCollectorServiceTest {
     private lateinit var syscallCollector: SyscallCollector
     private lateinit var biolatencyCollector: BiolatencyCollector
     private lateinit var cachestatCollector: CachestatCollector
-    private lateinit var vfsstatCollector: VfsstatCollector
     private lateinit var tcpdropCollector: TcpdropCollector
     private lateinit var hardirqsCollector: HardirqsCollector
     private lateinit var softirqsCollector: SoftirqsCollector
@@ -29,14 +28,13 @@ class MetricsCollectorServiceTest {
         syscallCollector = mockk(relaxed = true)
         biolatencyCollector = mockk(relaxed = true)
         cachestatCollector = mockk(relaxed = true)
-        vfsstatCollector = mockk(relaxed = true)
         tcpdropCollector = mockk(relaxed = true)
         hardirqsCollector = mockk(relaxed = true)
         softirqsCollector = mockk(relaxed = true)
         execsnoopCollector = mockk(relaxed = true)
         service = MetricsCollectorService(
             cpuCollector, netCollector, memCollector, syscallCollector,
-            biolatencyCollector, cachestatCollector, vfsstatCollector,
+            biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector
         )
     }
@@ -50,7 +48,6 @@ class MetricsCollectorServiceTest {
         verify { syscallCollector.collect() }
         verify { biolatencyCollector.collect() }
         verify { cachestatCollector.collect() }
-        verify { vfsstatCollector.collect() }
         verify { tcpdropCollector.collect() }
         verify { hardirqsCollector.collect() }
         verify { softirqsCollector.collect() }
@@ -77,7 +74,7 @@ class MetricsCollectorServiceTest {
 
         val serviceWithCgroup = MetricsCollectorService(
             cpuCollector, netCollector, memCollector, syscallCollector,
-            biolatencyCollector, cachestatCollector, vfsstatCollector,
+            biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
             diskIOCollector, ifaceNetCollector, fsCollector, mapper
         )
