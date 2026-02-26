@@ -19,37 +19,39 @@ class MetricsPropertiesTest {
     lateinit var props: MetricsProperties
 
     @Test
-    fun `standard profile enables cpu, network, memory but not syscall`() {
+    fun `standard profile enables cpu, network but not syscall`() {
         val resolved = props.resolveProfile()
         assertTrue(resolved.cpu.scheduling.enabled)
         assertTrue(resolved.cpu.throttling.enabled)
         assertTrue(resolved.network.tcp.enabled)
-        assertTrue(resolved.memory.oom)
-        assertTrue(resolved.memory.pageFaults)
-        assertTrue(resolved.memory.cgroupStats)
         assertFalse(resolved.syscall.enabled)
+        assertTrue(resolved.extended.tcpdrop)
+        assertTrue(resolved.extended.execsnoop)
     }
 
     @Test
-    fun `minimal profile enables only cpu scheduling, throttling, oom, cgroup stats`() {
+    fun `minimal profile enables only cpu scheduling and throttling`() {
         val resolved = props.resolveProfile(override = "minimal")
         assertTrue(resolved.cpu.scheduling.enabled)
         assertTrue(resolved.cpu.throttling.enabled)
         assertFalse(resolved.network.tcp.enabled)
-        assertTrue(resolved.memory.oom)
-        assertFalse(resolved.memory.pageFaults)
-        assertTrue(resolved.memory.cgroupStats)
         assertFalse(resolved.syscall.enabled)
+        assertFalse(resolved.extended.biolatency)
     }
 
     @Test
-    fun `comprehensive profile enables everything including syscall`() {
+    fun `comprehensive profile enables everything including syscall and all extended tools`() {
         val resolved = props.resolveProfile(override = "comprehensive")
         assertTrue(resolved.cpu.scheduling.enabled)
         assertTrue(resolved.network.tcp.enabled)
-        assertTrue(resolved.memory.oom)
         assertTrue(resolved.syscall.enabled)
         assertTrue(resolved.syscall.trackedSyscalls.isNotEmpty())
+        assertTrue(resolved.extended.biolatency)
+        assertTrue(resolved.extended.cachestat)
+        assertTrue(resolved.extended.tcpdrop)
+        assertTrue(resolved.extended.hardirqs)
+        assertTrue(resolved.extended.softirqs)
+        assertTrue(resolved.extended.execsnoop)
     }
 
     @Test

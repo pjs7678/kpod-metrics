@@ -18,9 +18,7 @@ class BpfProgramManager(
         if (config.network.tcp.enabled) {
             loadProgram("net")
         }
-        if (config.memory.oom || config.memory.pageFaults) {
-            loadProgram("mem")
-        }
+        // mem program removed — oom_kills and major_faults duplicate cAdvisor
         if (config.syscall.enabled) {
             loadProgram("syscall")
         }

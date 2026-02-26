@@ -25,8 +25,6 @@ class BpfMapStatsCollector(
         private val STATS_MAPS = listOf(
             "cpu_sched" to "ctx_switches_stats",
             "cpu_sched" to "runq_latency_stats",
-            "mem" to "oom_kills_stats",
-            "mem" to "major_faults_stats",
             "net" to "tcp_stats_map_stats",
             "net" to "rtt_hist_stats",
             "syscall" to "syscall_stats_map_stats"

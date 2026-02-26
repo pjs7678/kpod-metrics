@@ -16,7 +16,6 @@ import java.util.concurrent.Executors
 class MetricsCollectorService(
     private val cpuCollector: CpuSchedulingCollector,
     private val netCollector: NetworkCollector,
-    private val memCollector: MemoryCollector,
     private val syscallCollector: SyscallCollector,
     private val biolatencyCollector: BiolatencyCollector,
     private val cachestatCollector: CachestatCollector,
@@ -42,7 +41,6 @@ class MetricsCollectorService(
         val bpfCollectors = listOfNotNull(
             "cpu" to cpuCollector::collect,
             "network" to netCollector::collect,
-            "memory" to memCollector::collect,
             "syscall" to syscallCollector::collect,
             "biolatency" to biolatencyCollector::collect,
             "cachestat" to cachestatCollector::collect,
@@ -89,8 +87,6 @@ class MetricsCollectorService(
         val maps8ByteKey = listOf(
             "cpu_sched" to "runq_latency",
             "cpu_sched" to "ctx_switches",
-            "mem" to "oom_kills",
-            "mem" to "major_faults",
             "net" to "tcp_stats_map",
             "net" to "rtt_hist",
             // BCC-style tool maps (all keyed by cgroup_key or hist_key = 8 bytes)

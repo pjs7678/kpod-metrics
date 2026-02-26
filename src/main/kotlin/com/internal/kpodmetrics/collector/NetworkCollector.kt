@@ -36,8 +36,8 @@ class NetworkCollector(
             val cgroupId = NetMapReader.CounterKeyLayout.decodeCgroupId(keyBytes)
             val podInfo = cgroupResolver.resolve(cgroupId) ?: return@collectMap
 
-            val bytesSent = NetMapReader.TcpStatsLayout.decodeBytesSent(valueBytes)
-            val bytesReceived = NetMapReader.TcpStatsLayout.decodeBytesReceived(valueBytes)
+            // bytes_sent/bytes_received omitted — cAdvisor already provides
+            // container_network_transmit/receive_bytes_total
             val retransmits = NetMapReader.TcpStatsLayout.decodeRetransmits(valueBytes)
             val connections = NetMapReader.TcpStatsLayout.decodeConnections(valueBytes)
             val rttSumUs = NetMapReader.TcpStatsLayout.decodeRttSumUs(valueBytes)
@@ -50,8 +50,6 @@ class NetworkCollector(
                 "node", nodeName
             )
 
-            registry.counter("kpod.net.tcp.bytes.sent", tags).increment(bytesSent.toDouble())
-            registry.counter("kpod.net.tcp.bytes.received", tags).increment(bytesReceived.toDouble())
             registry.counter("kpod.net.tcp.retransmits", tags).increment(retransmits.toDouble())
             registry.counter("kpod.net.tcp.connections", tags).increment(connections.toDouble())
 

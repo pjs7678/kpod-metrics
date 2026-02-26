@@ -10,7 +10,6 @@ class MetricsCollectorServiceTest {
 
     private lateinit var cpuCollector: CpuSchedulingCollector
     private lateinit var netCollector: NetworkCollector
-    private lateinit var memCollector: MemoryCollector
     private lateinit var syscallCollector: SyscallCollector
     private lateinit var biolatencyCollector: BiolatencyCollector
     private lateinit var cachestatCollector: CachestatCollector
@@ -24,7 +23,6 @@ class MetricsCollectorServiceTest {
     fun setup() {
         cpuCollector = mockk(relaxed = true)
         netCollector = mockk(relaxed = true)
-        memCollector = mockk(relaxed = true)
         syscallCollector = mockk(relaxed = true)
         biolatencyCollector = mockk(relaxed = true)
         cachestatCollector = mockk(relaxed = true)
@@ -33,7 +31,7 @@ class MetricsCollectorServiceTest {
         softirqsCollector = mockk(relaxed = true)
         execsnoopCollector = mockk(relaxed = true)
         service = MetricsCollectorService(
-            cpuCollector, netCollector, memCollector, syscallCollector,
+            cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector
         )
@@ -44,7 +42,6 @@ class MetricsCollectorServiceTest {
         service.collect()
         verify { cpuCollector.collect() }
         verify { netCollector.collect() }
-        verify { memCollector.collect() }
         verify { syscallCollector.collect() }
         verify { biolatencyCollector.collect() }
         verify { cachestatCollector.collect() }
@@ -59,7 +56,6 @@ class MetricsCollectorServiceTest {
         every { netCollector.collect() } throws RuntimeException("boom")
         service.collect()
         verify { cpuCollector.collect() }
-        verify { memCollector.collect() }
         verify { syscallCollector.collect() }
     }
 
@@ -73,7 +69,7 @@ class MetricsCollectorServiceTest {
         every { mapper.resolve() } returns targets
 
         val serviceWithCgroup = MetricsCollectorService(
-            cpuCollector, netCollector, memCollector, syscallCollector,
+            cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
             diskIOCollector, ifaceNetCollector, fsCollector, mapper

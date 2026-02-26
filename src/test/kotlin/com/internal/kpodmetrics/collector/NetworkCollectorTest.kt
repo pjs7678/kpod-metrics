@@ -52,19 +52,12 @@ class NetworkCollectorTest {
         collector.collect()
 
         val meters = registry.meters
-        assertTrue(meters.any { it.id.name == "kpod.net.tcp.bytes.sent" })
-        assertTrue(meters.any { it.id.name == "kpod.net.tcp.bytes.received" })
         assertTrue(meters.any { it.id.name == "kpod.net.tcp.retransmits" })
         assertTrue(meters.any { it.id.name == "kpod.net.tcp.connections" })
         assertTrue(meters.any { it.id.name == "kpod.net.tcp.rtt" })
-
-        val sentCounter = registry.counter("kpod.net.tcp.bytes.sent",
-            "namespace", "default", "pod", "test-pod", "container", "app", "node", "test-node")
-        assertEquals(1024.0, sentCounter.count())
-
-        val receivedCounter = registry.counter("kpod.net.tcp.bytes.received",
-            "namespace", "default", "pod", "test-pod", "container", "app", "node", "test-node")
-        assertEquals(2048.0, receivedCounter.count())
+        // bytes.sent/received removed — cAdvisor provides container_network_transmit/receive_bytes_total
+        assertFalse(meters.any { it.id.name == "kpod.net.tcp.bytes.sent" })
+        assertFalse(meters.any { it.id.name == "kpod.net.tcp.bytes.received" })
 
         val retransmitsCounter = registry.counter("kpod.net.tcp.retransmits",
             "namespace", "default", "pod", "test-pod", "container", "app", "node", "test-node")
@@ -109,7 +102,7 @@ class NetworkCollectorTest {
         collector.collect()
 
         assertTrue(registry.meters.none { it.id.name == "kpod.net.tcp.rtt" })
-        assertTrue(registry.meters.any { it.id.name == "kpod.net.tcp.bytes.sent" })
+        assertTrue(registry.meters.any { it.id.name == "kpod.net.tcp.retransmits" })
     }
 
     @Test

@@ -25,7 +25,6 @@ data class MetricsProperties(
                     throttling = ThrottlingProperties(enabled = true)
                 ),
                 network = NetworkProperties(tcp = TcpProperties(enabled = false)),
-                memory = MemoryProperties(oom = true, pageFaults = false, cgroupStats = true),
                 syscall = SyscallProperties(enabled = false),
                 extended = ExtendedProperties(),
                 cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = false, filesystem = false)
@@ -36,7 +35,6 @@ data class MetricsProperties(
                     throttling = ThrottlingProperties(enabled = true)
                 ),
                 network = NetworkProperties(tcp = TcpProperties(enabled = true)),
-                memory = MemoryProperties(oom = true, pageFaults = true, cgroupStats = true),
                 syscall = SyscallProperties(enabled = false),
                 extended = ExtendedProperties(tcpdrop = true, execsnoop = true),
                 cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = true, filesystem = true)
@@ -47,7 +45,6 @@ data class MetricsProperties(
                     throttling = ThrottlingProperties(enabled = true)
                 ),
                 network = NetworkProperties(tcp = TcpProperties(enabled = true)),
-                memory = MemoryProperties(oom = true, pageFaults = true, cgroupStats = true),
                 syscall = SyscallProperties(
                     enabled = true,
                     trackedSyscalls = DEFAULT_TRACKED_SYSCALLS
@@ -58,7 +55,7 @@ data class MetricsProperties(
                 ),
                 cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = true, filesystem = true)
             )
-            "custom" -> ResolvedConfig(cpu = cpu, network = network, memory = memory, syscall = syscall, extended = extended, cgroup = CgroupCollectorProperties())
+            "custom" -> ResolvedConfig(cpu = cpu, network = network, syscall = syscall, extended = extended, cgroup = CgroupCollectorProperties())
             else -> throw IllegalArgumentException("Unknown profile: ${override ?: profile}")
         }
     }
@@ -67,7 +64,6 @@ data class MetricsProperties(
 data class ResolvedConfig(
     val cpu: CpuProperties,
     val network: NetworkProperties,
-    val memory: MemoryProperties,
     val syscall: SyscallProperties,
     val extended: ExtendedProperties = ExtendedProperties(),
     val cgroup: CgroupCollectorProperties = CgroupCollectorProperties()

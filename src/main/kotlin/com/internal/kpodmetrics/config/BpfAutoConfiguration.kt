@@ -87,16 +87,6 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
 
     @Bean
     @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
-    fun memoryCollector(
-        bridge: BpfBridge,
-        manager: BpfProgramManager,
-        resolver: CgroupResolver,
-        registry: MeterRegistry,
-        config: ResolvedConfig
-    ) = MemoryCollector(bridge, manager, resolver, registry, config, props.nodeName)
-
-    @Bean
-    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
     fun bpfMapStatsCollector(
         bridge: BpfBridge,
         manager: BpfProgramManager,
@@ -234,7 +224,6 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
     fun metricsCollectorService(
         cpuCollector: CpuSchedulingCollector,
         netCollector: NetworkCollector,
-        memCollector: MemoryCollector,
         syscallCollector: SyscallCollector,
         biolatencyCollector: BiolatencyCollector,
         cachestatCollector: CachestatCollector,
@@ -252,7 +241,7 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         bpfMapStatsCollector: BpfMapStatsCollector
     ): MetricsCollectorService {
         val service = MetricsCollectorService(
-            cpuCollector, netCollector, memCollector, syscallCollector,
+            cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
             diskIOCollector.orElse(null),

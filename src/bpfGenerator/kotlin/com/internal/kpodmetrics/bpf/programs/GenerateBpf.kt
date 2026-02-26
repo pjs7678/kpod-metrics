@@ -8,7 +8,7 @@ import dev.ebpf.dsl.tools.*
 fun main() {
     val programs = listOf(
         // Custom programs
-        memProgram, cpuSchedProgram, netProgram, syscallProgram,
+        cpuSchedProgram, netProgram, syscallProgram,
         // BCC-style tools from kotlin-ebpf-dsl
         biolatency(), cachestat(), tcpdrop(),
         hardirqs(), softirqs(), execsnoop()

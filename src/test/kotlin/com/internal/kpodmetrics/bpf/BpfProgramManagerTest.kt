@@ -28,13 +28,12 @@ class BpfProgramManagerTest {
         manager.loadAll()
 
         verify { bridge.openObject("/test/bpf/cpu_sched.bpf.o") }
-        verify { bridge.openObject("/test/bpf/mem.bpf.o") }
         verify(exactly = 0) { bridge.openObject("/test/bpf/net.bpf.o") }
         verify(exactly = 0) { bridge.openObject("/test/bpf/syscall.bpf.o") }
     }
 
     @Test
-    fun `standard profile loads cpu, network, memory`() {
+    fun `standard profile loads cpu, network, extended tools`() {
         val config = MetricsProperties(profile = "standard").resolveProfile()
         manager = BpfProgramManager(bridge, "/test/bpf", config)
 
@@ -46,7 +45,8 @@ class BpfProgramManagerTest {
 
         verify { bridge.openObject("/test/bpf/cpu_sched.bpf.o") }
         verify { bridge.openObject("/test/bpf/net.bpf.o") }
-        verify { bridge.openObject("/test/bpf/mem.bpf.o") }
+        verify { bridge.openObject("/test/bpf/tcpdrop.bpf.o") }
+        verify { bridge.openObject("/test/bpf/execsnoop.bpf.o") }
         verify(exactly = 0) { bridge.openObject("/test/bpf/syscall.bpf.o") }
     }
 
@@ -55,7 +55,7 @@ class BpfProgramManagerTest {
         val config = MetricsProperties(profile = "standard").resolveProfile()
         manager = BpfProgramManager(bridge, "/test/bpf", config)
 
-        every { bridge.openObject(any()) } returnsMany listOf(1L, 2L, 3L)
+        every { bridge.openObject(any()) } returnsMany listOf(1L, 2L, 3L, 4L)
         every { bridge.loadObject(any()) } returns 0
         every { bridge.attachAll(any()) } returns 0
 
@@ -65,6 +65,7 @@ class BpfProgramManagerTest {
         verify { bridge.destroyObject(1L) }
         verify { bridge.destroyObject(2L) }
         verify { bridge.destroyObject(3L) }
+        verify { bridge.destroyObject(4L) }
     }
 
     @Test
