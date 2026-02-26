@@ -26,6 +26,7 @@ import dev.ebpf.dsl.types.BpfScalar
  */
 val cpuSchedProgram = ebpf("cpu_sched") {
     license("GPL")
+    targetKernel("5.3")
 
     preamble(
         COMMON_PREAMBLE +

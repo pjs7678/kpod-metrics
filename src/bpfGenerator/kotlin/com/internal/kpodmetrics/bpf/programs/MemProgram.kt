@@ -18,6 +18,7 @@ import dev.ebpf.dsl.types.BpfScalar
  */
 val memProgram = ebpf("mem") {
     license("GPL")
+    targetKernel("5.3")
 
     preamble(COMMON_PREAMBLE + "\n\nDEFINE_STATS_MAP(oom_kills)\nDEFINE_STATS_MAP(major_faults)")
 

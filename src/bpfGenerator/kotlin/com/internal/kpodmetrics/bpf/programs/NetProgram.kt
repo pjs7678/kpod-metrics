@@ -42,6 +42,7 @@ object TcpStats : BpfStruct("tcp_stats") {
  */
 val netProgram = ebpf("net") {
     license("GPL")
+    targetKernel("5.3")
 
     preamble(
         COMMON_PREAMBLE +
