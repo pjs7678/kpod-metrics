@@ -18,6 +18,13 @@ class MetricsCollectorService(
     private val netCollector: NetworkCollector,
     private val memCollector: MemoryCollector,
     private val syscallCollector: SyscallCollector,
+    private val biolatencyCollector: BiolatencyCollector,
+    private val cachestatCollector: CachestatCollector,
+    private val vfsstatCollector: VfsstatCollector,
+    private val tcpdropCollector: TcpdropCollector,
+    private val hardirqsCollector: HardirqsCollector,
+    private val softirqsCollector: SoftirqsCollector,
+    private val execsnoopCollector: ExecsnoopCollector,
     private val diskIOCollector: DiskIOCollector? = null,
     private val ifaceNetCollector: InterfaceNetworkCollector? = null,
     private val fsCollector: FilesystemCollector? = null,
@@ -38,6 +45,13 @@ class MetricsCollectorService(
             "network" to netCollector::collect,
             "memory" to memCollector::collect,
             "syscall" to syscallCollector::collect,
+            "biolatency" to biolatencyCollector::collect,
+            "cachestat" to cachestatCollector::collect,
+            "vfsstat" to vfsstatCollector::collect,
+            "tcpdrop" to tcpdropCollector::collect,
+            "hardirqs" to hardirqsCollector::collect,
+            "softirqs" to softirqsCollector::collect,
+            "execsnoop" to execsnoopCollector::collect,
             bpfMapStatsCollector?.let { "bpfMapStats" to it::collect }
         )
 
@@ -80,7 +94,17 @@ class MetricsCollectorService(
             "mem" to "oom_kills",
             "mem" to "major_faults",
             "net" to "tcp_stats_map",
-            "net" to "rtt_hist"
+            "net" to "rtt_hist",
+            // BCC-style tool maps (all keyed by cgroup_key or hist_key = 8 bytes)
+            "biolatency" to "bio_latency",
+            "biolatency" to "bio_count",
+            "cachestat" to "cache_stats",
+            "vfsstat" to "vfs_stats",
+            "tcpdrop" to "tcp_drops",
+            "hardirqs" to "irq_latency",
+            "hardirqs" to "irq_count",
+            "softirqs" to "softirq_latency",
+            "execsnoop" to "exec_stats"
         )
 
         val key8 = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(cgroupId).array()

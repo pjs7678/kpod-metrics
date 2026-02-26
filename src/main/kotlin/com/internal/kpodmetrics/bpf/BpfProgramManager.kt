@@ -24,6 +24,17 @@ class BpfProgramManager(
         if (config.syscall.enabled) {
             loadProgram("syscall")
         }
+
+        // BCC-style tools from kotlin-ebpf-dsl
+        val ext = config.extended
+        if (ext.biolatency) loadProgram("biolatency")
+        if (ext.cachestat) loadProgram("cachestat")
+        if (ext.vfsstat) loadProgram("vfsstat")
+        if (ext.tcpdrop) loadProgram("tcpdrop")
+        if (ext.hardirqs) loadProgram("hardirqs")
+        if (ext.softirqs) loadProgram("softirqs")
+        if (ext.execsnoop) loadProgram("execsnoop")
+
         log.info("Loaded {} BPF programs: {}", loadedPrograms.size, loadedPrograms.keys)
     }
 

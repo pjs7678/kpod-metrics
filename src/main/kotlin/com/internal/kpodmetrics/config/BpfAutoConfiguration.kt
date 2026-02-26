@@ -113,6 +113,78 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         config: ResolvedConfig
     ) = SyscallCollector(bridge, manager, resolver, registry, config, props.nodeName)
 
+    // --- BCC-style tool collectors ---
+
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun biolatencyCollector(
+        bridge: BpfBridge,
+        manager: BpfProgramManager,
+        resolver: CgroupResolver,
+        registry: MeterRegistry,
+        config: ResolvedConfig
+    ) = BiolatencyCollector(bridge, manager, resolver, registry, config, props.nodeName)
+
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun cachestatCollector(
+        bridge: BpfBridge,
+        manager: BpfProgramManager,
+        resolver: CgroupResolver,
+        registry: MeterRegistry,
+        config: ResolvedConfig
+    ) = CachestatCollector(bridge, manager, resolver, registry, config, props.nodeName)
+
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun vfsstatCollector(
+        bridge: BpfBridge,
+        manager: BpfProgramManager,
+        resolver: CgroupResolver,
+        registry: MeterRegistry,
+        config: ResolvedConfig
+    ) = VfsstatCollector(bridge, manager, resolver, registry, config, props.nodeName)
+
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun tcpdropCollector(
+        bridge: BpfBridge,
+        manager: BpfProgramManager,
+        resolver: CgroupResolver,
+        registry: MeterRegistry,
+        config: ResolvedConfig
+    ) = TcpdropCollector(bridge, manager, resolver, registry, config, props.nodeName)
+
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun hardirqsCollector(
+        bridge: BpfBridge,
+        manager: BpfProgramManager,
+        resolver: CgroupResolver,
+        registry: MeterRegistry,
+        config: ResolvedConfig
+    ) = HardirqsCollector(bridge, manager, resolver, registry, config, props.nodeName)
+
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun softirqsCollector(
+        bridge: BpfBridge,
+        manager: BpfProgramManager,
+        resolver: CgroupResolver,
+        registry: MeterRegistry,
+        config: ResolvedConfig
+    ) = SoftirqsCollector(bridge, manager, resolver, registry, config, props.nodeName)
+
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun execsnoopCollector(
+        bridge: BpfBridge,
+        manager: BpfProgramManager,
+        resolver: CgroupResolver,
+        registry: MeterRegistry,
+        config: ResolvedConfig
+    ) = ExecsnoopCollector(bridge, manager, resolver, registry, config, props.nodeName)
+
     // --- Cgroup infrastructure beans ---
 
     @Bean
@@ -174,6 +246,13 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         netCollector: NetworkCollector,
         memCollector: MemoryCollector,
         syscallCollector: SyscallCollector,
+        biolatencyCollector: BiolatencyCollector,
+        cachestatCollector: CachestatCollector,
+        vfsstatCollector: VfsstatCollector,
+        tcpdropCollector: TcpdropCollector,
+        hardirqsCollector: HardirqsCollector,
+        softirqsCollector: SoftirqsCollector,
+        execsnoopCollector: ExecsnoopCollector,
         diskIOCollector: Optional<DiskIOCollector>,
         ifaceNetCollector: Optional<InterfaceNetworkCollector>,
         fsCollector: Optional<FilesystemCollector>,
@@ -185,6 +264,8 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
     ): MetricsCollectorService {
         val service = MetricsCollectorService(
             cpuCollector, netCollector, memCollector, syscallCollector,
+            biolatencyCollector, cachestatCollector, vfsstatCollector,
+            tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
             diskIOCollector.orElse(null),
             ifaceNetCollector.orElse(null),
             fsCollector.orElse(null),

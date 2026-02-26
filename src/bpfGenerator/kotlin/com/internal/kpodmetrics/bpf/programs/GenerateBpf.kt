@@ -3,9 +3,16 @@ package com.internal.kpodmetrics.bpf.programs
 import dev.ebpf.dsl.api.OutputConfig
 import dev.ebpf.dsl.api.emit
 import dev.ebpf.dsl.api.validate
+import dev.ebpf.dsl.tools.*
 
 fun main() {
-    val programs = listOf(memProgram, cpuSchedProgram, netProgram, syscallProgram)
+    val programs = listOf(
+        // Custom programs
+        memProgram, cpuSchedProgram, netProgram, syscallProgram,
+        // BCC-style tools from kotlin-ebpf-dsl
+        biolatency(), cachestat(), vfsstat(), tcpdrop(),
+        hardirqs(), softirqs(), execsnoop()
+    )
 
     // Validate all programs
     programs.forEach { prog ->

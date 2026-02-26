@@ -11,6 +11,7 @@ data class MetricsProperties(
     val network: NetworkProperties = NetworkProperties(),
     val memory: MemoryProperties = MemoryProperties(),
     val syscall: SyscallProperties = SyscallProperties(),
+    val extended: ExtendedProperties = ExtendedProperties(),
     val filter: FilterProperties = FilterProperties(),
     val bpf: BpfProperties = BpfProperties(),
     val discovery: DiscoveryProperties = DiscoveryProperties(),
@@ -26,6 +27,7 @@ data class MetricsProperties(
                 network = NetworkProperties(tcp = TcpProperties(enabled = false)),
                 memory = MemoryProperties(oom = true, pageFaults = false, cgroupStats = true),
                 syscall = SyscallProperties(enabled = false),
+                extended = ExtendedProperties(),
                 cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = false, filesystem = false)
             )
             "standard" -> ResolvedConfig(
@@ -36,6 +38,7 @@ data class MetricsProperties(
                 network = NetworkProperties(tcp = TcpProperties(enabled = true)),
                 memory = MemoryProperties(oom = true, pageFaults = true, cgroupStats = true),
                 syscall = SyscallProperties(enabled = false),
+                extended = ExtendedProperties(tcpdrop = true, execsnoop = true),
                 cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = true, filesystem = true)
             )
             "comprehensive" -> ResolvedConfig(
@@ -49,9 +52,13 @@ data class MetricsProperties(
                     enabled = true,
                     trackedSyscalls = DEFAULT_TRACKED_SYSCALLS
                 ),
+                extended = ExtendedProperties(
+                    biolatency = true, cachestat = true, vfsstat = true,
+                    tcpdrop = true, hardirqs = true, softirqs = true, execsnoop = true
+                ),
                 cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = true, filesystem = true)
             )
-            "custom" -> ResolvedConfig(cpu = cpu, network = network, memory = memory, syscall = syscall, cgroup = CgroupCollectorProperties())
+            "custom" -> ResolvedConfig(cpu = cpu, network = network, memory = memory, syscall = syscall, extended = extended, cgroup = CgroupCollectorProperties())
             else -> throw IllegalArgumentException("Unknown profile: ${override ?: profile}")
         }
     }
@@ -62,6 +69,7 @@ data class ResolvedConfig(
     val network: NetworkProperties,
     val memory: MemoryProperties,
     val syscall: SyscallProperties,
+    val extended: ExtendedProperties = ExtendedProperties(),
     val cgroup: CgroupCollectorProperties = CgroupCollectorProperties()
 )
 
@@ -121,6 +129,16 @@ data class DiscoveryProperties(
 data class CgroupProperties(
     val root: String = "/host/sys/fs/cgroup",
     val procRoot: String = "/host/proc"
+)
+
+data class ExtendedProperties(
+    val biolatency: Boolean = false,
+    val cachestat: Boolean = false,
+    val vfsstat: Boolean = false,
+    val tcpdrop: Boolean = false,
+    val hardirqs: Boolean = false,
+    val softirqs: Boolean = false,
+    val execsnoop: Boolean = false
 )
 
 data class CgroupCollectorProperties(

@@ -12,6 +12,13 @@ class MetricsCollectorServiceTest {
     private lateinit var netCollector: NetworkCollector
     private lateinit var memCollector: MemoryCollector
     private lateinit var syscallCollector: SyscallCollector
+    private lateinit var biolatencyCollector: BiolatencyCollector
+    private lateinit var cachestatCollector: CachestatCollector
+    private lateinit var vfsstatCollector: VfsstatCollector
+    private lateinit var tcpdropCollector: TcpdropCollector
+    private lateinit var hardirqsCollector: HardirqsCollector
+    private lateinit var softirqsCollector: SoftirqsCollector
+    private lateinit var execsnoopCollector: ExecsnoopCollector
     private lateinit var service: MetricsCollectorService
 
     @BeforeEach
@@ -20,7 +27,18 @@ class MetricsCollectorServiceTest {
         netCollector = mockk(relaxed = true)
         memCollector = mockk(relaxed = true)
         syscallCollector = mockk(relaxed = true)
-        service = MetricsCollectorService(cpuCollector, netCollector, memCollector, syscallCollector)
+        biolatencyCollector = mockk(relaxed = true)
+        cachestatCollector = mockk(relaxed = true)
+        vfsstatCollector = mockk(relaxed = true)
+        tcpdropCollector = mockk(relaxed = true)
+        hardirqsCollector = mockk(relaxed = true)
+        softirqsCollector = mockk(relaxed = true)
+        execsnoopCollector = mockk(relaxed = true)
+        service = MetricsCollectorService(
+            cpuCollector, netCollector, memCollector, syscallCollector,
+            biolatencyCollector, cachestatCollector, vfsstatCollector,
+            tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector
+        )
     }
 
     @Test
@@ -30,6 +48,13 @@ class MetricsCollectorServiceTest {
         verify { netCollector.collect() }
         verify { memCollector.collect() }
         verify { syscallCollector.collect() }
+        verify { biolatencyCollector.collect() }
+        verify { cachestatCollector.collect() }
+        verify { vfsstatCollector.collect() }
+        verify { tcpdropCollector.collect() }
+        verify { hardirqsCollector.collect() }
+        verify { softirqsCollector.collect() }
+        verify { execsnoopCollector.collect() }
     }
 
     @Test
@@ -52,6 +77,8 @@ class MetricsCollectorServiceTest {
 
         val serviceWithCgroup = MetricsCollectorService(
             cpuCollector, netCollector, memCollector, syscallCollector,
+            biolatencyCollector, cachestatCollector, vfsstatCollector,
+            tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
             diskIOCollector, ifaceNetCollector, fsCollector, mapper
         )
         serviceWithCgroup.collect()
