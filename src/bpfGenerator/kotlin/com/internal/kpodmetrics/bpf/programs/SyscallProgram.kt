@@ -49,6 +49,7 @@ object SyscallStats : BpfStruct("syscall_stats") {
  */
 val syscallProgram = ebpf("syscall") {
     license("GPL")
+    targetKernel("5.3")
 
     preamble(
         COMMON_PREAMBLE +
