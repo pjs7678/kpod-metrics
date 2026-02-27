@@ -32,14 +32,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # vmlinux.h is a kernel header kept in the repo (not generated)
 COPY kpod-metrics/bpf/vmlinux.h /build/bpf/vmlinux.h
+COPY kpod-metrics/bpf/compat_vmlinux.h /build/bpf/compat_vmlinux.h
 # Copy generated .bpf.c files from codegen stage
 COPY --from=codegen /build/build/generated/bpf/ /build/bpf/
 
-# Compile all generated BPF programs
-RUN for f in /build/bpf/*.bpf.c; do \
+# CO-RE build (kernel 5.2+ with BTF) → /build/bpf/core/
+RUN mkdir -p /build/bpf/core && \
+    for f in /build/bpf/*.bpf.c; do \
       name=$(basename "$f" .bpf.c); \
       clang -O2 -g -target bpf -D__TARGET_ARCH_${TARGET_ARCH} \
-        -I/build/bpf -c "$f" -o "/build/bpf/${name}.bpf.o"; \
+        -I/build/bpf -c "$f" -o "/build/bpf/core/${name}.bpf.o"; \
+    done
+
+# Legacy build (kernel 4.18-5.1 without BTF) → /build/bpf/legacy/
+# Uses compat_vmlinux.h as vmlinux.h — no preserve_access_index, no CO-RE relocations
+RUN mkdir -p /build/bpf/legacy /build/bpf/legacy-inc && \
+    cp /build/bpf/compat_vmlinux.h /build/bpf/legacy-inc/vmlinux.h && \
+    for f in /build/bpf/*.bpf.c; do \
+      name=$(basename "$f" .bpf.c); \
+      clang -O2 -target bpf -D__TARGET_ARCH_${TARGET_ARCH} \
+        -I/build/bpf/legacy-inc -c "$f" -o "/build/bpf/legacy/${name}.bpf.o"; \
     done
 
 # Stage 3: Build JNI native library
@@ -70,7 +82,8 @@ RUN gradle -PebpfDslPath=/kotlin-ebpf-dsl -Pkotlin.compiler.execution.strategy=i
 # Stage 5: Runtime (noble = Ubuntu 24.04, matches builder GLIBC)
 FROM eclipse-temurin:21-jre-noble
 
-COPY --from=bpf-builder /build/bpf/*.bpf.o /app/bpf/
+COPY --from=bpf-builder /build/bpf/core/ /app/bpf/core/
+COPY --from=bpf-builder /build/bpf/legacy/ /app/bpf/legacy/
 COPY --from=jni-builder /build/jni/build/libkpod_bpf.so /app/lib/
 COPY --from=jni-builder /runtime-libs/* /app/lib/
 COPY --from=app-builder /build/build/libs/*.jar /app/kpod-metrics.jar

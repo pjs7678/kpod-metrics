@@ -109,9 +109,11 @@ Control which metrics are collected via the `kpod.profile` setting:
 
 ## Prerequisites
 
-- **Linux kernel 5.8+** with BTF enabled (`/sys/kernel/btf/vmlinux` must exist)
+- **Linux kernel 4.18+** (5.2+ recommended for CO-RE/BTF)
 - **Cgroup v2** (default on Kubernetes 1.25+)
 - **Kubernetes 1.19+**
+
+The image ships two sets of compiled BPF programs: **CO-RE** (for kernels 5.2+ with BTF) and **legacy** (for kernels 4.18-5.1 without BTF). At startup, kpod-metrics checks for `/sys/kernel/btf/vmlinux` and automatically loads the appropriate set.
 
 Required kernel config (typically enabled by default on modern distros):
 
@@ -119,7 +121,7 @@ Required kernel config (typically enabled by default on modern distros):
 CONFIG_BPF=y
 CONFIG_BPF_SYSCALL=y
 CONFIG_BPF_JIT=y
-CONFIG_DEBUG_INFO_BTF=y
+CONFIG_DEBUG_INFO_BTF=y  # Required only for CO-RE path; optional on 4.18+
 ```
 
 ## Quick Start
@@ -205,7 +207,7 @@ docker build -f kpod-metrics/Dockerfile -t kpod-metrics:latest .
 The 5-stage Dockerfile handles:
 
 1. **Codegen** -- Gradle runs kotlin-ebpf-dsl to generate BPF C code and Kotlin MapReader classes
-2. **BPF compile** -- clang compiles generated `.bpf.c` into CO-RE `.bpf.o` objects
+2. **BPF compile** -- clang compiles generated `.bpf.c` into both CO-RE (5.2+) and legacy (4.18+) `.bpf.o` objects
 3. **JNI build** -- CMake compiles the JNI bridge (`libkpod_bpf.so`) against libbpf
 4. **App build** -- Gradle builds the Spring Boot executable JAR
 5. **Runtime** -- Eclipse Temurin JRE 21, minimal image with compiled artifacts
@@ -330,7 +332,8 @@ For large clusters, use the `standard` profile (not `comprehensive`) to keep Pro
 ```
 kpod-metrics/
 ├── bpf/
-│   └── vmlinux.h               # Kernel BTF headers for CO-RE
+│   ├── vmlinux.h               # Kernel BTF headers for CO-RE
+│   └── compat_vmlinux.h        # Minimal header for legacy (non-CO-RE) builds
 ├── jni/
 │   ├── bpf_bridge.c            # JNI bridge (libbpf wrapper)
 │   └── CMakeLists.txt
