@@ -109,7 +109,7 @@ Control which metrics are collected via the `kpod.profile` setting:
 
 ## Prerequisites
 
-- **Linux kernel 5.8+** with BTF enabled (`/sys/kernel/btf/vmlinux` must exist)
+- **Linux kernel 5.3+** with BTF enabled (`/sys/kernel/btf/vmlinux` must exist)
 - **Cgroup v2** (default on Kubernetes 1.25+)
 - **Kubernetes 1.19+**
 
