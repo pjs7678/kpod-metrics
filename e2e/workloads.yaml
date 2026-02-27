@@ -1,0 +1,180 @@
+# E2E targeted workloads for kpod-metrics.
+# Each pod generates specific kernel events to verify metric collection.
+# All pods run in the e2e-test namespace with restartPolicy: Always.
+---
+# 1. CPU worker — forks 4 busy-loop processes with tight CPU limit
+#    to generate sched_switch events and runqueue latency.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: e2e-cpu-worker
+  namespace: e2e-test
+  labels:
+    app: e2e-test
+    workload: cpu
+spec:
+  restartPolicy: Always
+  terminationGracePeriodSeconds: 1
+  containers:
+    - name: cpu
+      image: alpine:latest
+      command:
+        - /bin/sh
+        - -c
+        - |
+          for i in 1 2 3 4; do
+            (while true; do :; done) &
+          done
+          sleep 120
+      resources:
+        requests:
+          cpu: 50m
+          memory: 16Mi
+        limits:
+          cpu: 100m
+          memory: 32Mi
+---
+# 2a. Network server — nc listener accepting TCP connections.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: e2e-net-server
+  namespace: e2e-test
+  labels:
+    app: e2e-test
+    workload: net-server
+spec:
+  restartPolicy: Always
+  terminationGracePeriodSeconds: 1
+  containers:
+    - name: server
+      image: alpine:latest
+      command:
+        - /bin/sh
+        - -c
+        - |
+          while true; do
+            echo "hello from e2e-net-server" | nc -l -p 8080 2>/dev/null || true
+          done
+      ports:
+        - containerPort: 8080
+      resources:
+        requests:
+          cpu: 50m
+          memory: 16Mi
+        limits:
+          cpu: 100m
+          memory: 32Mi
+---
+# 2b. Service for DNS resolution of e2e-net-server.
+apiVersion: v1
+kind: Service
+metadata:
+  name: e2e-net-server
+  namespace: e2e-test
+  labels:
+    app: e2e-test
+spec:
+  selector:
+    workload: net-server
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+# 2c. Network client — connects to server in a loop, sending data.
+#     Generates TCP_ESTABLISHED events and measurable bytes transferred.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: e2e-net-client
+  namespace: e2e-test
+  labels:
+    app: e2e-test
+    workload: net-client
+spec:
+  restartPolicy: Always
+  terminationGracePeriodSeconds: 1
+  containers:
+    - name: client
+      image: alpine:latest
+      command:
+        - /bin/sh
+        - -c
+        - |
+          # Wait for server DNS to resolve
+          sleep 5
+          while true; do
+            echo "hello" | nc -w1 e2e-net-server 8080 2>/dev/null || true
+            sleep 0.5
+          done
+      resources:
+        requests:
+          cpu: 50m
+          memory: 16Mi
+        limits:
+          cpu: 100m
+          memory: 32Mi
+---
+# 3. Syscall worker — tight loop of read/write/openat/close via cat.
+#    Generates sys_enter/sys_exit events.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: e2e-syscall-worker
+  namespace: e2e-test
+  labels:
+    app: e2e-test
+    workload: syscall
+spec:
+  restartPolicy: Always
+  terminationGracePeriodSeconds: 1
+  containers:
+    - name: syscall
+      image: alpine:latest
+      command:
+        - /bin/sh
+        - -c
+        - |
+          while true; do
+            cat /proc/self/status > /dev/null
+            sleep 0.1
+          done
+      resources:
+        requests:
+          cpu: 50m
+          memory: 16Mi
+        limits:
+          cpu: 100m
+          memory: 32Mi
+---
+# 4. Memory worker — allocates and touches pages to trigger handle_mm_fault.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: e2e-mem-worker
+  namespace: e2e-test
+  labels:
+    app: e2e-test
+    workload: mem
+spec:
+  restartPolicy: Always
+  terminationGracePeriodSeconds: 1
+  containers:
+    - name: mem
+      image: alpine:latest
+      command:
+        - /bin/sh
+        - -c
+        - |
+          while true; do
+            dd if=/dev/zero of=/tmp/x bs=1M count=10 2>/dev/null
+            rm -f /tmp/x
+            sleep 1
+          done
+      resources:
+        requests:
+          cpu: 50m
+          memory: 16Mi
+        limits:
+          cpu: 100m
+          memory: 32Mi

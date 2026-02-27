@@ -295,6 +295,17 @@ if [ $FAILURES -gt 0 ]; then
     exit 1
 fi
 
+# Optional: Run E2E targeted workload tests
+E2E_SCRIPT="$PROJECT_DIR/e2e/e2e-test.sh"
+if [ -x "$E2E_SCRIPT" ]; then
+    info "Running E2E targeted workload tests..."
+    if "$E2E_SCRIPT" --skip-build --skip-deploy --wait=25; then
+        check_pass "E2E targeted workload tests passed"
+    else
+        check_warn "E2E targeted workload tests failed (non-blocking)"
+    fi
+fi
+
 # ============================================================
 # Phase 5: Deploy stress workloads
 # ============================================================
