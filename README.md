@@ -275,7 +275,41 @@ val cgroupId = MemMapReader.CounterKeyLayout.decodeCgroupId(keyBytes)
 ./scripts/test-local-k8s.sh --teardown
 ```
 
-The integration test validates: health endpoint, Prometheus metrics, cgroup collector output, pod stability under stress (zero restarts, <5s scrape latency, <10% error rate).
+The integration test validates: health endpoint, Prometheus metrics, cgroup collector output, pod stability under stress (zero restarts, <5s scrape latency, <10% error rate). It also runs the E2E test (below) as a non-blocking sub-step.
+
+### E2E Test (targeted workloads)
+
+Deploys deterministic workload pods that generate specific kernel events, then asserts that kpod-metrics captures them as Prometheus metrics with correct pod labels.
+
+```bash
+# Full run: build, deploy, test, cleanup
+./e2e/e2e-test.sh --cleanup
+
+# Skip build, use existing image
+./e2e/e2e-test.sh --skip-build --cleanup
+
+# Test against an already-running deployment
+./e2e/e2e-test.sh --skip-build --skip-deploy
+```
+
+| Flag | Description |
+|------|-------------|
+| `--skip-build` | Skip Docker image build (use existing image) |
+| `--skip-deploy` | Skip helm install (use existing deployment) |
+| `--cleanup` | Full teardown after test (helm uninstall + namespace delete) |
+| `--wait=N` | Override metrics collection wait time in seconds (default: 25) |
+| `--port=N` | Reuse an existing port-forward on this port |
+
+**Workloads** (deployed to `e2e-test` namespace):
+
+| Pod | Kernel Activity | Metrics Verified |
+|-----|----------------|-----------------|
+| `e2e-cpu-worker` | 4 busy-loop forks, 100m CPU limit | `kpod_cpu_context_switches_total` |
+| `e2e-net-server` / `e2e-net-client` | TCP connect/send loop | `kpod_net_tcp_connections_total`, `kpod_net_iface_rx_bytes_total` |
+| `e2e-syscall-worker` | Tight `cat /proc/self/status` loop | `kpod_syscall_count_total` |
+| `e2e-mem-worker` | `dd` 10MB allocations | `kpod_fs_usage_bytes` |
+
+eBPF-based assertions are **warn-only** (BPF programs may not load on minikube). Cgroup-based assertions are required to pass.
 
 ## Scaling
 
@@ -320,6 +354,9 @@ kpod-metrics/
 │   │       └── model/          # DTOs
 │   └── test/kotlin/            # 140 unit tests
 ├── helm/kpod-metrics/          # Helm chart (DaemonSet, RBAC, ConfigMap)
+├── e2e/
+│   ├── e2e-test.sh             # E2E targeted workload test
+│   └── workloads.yaml          # CPU, network, syscall, memory workload pods
 ├── scripts/
 │   ├── test-local-k8s.sh       # Integration test (minikube)
 │   └── stress-workload.yaml
