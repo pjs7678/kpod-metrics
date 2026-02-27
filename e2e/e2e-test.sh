@@ -10,6 +10,7 @@
 #   --skip-deploy   Skip helm install (use existing deployment)
 #   --cleanup       Full teardown after test (helm uninstall + namespace delete)
 #   --wait=N        Override wait time in seconds (default: 25)
+#   --port=N        Reuse existing port-forward on this port (skip creating one)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -20,13 +21,14 @@ SKIP_BUILD=false
 SKIP_DEPLOY=false
 CLEANUP=false
 WAIT_TIME=25
+REUSE_PORT=""
 RELEASE_NAME="kpod-metrics"
 DEPLOY_NS="default"
 E2E_NS="e2e-test"
 IMAGE_NAME="kpod-metrics"
 IMAGE_TAG="local-test"
 TIMEOUT_READY=120
-LOCAL_PORT=19090
+LOCAL_PORT=19091
 
 # Colors
 RED='\033[0;31m'
@@ -74,6 +76,7 @@ for arg in "$@"; do
         --skip-deploy)   SKIP_DEPLOY=true ;;
         --cleanup)       CLEANUP=true ;;
         --wait=*)        WAIT_TIME="${arg#*=}" ;;
+        --port=*)        REUSE_PORT="${arg#*=}" ;;
         *)               echo "Unknown flag: $arg"; exit 1 ;;
     esac
 done
@@ -233,17 +236,22 @@ done
 info "=== Step 3: Waiting ${WAIT_TIME}s for BPF maps to populate ==="
 sleep "$WAIT_TIME"
 
-# Start port-forward
-info "Starting port-forward to $POD_NAME:9090 on localhost:$LOCAL_PORT..."
-kubectl port-forward "$POD_NAME" -n "$DEPLOY_NS" ${LOCAL_PORT}:9090 &>/dev/null &
-PORT_FWD_PID=$!
-sleep 3
+# Start port-forward (or reuse existing one)
+if [ -n "$REUSE_PORT" ]; then
+    LOCAL_PORT="$REUSE_PORT"
+    info "Reusing existing port-forward on localhost:$LOCAL_PORT"
+else
+    info "Starting port-forward to $POD_NAME:9090 on localhost:$LOCAL_PORT..."
+    kubectl port-forward "$POD_NAME" -n "$DEPLOY_NS" ${LOCAL_PORT}:9090 &>/dev/null &
+    PORT_FWD_PID=$!
+    sleep 3
 
-if ! kill -0 $PORT_FWD_PID 2>/dev/null; then
-    fail "Port-forward failed to start"
-    exit 1
+    if ! kill -0 $PORT_FWD_PID 2>/dev/null; then
+        fail "Port-forward failed to start"
+        exit 1
+    fi
+    info "Port-forward active (PID: $PORT_FWD_PID)"
 fi
-info "Port-forward active (PID: $PORT_FWD_PID)"
 
 # Helper: curl via port-forward
 local_curl() {
