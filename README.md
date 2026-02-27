@@ -113,7 +113,32 @@ Control which metrics are collected via the `kpod.profile` setting:
 - **Cgroup v2** (default on Kubernetes 1.25+)
 - **Kubernetes 1.19+**
 
-The image ships two sets of compiled BPF programs: **CO-RE** (for kernels 5.2+ with BTF) and **legacy** (for kernels 4.18-5.1 without BTF). At startup, kpod-metrics checks for `/sys/kernel/btf/vmlinux` and automatically loads the appropriate set.
+The image ships two sets of compiled BPF programs. At startup, kpod-metrics checks for `/sys/kernel/btf/vmlinux` and automatically loads the appropriate set.
+
+### Kernel Version Support
+
+| Kernel | Mode | How it works |
+|--------|------|--------------|
+| **5.2+** | CO-RE (recommended) | Uses BTF for portable BPF loading. All features supported. Most distros since RHEL 8.2, Ubuntu 20.04, Debian 11. |
+| **4.18–5.1** | Legacy | Uses pre-compiled BPF programs with fixed struct offsets. All features supported, but BPF objects are not relocatable across kernel builds with non-standard tracepoint layouts. |
+| **< 4.18** | Not supported | Missing `bpf_get_current_cgroup_id()` helper required for per-pod attribution. |
+
+**Limitations of legacy mode (4.18–5.1):**
+- Tracepoint context struct layouts are assumed to match the stable kernel ABI. Custom or patched kernels that alter tracepoint format fields may cause incorrect data or load failures.
+- No automatic struct relocation — if a field offset changes, the BPF program must be recompiled with an updated `compat_vmlinux.h`.
+
+**How to verify your kernel supports kpod-metrics:**
+
+```bash
+# Check kernel version
+uname -r
+
+# Check if BTF is available (5.2+ with CONFIG_DEBUG_INFO_BTF=y)
+ls /sys/kernel/btf/vmlinux
+
+# Check cgroup v2
+mount | grep cgroup2
+```
 
 Required kernel config (typically enabled by default on modern distros):
 
