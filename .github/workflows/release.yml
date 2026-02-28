@@ -1,40 +1,16 @@
-name: Publish
+name: Release
 
 on:
   push:
-    branches: [main]
-
-concurrency:
-  group: publish-${{ github.ref }}
-  cancel-in-progress: false
+    tags: ["v*"]
 
 permissions:
-  contents: read
+  contents: write
   packages: write
   security-events: write
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/checkout@v4
-        with:
-          repository: pjs7678/kotlin-ebpf-dsl
-          path: kotlin-ebpf-dsl
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-
-      - uses: gradle/actions/setup-gradle@v4
-
-      - run: ./gradlew test detekt -PebpfDslPath=${{ github.workspace }}/kotlin-ebpf-dsl
-
-  publish:
-    needs: [test]
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -56,6 +32,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
       - name: Build and push (multi-arch)
         uses: docker/build-push-action@v6
         with:
@@ -64,13 +44,14 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
+            ghcr.io/pjs7678/kpod-metrics:${{ github.ref_name }}
+            ghcr.io/pjs7678/kpod-metrics:${{ steps.version.outputs.version }}
             ghcr.io/pjs7678/kpod-metrics:latest
-            ghcr.io/pjs7678/kpod-metrics:${{ github.sha }}
 
       - name: Scan image with Trivy
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ghcr.io/pjs7678/kpod-metrics:${{ github.sha }}
+          image-ref: ghcr.io/pjs7678/kpod-metrics:${{ github.ref_name }}
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
@@ -80,3 +61,8 @@ jobs:
         if: always()
         with:
           sarif_file: trivy-results.sarif
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true

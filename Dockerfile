@@ -25,7 +25,10 @@ RUN gradle -PebpfDslPath=/kotlin-ebpf-dsl -Pkotlin.compiler.execution.strategy=i
 
 # Stage 2: Compile eBPF programs from generated C code
 FROM ubuntu:24.04 AS bpf-builder
-ARG TARGET_ARCH=arm64
+# TARGETARCH is set automatically by docker buildx (amd64, arm64).
+# Map it to the BPF target arch expected by clang -D__TARGET_ARCH_<arch>.
+ARG TARGETARCH
+ARG TARGET_ARCH=${TARGETARCH:-arm64}
 RUN apt-get update && apt-get install -y --no-install-recommends \
     clang llvm libbpf-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -36,21 +39,30 @@ COPY kpod-metrics/bpf/compat_vmlinux.h /build/bpf/compat_vmlinux.h
 # Copy generated .bpf.c files from codegen stage
 COPY --from=codegen /build/build/generated/bpf/ /build/bpf/
 
+# Map buildx TARGETARCH (amd64) to BPF arch (x86_64); arm64 stays as-is
+RUN if [ "$TARGET_ARCH" = "amd64" ]; then \
+      echo "x86_64" > /tmp/bpf_arch; \
+    else \
+      echo "$TARGET_ARCH" > /tmp/bpf_arch; \
+    fi
+
 # CO-RE build (kernel 5.2+ with BTF) → /build/bpf/core/
-RUN mkdir -p /build/bpf/core && \
+RUN BPF_ARCH=$(cat /tmp/bpf_arch) && \
+    mkdir -p /build/bpf/core && \
     for f in /build/bpf/*.bpf.c; do \
       name=$(basename "$f" .bpf.c); \
-      clang -O2 -g -target bpf -D__TARGET_ARCH_${TARGET_ARCH} \
+      clang -O2 -g -target bpf -D__TARGET_ARCH_${BPF_ARCH} \
         -I/build/bpf -c "$f" -o "/build/bpf/core/${name}.bpf.o"; \
     done
 
 # Legacy build (kernel 4.18-5.1 without BTF) → /build/bpf/legacy/
 # Uses compat_vmlinux.h as vmlinux.h — no preserve_access_index, no CO-RE relocations
-RUN mkdir -p /build/bpf/legacy /build/bpf/legacy-inc && \
+RUN BPF_ARCH=$(cat /tmp/bpf_arch) && \
+    mkdir -p /build/bpf/legacy /build/bpf/legacy-inc && \
     cp /build/bpf/compat_vmlinux.h /build/bpf/legacy-inc/vmlinux.h && \
     for f in /build/bpf/*.bpf.c; do \
       name=$(basename "$f" .bpf.c); \
-      clang -O2 -target bpf -D__TARGET_ARCH_${TARGET_ARCH} \
+      clang -O2 -target bpf -D__TARGET_ARCH_${BPF_ARCH} \
         -I/build/bpf/legacy-inc -c "$f" -o "/build/bpf/legacy/${name}.bpf.o"; \
     done
 
