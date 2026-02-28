@@ -13,11 +13,11 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           path: kpod-metrics
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           repository: pjs7678/kotlin-ebpf-dsl
           path: kotlin-ebpf-dsl
@@ -57,7 +57,7 @@ jobs:
           severity: CRITICAL,HIGH
 
       - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trivy-results.sarif
