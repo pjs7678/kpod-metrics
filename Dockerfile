@@ -60,9 +60,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake make gcc libbpf-dev libelf-dev zlib1g-dev openjdk-21-jdk-headless dpkg-dev \
     && rm -rf /var/lib/apt/lists/*
 
-ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-$(dpkg --print-architecture)
 COPY kpod-metrics/jni/ /build/jni/
-RUN cmake -B /build/jni/build /build/jni && cmake --build /build/jni/build
+RUN JAVA_HOME=/usr/lib/jvm/java-21-openjdk-$(dpkg --print-architecture) \
+    cmake -B /build/jni/build /build/jni && cmake --build /build/jni/build
 # Collect runtime shared library dependencies (libbpf is statically linked)
 RUN mkdir -p /runtime-libs && \
     ARCH=$(dpkg --print-architecture) && \
