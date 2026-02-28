@@ -30,7 +30,7 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - run: ./gradlew test -PebpfDslPath=${{ github.workspace }}/kotlin-ebpf-dsl
+      - run: ./gradlew test detekt -PebpfDslPath=${{ github.workspace }}/kotlin-ebpf-dsl
 
   publish:
     needs: [test]

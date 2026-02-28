@@ -1,8 +1,9 @@
 plugins {
-    id("org.springframework.boot") version "3.4.3"
-    id("io.spring.dependency-management") version "1.1.7"
-    kotlin("jvm") version "2.1.10"
-    kotlin("plugin.spring") version "2.1.10"
+    alias(libs.plugins.spring.boot)
+    alias(libs.plugins.spring.dependency.management)
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.spring)
+    alias(libs.plugins.detekt)
 }
 
 group = "com.internal"
@@ -24,35 +25,40 @@ sourceSets {
 
 dependencies {
     // Spring Boot
-    implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation(libs.spring.boot.starter.web)
+    implementation(libs.spring.boot.starter.actuator)
 
     // Kotlin
-    implementation("org.jetbrains.kotlin:kotlin-reflect")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
+    implementation(libs.kotlin.reflect)
+    implementation(libs.kotlinx.coroutines.core)
 
     // Prometheus metrics
-    implementation("io.micrometer:micrometer-registry-prometheus")
+    implementation(libs.micrometer.registry.prometheus)
 
     // JSON parsing
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation(libs.jackson.module.kotlin)
 
     // Kubernetes client
-    implementation("io.fabric8:kubernetes-client:7.1.0")
+    implementation(libs.kubernetes.client)
 
     // eBPF DSL (composite build)
     implementation("dev.ebpf:kotlin-ebpf-dsl")
 
     // Test
-    testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testImplementation("io.mockk:mockk:1.13.16")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.1")
+    testImplementation(libs.spring.boot.starter.test)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(sourceSets["bpfGenerator"].output)
     testImplementation("dev.ebpf:kotlin-ebpf-dsl")
 
     // bpfGenerator source set
     "bpfGeneratorImplementation"("dev.ebpf:kotlin-ebpf-dsl")
     "bpfGeneratorImplementation"("org.jetbrains.kotlin:kotlin-stdlib")
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    config.setFrom("config/detekt/detekt.yml")
 }
 
 kotlin {
