@@ -1,0 +1,94 @@
+{{- if .Values.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app.kubernetes.io/name: kpod-metrics
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- with .Values.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.prometheusRule.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  groups:
+    - name: kpod-metrics
+      rules:
+        - alert: KpodHighRunqueueLatency
+          expr: histogram_quantile(0.99, sum by (le, pod, namespace) (rate(kpod_cpu_runqueue_latency_bucket[5m]))) > 100000000
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High CPU runqueue latency on {{`{{ $labels.pod }}`}}"
+            description: "Pod {{`{{ $labels.pod }}`}} in {{`{{ $labels.namespace }}`}} has p99 runqueue latency > 100ms for 5 minutes."
+
+        - alert: KpodHighTcpRetransmitRate
+          expr: sum by (pod, namespace) (rate(kpod_net_tcp_retransmits_total[5m])) > 10
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High TCP retransmit rate on {{`{{ $labels.pod }}`}}"
+            description: "Pod {{`{{ $labels.pod }}`}} in {{`{{ $labels.namespace }}`}} has > 10 TCP retransmits/s for 5 minutes."
+
+        - alert: KpodTcpDropsDetected
+          expr: sum by (pod, namespace) (rate(kpod_net_tcp_drops_total[5m])) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "TCP drops detected on {{`{{ $labels.pod }}`}}"
+            description: "Pod {{`{{ $labels.pod }}`}} in {{`{{ $labels.namespace }}`}} is experiencing TCP drops."
+
+        - alert: KpodHighSyscallErrorRate
+          expr: >-
+            sum by (pod, namespace) (rate(kpod_syscall_errors_total[5m]))
+            / sum by (pod, namespace) (rate(kpod_syscall_count_total[5m]))
+            > 0.05
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High syscall error rate on {{`{{ $labels.pod }}`}}"
+            description: "Pod {{`{{ $labels.pod }}`}} in {{`{{ $labels.namespace }}`}} has > 5% syscall error rate for 10 minutes."
+
+        - alert: KpodFilesystemAlmostFull
+          expr: (kpod_fs_usage_bytes / kpod_fs_capacity_bytes) > 0.9
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Filesystem almost full on {{`{{ $labels.pod }}`}}"
+            description: "Pod {{`{{ $labels.pod }}`}} in {{`{{ $labels.namespace }}`}} filesystem usage is above 90%."
+
+        - alert: KpodBpfMapNearCapacity
+          expr: (kpod_bpf_map_entries / kpod_bpf_map_capacity) > 0.8
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "BPF map {{`{{ $labels.map_name }}`}} near capacity"
+            description: "BPF map {{`{{ $labels.map_name }}`}} is above 80% utilization for 5 minutes."
+
+        - alert: KpodBpfMapUpdateErrors
+          expr: rate(kpod_bpf_map_update_errors_total[5m]) > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "BPF map update errors on {{`{{ $labels.map_name }}`}}"
+            description: "BPF map {{`{{ $labels.map_name }}`}} is experiencing update errors, metrics may be lost."
+
+        - alert: KpodTargetDown
+          expr: up{job=~".*kpod-metrics.*"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "kpod-metrics target down on {{`{{ $labels.instance }}`}}"
+            description: "kpod-metrics instance {{`{{ $labels.instance }}`}} has been unreachable for 5 minutes."
+{{- end }}

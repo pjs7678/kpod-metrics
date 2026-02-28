@@ -42,6 +42,18 @@ grafana:
     label: "1"
     annotations: {}
 
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  scrapeTimeout: 10s
+  labels: {}
+  annotations: {}
+
+prometheusRule:
+  enabled: false
+  labels: {}
+  annotations: {}
+
 config:
   profile: standard
   pollInterval: 30000
