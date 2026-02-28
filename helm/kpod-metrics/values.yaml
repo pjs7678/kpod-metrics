@@ -36,6 +36,12 @@ pdb:
   enabled: true
   maxUnavailable: 1
 
+grafana:
+  dashboard:
+    enabled: true
+    label: "1"
+    annotations: {}
+
 config:
   profile: standard
   pollInterval: 30000
