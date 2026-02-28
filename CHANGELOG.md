@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-02-28
+
+### Added
+- Multi-arch Docker image builds (linux/amd64 + linux/arm64) via buildx
+- Container image vulnerability scanning with Trivy (CRITICAL/HIGH)
+- Automated release workflow triggered on version tag push
+- Helm chart linting in CI pipeline
+
+### Changed
+- Dockerfile now auto-detects target architecture from buildx TARGETARCH
+- Publish workflow uses docker/build-push-action with multi-platform support
+- Trivy scan results uploaded to GitHub Security tab (SARIF format)
+
 ## [0.2.0] - 2026-02-28
 
 ### Added
