@@ -1,0 +1,43 @@
+name: Publish
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: kpod-metrics
+
+      - uses: actions/checkout@v4
+        with:
+          repository: pjs7678/kotlin-ebpf-dsl
+          path: kotlin-ebpf-dsl
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        run: |
+          SHA_SHORT=$(echo "${{ github.sha }}" | cut -c1-7)
+          IMAGE=ghcr.io/pjs7678/kpod-metrics
+
+          docker build \
+            -f kpod-metrics/Dockerfile \
+            --build-arg TARGET_ARCH=x86_64 \
+            -t $IMAGE:latest \
+            -t $IMAGE:$SHA_SHORT \
+            .
+
+          docker push $IMAGE:latest
+          docker push $IMAGE:$SHA_SHORT
