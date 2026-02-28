@@ -1,0 +1,10 @@
+style:
+  MaxLineLength:
+    maxLineLength: 120
+  WildcardImport:
+    active: false
+
+complexity:
+  LongParameterList:
+    functionThreshold: 8
+    constructorThreshold: 8
