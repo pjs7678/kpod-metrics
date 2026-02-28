@@ -17,6 +17,12 @@ Node (DaemonSet pod)
 │  │   ├── NetworkCollector                       │
 │  │   ├── MemoryCollector                        │
 │  │   ├── SyscallCollector                       │
+│  │   ├── BiolatencyCollector                    │
+│  │   ├── CachestatCollector                     │
+│  │   ├── TcpdropCollector                       │
+│  │   ├── HardirqsCollector                      │
+│  │   ├── SoftirqsCollector                      │
+│  │   ├── ExecsnoopCollector                     │
 │  │   └── BpfMapStatsCollector                   │
 │  └── Cgroup Collectors ──► /sys/fs/cgroup       │
 │      ├── DiskIOCollector                        │
@@ -63,6 +69,18 @@ All metrics are labeled with `namespace`, `pod`, `container`, and `node`.
 | `kpod.syscall.count` | Counter | Syscall invocations (+ `syscall` label) |
 | `kpod.syscall.errors` | Counter | Syscall errors (+ `syscall` label) |
 | `kpod.syscall.latency` | DistributionSummary | Syscall latency (+ `syscall` label) |
+| `kpod.net.tcp.drops` | Counter | TCP packet drops |
+| `kpod.disk.io.latency` | DistributionSummary | Block I/O latency (seconds) |
+| `kpod.mem.cache.accesses` | Counter | Page cache accesses |
+| `kpod.mem.cache.additions` | Counter | Page cache additions (misses) |
+| `kpod.mem.cache.dirtied` | Counter | Page cache dirty pages |
+| `kpod.mem.cache.buf.dirtied` | Counter | Buffer cache dirty pages |
+| `kpod.irq.hw.latency` | DistributionSummary | Hardware interrupt latency (seconds) |
+| `kpod.irq.hw.count` | Counter | Hardware interrupt count |
+| `kpod.irq.sw.latency` | DistributionSummary | Software interrupt latency (seconds) |
+| `kpod.proc.execs` | Counter | Process exec events |
+| `kpod.proc.forks` | Counter | Process fork events |
+| `kpod.proc.exits` | Counter | Process exit events |
 
 ### Cgroup Metrics
 
@@ -100,8 +118,14 @@ Control which metrics are collected via the `kpod.profile` setting:
 |-----------|:-------:|:--------:|:-------------:|
 | CPU scheduling | yes | yes | yes |
 | Network TCP (eBPF) | - | yes | yes |
+| TCP drops (eBPF) | - | yes | yes |
 | Memory OOM | yes | yes | yes |
 | Memory page faults | - | yes | yes |
+| Block I/O latency (eBPF) | - | yes | yes |
+| Page cache stats (eBPF) | - | yes | yes |
+| Hardware IRQ latency (eBPF) | - | - | yes |
+| Software IRQ latency (eBPF) | - | - | yes |
+| Process exec/fork/exit (eBPF) | - | - | yes |
 | Syscall tracing | - | - | yes |
 | Disk I/O (cgroup) | yes | yes | yes |
 | Interface network (cgroup) | - | yes | yes |
@@ -171,6 +195,34 @@ kubectl -n kpod-metrics port-forward ds/kpod-metrics 9090:9090
 curl http://localhost:9090/actuator/prometheus | grep kpod
 ```
 
+### Grafana Dashboard
+
+A ready-made Grafana dashboard is included with 9 rows covering all metric categories. It auto-provisions via the Grafana sidecar when deployed with Helm:
+
+```yaml
+grafana:
+  dashboard:
+    enabled: true   # default
+    label: "1"      # matches Grafana sidecar default
+```
+
+For non-Helm setups, import `grafana/kpod-metrics-dashboard.json` directly via the Grafana UI.
+
+### Prometheus Operator
+
+For clusters running the [Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator), enable the ServiceMonitor and PrometheusRule:
+
+```yaml
+serviceMonitor:
+  enabled: true
+  interval: 30s
+
+prometheusRule:
+  enabled: true
+```
+
+This provisions 8 alerting rules out of the box: high runqueue latency, TCP retransmits/drops, syscall error rate, filesystem full, and BPF map health.
+
 ## Configuration
 
 All settings are under the `kpod.*` prefix. Configure via Helm values or environment variables.
@@ -180,7 +232,7 @@ All settings are under the `kpod.*` prefix. Configure via Helm values or environ
 ```yaml
 image:
   repository: internal-registry/kpod-metrics
-  tag: "0.1.0"
+  tag: "0.2.0"
 
 resources:
   requests:
@@ -199,6 +251,19 @@ config:
   cgroup:
     root: /sys/fs/cgroup
     procRoot: /host/proc
+
+grafana:
+  dashboard:
+    enabled: true            # Deploy Grafana dashboard ConfigMap
+    label: "1"               # Sidecar label selector value
+
+serviceMonitor:
+  enabled: false             # Requires Prometheus Operator CRDs
+  interval: 30s
+  scrapeTimeout: 10s
+
+prometheusRule:
+  enabled: false             # Requires Prometheus Operator CRDs
 ```
 
 ### Key Properties
@@ -383,7 +448,16 @@ kpod-metrics/
 │   │       ├── k8s/            # PodWatcher (K8s informer)
 │   │       └── model/          # DTOs
 │   └── test/kotlin/            # 140 unit tests
+├── grafana/
+│   └── kpod-metrics-dashboard.json  # Standalone Grafana dashboard (importable via UI)
 ├── helm/kpod-metrics/          # Helm chart (DaemonSet, RBAC, ConfigMap)
+│   ├── dashboards/
+│   │   └── kpod-metrics.json   # Dashboard JSON for Helm-managed ConfigMap
+│   └── templates/
+│       ├── grafana-dashboard-cm.yaml   # Grafana sidecar ConfigMap
+│       ├── servicemonitor.yaml         # Prometheus Operator ServiceMonitor
+│       ├── prometheusrule.yaml         # Prometheus Operator alerting rules
+│       └── service.yaml                # Headless Service for ServiceMonitor
 ├── e2e/
 │   ├── e2e-test.sh             # E2E targeted workload test
 │   └── workloads.yaml          # CPU, network, syscall, memory workload pods
