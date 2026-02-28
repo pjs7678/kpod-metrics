@@ -1,8 +1,8 @@
 plugins {
-    id("org.springframework.boot") version "3.4.3"
+    id("org.springframework.boot") version "4.0.3"
     id("io.spring.dependency-management") version "1.1.7"
-    kotlin("jvm") version "2.1.10"
-    kotlin("plugin.spring") version "2.1.10"
+    kotlin("jvm") version "2.3.10"
+    kotlin("plugin.spring") version "2.3.10"
 }
 
 group = "com.internal"
@@ -29,7 +29,7 @@ dependencies {
 
     // Kotlin
     implementation("org.jetbrains.kotlin:kotlin-reflect")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
 
     // Prometheus metrics
     implementation("io.micrometer:micrometer-registry-prometheus")
@@ -38,15 +38,15 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 
     // Kubernetes client
-    implementation("io.fabric8:kubernetes-client:7.1.0")
+    implementation("io.fabric8:kubernetes-client:7.5.2")
 
     // eBPF DSL (composite build)
     implementation("dev.ebpf:kotlin-ebpf-dsl")
 
     // Test
     testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testImplementation("io.mockk:mockk:1.13.16")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.1")
+    testImplementation("io.mockk:mockk:1.14.9")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
     testImplementation(sourceSets["bpfGenerator"].output)
     testImplementation("dev.ebpf:kotlin-ebpf-dsl")
 
