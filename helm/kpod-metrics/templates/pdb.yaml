@@ -1,0 +1,14 @@
+{{- if .Values.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app.kubernetes.io/name: kpod-metrics
+spec:
+  maxUnavailable: {{ .Values.pdb.maxUnavailable }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kpod-metrics
+      app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

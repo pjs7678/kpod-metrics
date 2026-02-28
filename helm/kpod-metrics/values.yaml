@@ -22,10 +22,19 @@ nodeSelector:
 tolerations:
   - operator: Exists
 
+podSecurityContext:
+  runAsUser: 0
+  runAsGroup: 0
+  fsGroup: 0
+
 securityContext:
   # Set to true for kind/minikube or environments without proper seccomp profiles.
   # In production, false + BPF/PERFMON capabilities is preferred.
   privileged: false
+
+pdb:
+  enabled: true
+  maxUnavailable: 1
 
 config:
   profile: standard

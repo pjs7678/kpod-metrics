@@ -19,6 +19,8 @@ spec:
     spec:
       serviceAccountName: {{ .Release.Name }}
       hostPID: true
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: kpod-metrics
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -67,11 +69,17 @@ spec:
               readOnly: true
             - name: config
               mountPath: /app/config
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 9090
+            periodSeconds: 5
+            failureThreshold: 30
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
               port: 9090
-            initialDelaySeconds: 30
+            initialDelaySeconds: 5
             periodSeconds: 10
           readinessProbe:
             httpGet:
