@@ -1,5 +1,7 @@
 # kpod-metrics
 
+[![CI](https://github.com/pjs7678/kpod-metrics/actions/workflows/ci.yml/badge.svg)](https://github.com/pjs7678/kpod-metrics/actions/workflows/ci.yml)
+
 eBPF-based pod-level kernel metrics collector for Kubernetes. Runs as a DaemonSet, attaches eBPF programs to kernel tracepoints, and exports per-pod CPU, network, memory, syscall, disk I/O, and filesystem metrics to Prometheus.
 
 ## Architecture
@@ -400,3 +402,15 @@ kpod-metrics/
 - **Metrics**: Micrometer + Prometheus registry
 - **K8s**: Fabric8 Kubernetes Client 7.1.0
 - **Build**: Gradle 8.12 (composite build), multi-stage Docker
+- **CI/CD**: GitHub Actions — unit tests on PRs, image publish on merge to main
+
+## CI/CD
+
+GitHub Actions runs two workflows:
+
+- **CI** (`ci.yml`) — Runs unit tests on every PR and push to `main`. Checks out the sibling [kotlin-ebpf-dsl](https://github.com/pjs7678/kotlin-ebpf-dsl) repo for the composite Gradle build.
+- **Publish** (`publish.yml`) — On push to `main`, builds the Docker image and pushes to `ghcr.io/pjs7678/kpod-metrics` with `:latest` and `:<sha>` tags.
+
+```bash
+docker pull ghcr.io/pjs7678/kpod-metrics:latest
+```

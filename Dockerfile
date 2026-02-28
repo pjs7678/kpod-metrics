@@ -57,16 +57,18 @@ RUN mkdir -p /build/bpf/legacy /build/bpf/legacy-inc && \
 # Stage 3: Build JNI native library
 FROM ubuntu:24.04 AS jni-builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    cmake make gcc libbpf-dev libelf-dev zlib1g-dev openjdk-21-jdk-headless \
+    cmake make gcc libbpf-dev libelf-dev zlib1g-dev openjdk-21-jdk-headless dpkg-dev \
     && rm -rf /var/lib/apt/lists/*
 
-ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-arm64
+ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-$(dpkg --print-architecture)
 COPY kpod-metrics/jni/ /build/jni/
 RUN cmake -B /build/jni/build /build/jni && cmake --build /build/jni/build
 # Collect runtime shared library dependencies (libbpf is statically linked)
 RUN mkdir -p /runtime-libs && \
-    cp /usr/lib/aarch64-linux-gnu/libelf*.so* /runtime-libs/ && \
-    cp /lib/aarch64-linux-gnu/libz.so* /runtime-libs/
+    ARCH=$(dpkg --print-architecture) && \
+    GNU_ARCH=$(dpkg-architecture -qDEB_HOST_GNU_TYPE) && \
+    cp /usr/lib/$GNU_ARCH/libelf*.so* /runtime-libs/ && \
+    cp /lib/$GNU_ARCH/libz.so* /runtime-libs/
 
 # Stage 4: Build Kotlin application
 FROM gradle:8.12-jdk21 AS app-builder
