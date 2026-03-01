@@ -15,6 +15,46 @@ metadata:
   {{- end }}
 spec:
   groups:
+    - name: kpod-metrics.recording
+      rules:
+        - record: kpod:cpu_runqueue_latency:p50
+          expr: histogram_quantile(0.50, sum by (le, pod, namespace, node) (rate(kpod_cpu_runqueue_latency_bucket[5m])))
+
+        - record: kpod:cpu_runqueue_latency:p99
+          expr: histogram_quantile(0.99, sum by (le, pod, namespace, node) (rate(kpod_cpu_runqueue_latency_bucket[5m])))
+
+        - record: kpod:tcp_rtt:p50
+          expr: histogram_quantile(0.50, sum by (le, pod, namespace, node) (rate(kpod_net_tcp_rtt_bucket[5m])))
+
+        - record: kpod:tcp_rtt:p99
+          expr: histogram_quantile(0.99, sum by (le, pod, namespace, node) (rate(kpod_net_tcp_rtt_bucket[5m])))
+
+        - record: kpod:syscall_latency:p50
+          expr: histogram_quantile(0.50, sum by (le, pod, namespace, node) (rate(kpod_syscall_latency_bucket[5m])))
+
+        - record: kpod:syscall_latency:p99
+          expr: histogram_quantile(0.99, sum by (le, pod, namespace, node) (rate(kpod_syscall_latency_bucket[5m])))
+
+        - record: kpod:disk_io_latency:p50
+          expr: histogram_quantile(0.50, sum by (le, pod, namespace, node) (rate(kpod_disk_io_latency_bucket[5m])))
+
+        - record: kpod:disk_io_latency:p99
+          expr: histogram_quantile(0.99, sum by (le, pod, namespace, node) (rate(kpod_disk_io_latency_bucket[5m])))
+
+        - record: kpod:tcp_retransmit_rate:5m
+          expr: sum by (pod, namespace, node) (rate(kpod_net_tcp_retransmits_total[5m]))
+
+        - record: kpod:tcp_drop_rate:5m
+          expr: sum by (pod, namespace, node) (rate(kpod_net_tcp_drops_total[5m]))
+
+        - record: kpod:syscall_error_ratio:5m
+          expr: >-
+            sum by (pod, namespace, node) (rate(kpod_syscall_errors_total[5m]))
+            / clamp_min(sum by (pod, namespace, node) (rate(kpod_syscall_count_total[5m])), 1)
+
+        - record: kpod:fs_usage_ratio
+          expr: kpod_fs_usage_bytes / clamp_min(kpod_fs_capacity_bytes, 1)
+
     - name: kpod-metrics
       rules:
         - alert: KpodHighRunqueueLatency

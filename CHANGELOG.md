@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-03-01
+
+### Added
+- Service always created (decoupled from ServiceMonitor) — standalone Prometheus can now scrape without Operator
+- DaemonSet `updateStrategy` with configurable `maxUnavailable` (default: 1) for controlled rollouts
+- `extraEnv` support in Helm values for JVM tuning, proxy settings, etc.
+- Grafana dashboard: Interface Errors, Interface Drops, Interface Packets panels (Network row)
+- Grafana dashboard: Buffer Dirty Rate panel (Memory & Cache row)
+- Grafana dashboard: Filesystem Available panel (Disk & Filesystem row)
+- 12 Prometheus recording rules for precomputed aggregations (p50/p99 latencies, error ratios, rates)
+- Chart.yaml metadata: home, sources, keywords, maintainers for chart discoverability
+
+### Changed
+- PrometheusRule now has two rule groups: `kpod-metrics.recording` and `kpod-metrics` (alerting)
+- Helm chart version and appVersion bumped to 1.1.0
+
 ## [1.0.0] - 2026-03-01
 
 ### Added

@@ -5,6 +5,10 @@ metadata:
   labels:
     app.kubernetes.io/name: kpod-metrics
 spec:
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: {{ .Values.updateStrategy.maxUnavailable | default 1 }}
   selector:
     matchLabels:
       app.kubernetes.io/name: kpod-metrics
@@ -48,6 +52,9 @@ spec:
               value: {{ .Values.config.discovery.mode }}
             - name: SPRING_CONFIG_ADDITIONAL_LOCATION
               value: /app/config/
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           securityContext:
             privileged: {{ .Values.securityContext.privileged }}
             allowPrivilegeEscalation: {{ .Values.securityContext.allowPrivilegeEscalation | default false }}

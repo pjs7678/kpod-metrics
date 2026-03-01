@@ -1,6 +1,6 @@
 image:
   repository: internal-registry/kpod-metrics
-  tag: "1.0.0"
+  tag: "1.1.0"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -16,6 +16,13 @@ resources:
   limits:
     cpu: 500m
     memory: 512Mi
+
+updateStrategy:
+  maxUnavailable: 1
+
+extraEnv: []
+# - name: JAVA_OPTS
+#   value: "-Xmx384m"
 
 podAnnotations:
   prometheus.io/scrape: "true"
