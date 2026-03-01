@@ -1,4 +1,3 @@
-{{- if .Values.serviceMonitor.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -17,4 +16,3 @@ spec:
   selector:
     app.kubernetes.io/name: kpod-metrics
     app.kubernetes.io/instance: {{ .Release.Name }}
-{{- end }}
