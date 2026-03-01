@@ -2436,7 +2436,107 @@
         "y": 93
       },
       "collapsed": false,
-      "panels": []
+      "panels": [
+        {
+          "id": 104,
+          "title": "Collector Skip Rate",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 0
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "pointSize": 5,
+                "showPoints": "auto"
+              },
+              "unit": "ops"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "sum by (collector) (rate(kpod_collector_skipped_total{node=~\"$node\"}[5m]))",
+              "legendFormat": "{{collector}}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 105,
+          "title": "BPF Program Load Duration",
+          "type": "stat",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 0
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 3
+                  },
+                  {
+                    "color": "red",
+                    "value": 10
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "kpod_bpf_program_load_duration_seconds_max{node=~\"$node\"}",
+              "legendFormat": "{{program}}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "textMode": "auto",
+            "colorMode": "value",
+            "graphMode": "none"
+          }
+        }
+      ]
     },
     {
       "id": 84,

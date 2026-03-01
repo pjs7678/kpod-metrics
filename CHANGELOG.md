@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0] - 2026-03-01
+
+### Added
+- README: OTLP export documentation with full configuration example
+- README: `kpod.collector.skipped.total` and `kpod.bpf.program.load.duration` in Self-Monitoring metrics table
+- README: OTLP properties (`kpod.otlp.*`) in Key Properties table
+- Grafana dashboard: Collector Skip Rate panel (time series, ID 104)
+- Grafana dashboard: BPF Program Load Duration panel (stat, ID 105)
+- PrometheusRule: `kpod:collector_skip_rate:5m` recording rule
+- PrometheusRule: `KpodHighCollectorSkipRate` alert (> 10% skip rate for 10m)
+- `kpod.initial-delay` exposed as `initialDelay` property in MetricsProperties
+
+### Changed
+- Fixed `poll-interval` default mismatch: `application.yml` now defaults to 30000ms (was 15000ms), matching MetricsProperties and Helm values
+- README: updated test count (140 → 201), image tag (1.3.0 → 1.6.0), architecture diagram
+- README: added MemoryCgroupCollector to architecture diagram
+- README: updated PrometheusRule counts (17 alerts + 13 recording rules)
+- Grafana dashboard synced between standalone and Helm copies (49 panels total)
+
 ## [1.5.0] - 2026-03-01
 
 ### Added

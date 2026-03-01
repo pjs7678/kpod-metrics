@@ -55,6 +55,9 @@ spec:
         - record: kpod:fs_usage_ratio
           expr: kpod_fs_usage_bytes / clamp_min(kpod_fs_capacity_bytes, 1)
 
+        - record: kpod:collector_skip_rate:5m
+          expr: sum by (collector, instance) (rate(kpod_collector_skipped_total[5m]))
+
     - name: kpod-metrics
       rules:
         - alert: KpodHighRunqueueLatency
@@ -198,4 +201,14 @@ spec:
           annotations:
             summary: "Crash loop detected on {{`{{ $labels.pod }}`}}/{{`{{ $labels.container }}`}}"
             description: "Container {{`{{ $labels.container }}`}} in pod {{`{{ $labels.pod }}`}} ({{`{{ $labels.namespace }}`}}) restarted > 5 times in 30 minutes — likely crash looping."
+
+        - alert: KpodHighCollectorSkipRate
+          expr: >-
+            sum by (collector, instance) (rate(kpod_collector_skipped_total[5m])) > 0.1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High skip rate for collector {{`{{ $labels.collector }}`}} on {{`{{ $labels.instance }}`}}"
+            description: "Collector {{`{{ $labels.collector }}`}} is being skipped > 10% of cycles for 10 minutes. Consider increasing its interval or the base poll-interval."
 {{- end }}
