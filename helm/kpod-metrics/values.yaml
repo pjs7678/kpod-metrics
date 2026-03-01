@@ -1,6 +1,6 @@
 image:
   repository: internal-registry/kpod-metrics
-  tag: "0.8.0"
+  tag: "0.9.0"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -77,6 +77,16 @@ config:
   cgroup:
     root: /sys/fs/cgroup
     procRoot: /host/proc
+  filter:
+    namespaces: []
+    excludeNamespaces:
+      - kube-system
+      - kube-public
+    labelSelector: ""
+    includeLabels:
+      - app
+      - app.kubernetes.io/name
+      - app.kubernetes.io/component
   # Per-collector overrides (null = use profile default, true/false = force)
   # collectors:
   #   cpu: true

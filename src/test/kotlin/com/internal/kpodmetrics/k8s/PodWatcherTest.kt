@@ -55,8 +55,8 @@ class PodWatcherTest {
         val filter = FilterProperties(
             excludeNamespaces = listOf("kube-system", "kube-public")
         )
-        assertTrue(PodWatcher.shouldWatch("default", filter))
-        assertFalse(PodWatcher.shouldWatch("kube-system", filter))
+        assertTrue(PodWatcher.shouldWatch("default", emptyMap(), filter))
+        assertFalse(PodWatcher.shouldWatch("kube-system", emptyMap(), filter))
     }
 
     @Test
@@ -64,8 +64,49 @@ class PodWatcherTest {
         val filter = FilterProperties(
             namespaces = listOf("production", "staging")
         )
-        assertTrue(PodWatcher.shouldWatch("production", filter))
-        assertFalse(PodWatcher.shouldWatch("default", filter))
+        assertTrue(PodWatcher.shouldWatch("production", emptyMap(), filter))
+        assertFalse(PodWatcher.shouldWatch("default", emptyMap(), filter))
+    }
+
+    @Test
+    fun `shouldWatch with label selector equality`() {
+        val filter = FilterProperties(labelSelector = "app=nginx")
+        assertTrue(PodWatcher.shouldWatch("default", mapOf("app" to "nginx"), filter))
+        assertFalse(PodWatcher.shouldWatch("default", mapOf("app" to "redis"), filter))
+        assertFalse(PodWatcher.shouldWatch("default", emptyMap(), filter))
+    }
+
+    @Test
+    fun `shouldWatch with label selector inequality`() {
+        val filter = FilterProperties(labelSelector = "env!=test")
+        assertTrue(PodWatcher.shouldWatch("default", mapOf("env" to "prod"), filter))
+        assertTrue(PodWatcher.shouldWatch("default", emptyMap(), filter))
+        assertFalse(PodWatcher.shouldWatch("default", mapOf("env" to "test"), filter))
+    }
+
+    @Test
+    fun `shouldWatch with label selector existence`() {
+        val filter = FilterProperties(labelSelector = "app")
+        assertTrue(PodWatcher.shouldWatch("default", mapOf("app" to "nginx"), filter))
+        assertFalse(PodWatcher.shouldWatch("default", emptyMap(), filter))
+    }
+
+    @Test
+    fun `shouldWatch combines namespace and label selector`() {
+        val filter = FilterProperties(
+            excludeNamespaces = listOf("kube-system"),
+            labelSelector = "app=nginx"
+        )
+        assertTrue(PodWatcher.shouldWatch("default", mapOf("app" to "nginx"), filter))
+        assertFalse(PodWatcher.shouldWatch("kube-system", mapOf("app" to "nginx"), filter))
+        assertFalse(PodWatcher.shouldWatch("default", mapOf("app" to "redis"), filter))
+    }
+
+    @Test
+    fun `matchesLabelSelector handles comma-separated terms`() {
+        val labels = mapOf("app" to "nginx", "env" to "prod")
+        assertTrue(PodWatcher.matchesLabelSelector(labels, "app=nginx,env=prod"))
+        assertFalse(PodWatcher.matchesLabelSelector(labels, "app=nginx,env=test"))
     }
 
     @Test

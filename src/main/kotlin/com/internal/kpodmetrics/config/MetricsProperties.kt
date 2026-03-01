@@ -111,7 +111,8 @@ data class SyscallProperties(
 data class FilterProperties(
     val namespaces: List<String> = emptyList(),
     val excludeNamespaces: List<String> = listOf("kube-system", "kube-public"),
-    val labelSelector: String = ""
+    val labelSelector: String = "",
+    val includeLabels: List<String> = listOf("app", "app.kubernetes.io/name", "app.kubernetes.io/component")
 )
 
 data class BpfProperties(

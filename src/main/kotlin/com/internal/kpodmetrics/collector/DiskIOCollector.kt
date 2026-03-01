@@ -20,13 +20,7 @@ class DiskIOCollector(
                 val stats = reader.readDiskIO(target.cgroupPath)
                 for (stat in stats) {
                     val device = "${stat.major}:${stat.minor}"
-                    val tags = Tags.of(
-                        "namespace", target.namespace,
-                        "pod", target.podName,
-                        "container", target.containerName,
-                        "node", target.nodeName,
-                        "device", device
-                    )
+                    val tags = target.tags().and("device", device)
                     registry.counter("kpod.disk.read.bytes", tags).increment(stat.readBytes.toDouble())
                     registry.counter("kpod.disk.written.bytes", tags).increment(stat.writeBytes.toDouble())
                     registry.counter("kpod.disk.reads", tags).increment(stat.reads.toDouble())

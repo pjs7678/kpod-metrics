@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.0] - 2026-03-01
+
+### Added
+- Pod label propagation to metrics: configurable `kpod.filter.include-labels` whitelist
+  - Pod labels (e.g., `app=nginx`) appear as `label_app="nginx"` metric tags
+  - Labels filtered at PodCgroupMapper level to control cardinality
+- Metric staleness cleanup: Micrometer meters for deleted pods are automatically removed
+  - Prevents cardinality growth from pod churn in long-running clusters
+  - Cleans gauge stores in FilesystemCollector and MemoryCgroupCollector
+- Label selector filtering: `kpod.filter.label-selector` now functional
+  - Supports `key=value`, `key!=value`, and `key` (exists) selectors
+  - Comma-separated for multiple terms (AND logic)
+- `PodCgroupTarget.tags()` helper for consistent tag construction across cgroup collectors
+
+### Changed
+- `PodCgroupMapper` now accepts `includeLabels` to filter pod labels at discovery time
+- `PodWatcher.shouldWatch()` now evaluates label selectors alongside namespace filters
+- Cgroup collectors use `target.tags()` instead of manual tag construction
+- Helm ConfigMap renders filter config (namespaces, excludeNamespaces, labelSelector, includeLabels)
+
 ## [0.8.0] - 2026-03-01
 
 ### Added

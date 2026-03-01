@@ -127,4 +127,28 @@ class MemoryCgroupCollectorTest {
         assertNotNull(swap)
         assertEquals(2000000.0, swap!!.value())
     }
+
+    @Test
+    fun `propagates pod labels as metric tags`() {
+        val containerDir = tempDir.resolve("labeled")
+        containerDir.createDirectories()
+        containerDir.resolve("memory.current").writeText("50000000\n")
+        containerDir.resolve("memory.stat").writeText("inactive_file 1000\nactive_file 2000\n")
+
+        val reader = CgroupReader(CgroupVersion.V2)
+        val collector = MemoryCgroupCollector(reader, registry)
+        val targets = listOf(PodCgroupTarget(
+            "labeled-pod", "default", "nginx",
+            containerDir.toString(), "test-node",
+            labels = mapOf("app" to "myapp")
+        ))
+        collector.collect(targets)
+
+        val usage = registry.find("kpod.mem.cgroup.usage.bytes")
+            .tag("pod", "labeled-pod")
+            .tag("label_app", "myapp")
+            .gauge()
+        assertNotNull(usage)
+        assertEquals(50000000.0, usage!!.value())
+    }
 }

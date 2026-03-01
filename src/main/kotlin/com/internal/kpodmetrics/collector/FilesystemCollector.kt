@@ -28,13 +28,7 @@ class FilesystemCollector(
                 val stats = reader.readFilesystemStats(procRoot, pid)
                 for (stat in stats) {
                     val key = GaugeKey(target.podName, target.namespace, target.containerName, target.nodeName, stat.mountPoint)
-                    val tags = Tags.of(
-                        "namespace", target.namespace,
-                        "pod", target.podName,
-                        "container", target.containerName,
-                        "node", target.nodeName,
-                        "mountpoint", stat.mountPoint
-                    )
+                    val tags = target.tags().and("mountpoint", stat.mountPoint)
                     getOrRegisterGauge(capacityValues, key, "kpod.fs.capacity.bytes", tags).set(stat.totalBytes)
                     getOrRegisterGauge(usageValues, key, "kpod.fs.usage.bytes", tags).set(stat.usedBytes)
                     getOrRegisterGauge(availableValues, key, "kpod.fs.available.bytes", tags).set(stat.availableBytes)
@@ -44,6 +38,12 @@ class FilesystemCollector(
                 errorCounter.increment()
             }
         }
+    }
+
+    fun removeStaleEntries(podName: String, namespace: String) {
+        capacityValues.keys.removeAll { it.pod == podName && it.ns == namespace }
+        usageValues.keys.removeAll { it.pod == podName && it.ns == namespace }
+        availableValues.keys.removeAll { it.pod == podName && it.ns == namespace }
     }
 
     private fun getOrRegisterGauge(
