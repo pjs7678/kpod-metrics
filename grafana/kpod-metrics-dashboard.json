@@ -2374,6 +2374,222 @@
           "refId": "A"
         }
       ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 106
+      },
+      "id": 90,
+      "title": "Memory (Cgroup)",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 107
+      },
+      "id": 91,
+      "title": "Memory Usage",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "kpod_mem_cgroup_usage_bytes{namespace=~\"$namespace\", pod=~\"$pod\", node=~\"$node\"}",
+          "legendFormat": "{{pod}}/{{container}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 107
+      },
+      "id": 92,
+      "title": "Memory Peak",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "kpod_mem_cgroup_peak_bytes{namespace=~\"$namespace\", pod=~\"$pod\", node=~\"$node\"}",
+          "legendFormat": "{{pod}}/{{container}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 115
+      },
+      "id": 93,
+      "title": "Memory Cache",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "kpod_mem_cgroup_cache_bytes{namespace=~\"$namespace\", pod=~\"$pod\", node=~\"$node\"}",
+          "legendFormat": "{{pod}}/{{container}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 115
+      },
+      "id": 94,
+      "title": "Memory Swap",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "kpod_mem_cgroup_swap_bytes{namespace=~\"$namespace\", pod=~\"$pod\", node=~\"$node\"}",
+          "legendFormat": "{{pod}}/{{container}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 123
+      },
+      "id": 95,
+      "title": "Operational",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 124
+      },
+      "id": 96,
+      "title": "Cgroup Read Error Rate",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (collector) (rate(kpod_cgroup_read_errors_total{node=~\"$node\"}[5m]))",
+          "legendFormat": "{{collector}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 124
+      },
+      "id": 97,
+      "title": "Collection Timeouts",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(kpod_collection_timeouts_total{node=~\"$node\"}[5m]))",
+          "legendFormat": "timeouts/s",
+          "refId": "A"
+        }
+      ]
     }
   ],
   "schemaVersion": 39,

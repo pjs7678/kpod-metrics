@@ -35,6 +35,7 @@ class MetricsCollectorService(
     private val diskIOCollector: DiskIOCollector? = null,
     private val ifaceNetCollector: InterfaceNetworkCollector? = null,
     private val fsCollector: FilesystemCollector? = null,
+    private val memCollector: MemoryCgroupCollector? = null,
     private val podCgroupMapper: PodCgroupMapper? = null,
     private val bridge: BpfBridge? = null,
     private val programManager: BpfProgramManager? = null,
@@ -68,7 +69,8 @@ class MetricsCollectorService(
         "execsnoop" to collectorOverrides.execsnoop,
         "diskIO" to collectorOverrides.diskIO,
         "ifaceNet" to collectorOverrides.ifaceNet,
-        "filesystem" to collectorOverrides.filesystem
+        "filesystem" to collectorOverrides.filesystem,
+        "memory" to collectorOverrides.memory
     )
 
     private fun isCollectorEnabled(name: String): Boolean = overrideMap[name] ?: true
@@ -128,7 +130,8 @@ class MetricsCollectorService(
         val cgroupCollectors = listOfNotNull(
             diskIOCollector?.let { "diskIO" to { it.collect(targets) } },
             ifaceNetCollector?.let { "ifaceNet" to { it.collect(targets) } },
-            fsCollector?.let { "filesystem" to { it.collect(targets) } }
+            fsCollector?.let { "filesystem" to { it.collect(targets) } },
+            memCollector?.let { "memory" to { it.collect(targets) } }
         ).filter { isCollectorEnabled(it.first) }
 
         val completed = withTimeoutOrNull(collectionTimeoutMs) {

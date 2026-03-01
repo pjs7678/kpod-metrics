@@ -8,6 +8,7 @@ data class MetricsProperties(
     val pollInterval: Long = 30000,
     val collectionTimeout: Long = 20000,
     val nodeName: String = "unknown",
+    val clusterName: String = "",
     val cpu: CpuProperties = CpuProperties(),
     val network: NetworkProperties = NetworkProperties(),
     val memory: MemoryProperties = MemoryProperties(),
@@ -29,7 +30,7 @@ data class MetricsProperties(
                 network = NetworkProperties(tcp = TcpProperties(enabled = false)),
                 syscall = SyscallProperties(enabled = false),
                 extended = ExtendedProperties(),
-                cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = false, filesystem = false)
+                cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = false, filesystem = false, memory = true)
             )
             "standard" -> ResolvedConfig(
                 cpu = CpuProperties(
@@ -39,7 +40,7 @@ data class MetricsProperties(
                 network = NetworkProperties(tcp = TcpProperties(enabled = true)),
                 syscall = SyscallProperties(enabled = false),
                 extended = ExtendedProperties(tcpdrop = true, execsnoop = true),
-                cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = true, filesystem = true)
+                cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = true, filesystem = true, memory = true)
             )
             "comprehensive" -> ResolvedConfig(
                 cpu = CpuProperties(
@@ -55,7 +56,7 @@ data class MetricsProperties(
                     biolatency = true, cachestat = true,
                     tcpdrop = true, hardirqs = true, softirqs = true, execsnoop = true
                 ),
-                cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = true, filesystem = true)
+                cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = true, filesystem = true, memory = true)
             )
             "custom" -> ResolvedConfig(cpu = cpu, network = network, syscall = syscall, extended = extended, cgroup = CgroupCollectorProperties())
             else -> throw IllegalArgumentException("Unknown profile: ${override ?: profile}")
@@ -141,7 +142,8 @@ data class ExtendedProperties(
 data class CgroupCollectorProperties(
     val diskIO: Boolean = true,
     val interfaceNetwork: Boolean = true,
-    val filesystem: Boolean = true
+    val filesystem: Boolean = true,
+    val memory: Boolean = true
 )
 
 data class CollectorOverrides(
@@ -156,7 +158,8 @@ data class CollectorOverrides(
     val execsnoop: Boolean? = null,
     val diskIO: Boolean? = null,
     val ifaceNet: Boolean? = null,
-    val filesystem: Boolean? = null
+    val filesystem: Boolean? = null,
+    val memory: Boolean? = null
 )
 
 val DEFAULT_TRACKED_SYSCALLS = listOf(

@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0] - 2026-03-01
+
+### Added
+- Memory cgroup collector: `kpod.mem.cgroup.usage.bytes`, `kpod.mem.cgroup.peak.bytes`,
+  `kpod.mem.cgroup.cache.bytes`, `kpod.mem.cgroup.swap.bytes` — supports cgroup v1 and v2
+- Multi-cluster label injection via `kpod.cluster-name` — adds `cluster` common tag to all metrics
+- `node` common tag automatically applied to all metrics via `MeterRegistryCustomizer`
+- Grafana dashboard: Memory (Cgroup) row with usage, peak, cache, swap panels
+- Grafana dashboard: Operational row with cgroup read error rate and collection timeout panels
+- PrometheusRule alerts: `KpodCgroupReadErrors`, `KpodCollectionTimeouts`, `KpodMemoryPressure`
+
+### Changed
+- Helm values: added `config.clusterName` option
+- Helm ConfigMap: renders `cluster-name` when set
+
 ## [0.7.0] - 2026-03-01
 
 ### Added
