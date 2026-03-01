@@ -24,7 +24,7 @@ management:
 
 kpod:
   profile: standard
-  poll-interval: 15000
+  poll-interval: 30000
   node-name: ${NODE_NAME:unknown}
   discovery:
     mode: ${KPOD_DISCOVERY_MODE:informer}

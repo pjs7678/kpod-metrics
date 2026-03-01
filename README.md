@@ -11,7 +11,7 @@ Node (DaemonSet pod)
 ┌─────────────────────────────────────────────────┐
 │  Spring Boot (JDK 21 + Virtual Threads)         │
 │                                                  │
-│  MetricsCollectorService (every 15-30s)         │
+│  MetricsCollectorService (every 30s default)    │
 │  ├── eBPF Collectors ──► JNI ──► BPF Maps      │
 │  │   ├── CpuSchedulingCollector                 │
 │  │   ├── NetworkCollector                       │
@@ -27,7 +27,8 @@ Node (DaemonSet pod)
 │  └── Cgroup Collectors ──► /sys/fs/cgroup       │
 │      ├── DiskIOCollector                        │
 │      ├── InterfaceNetworkCollector              │
-│      └── FilesystemCollector                    │
+│      ├── FilesystemCollector                    │
+│      └── MemoryCgroupCollector                  │
 │                                                  │
 │  PodWatcher (K8s informer, node-scoped)         │
 │  CgroupResolver (cgroup ID → pod metadata)      │
@@ -124,9 +125,11 @@ All metrics are labeled with `namespace`, `pod`, `container`, and `node`.
 | `kpod.collection.cycle.duration` | Timer | — | Full collection cycle duration |
 | `kpod.collector.duration` | Timer | `collector` | Per-collector execution time |
 | `kpod.collector.errors.total` | Counter | `collector` | Per-collector failure count |
+| `kpod.collector.skipped.total` | Counter | `collector` | Interval-based collector skips |
 | `kpod.collection.timeouts.total` | Counter | — | Collection timeout count |
 | `kpod.discovery.pods.total` | Gauge | — | Discovered pods per cycle |
 | `kpod.cgroup.read.errors` | Counter | `collector` | Cgroup read failures |
+| `kpod.bpf.program.load.duration` | Timer | `program` | BPF program load time at startup |
 
 ### BPF Map Diagnostics
 
@@ -247,7 +250,22 @@ prometheusRule:
   enabled: true
 ```
 
-This provisions 15 alerting rules including: high runqueue latency, TCP retransmits/drops, syscall error rate, filesystem full, BPF map health, container restart rate, crash loop detection, and memory pressure. Plus 12 recording rules for precomputed p50/p99 aggregations.
+This provisions 17 alerting rules including: high runqueue latency, TCP retransmits/drops, syscall error rate, filesystem full, BPF map health, container restart rate, crash loop detection, memory pressure, and collector skip rate. Plus 13 recording rules for precomputed p50/p99 aggregations.
+
+### OTLP Export
+
+Push metrics to any OpenTelemetry-compatible collector alongside Prometheus scraping:
+
+```yaml
+otlp:
+  enabled: true
+  endpoint: "http://otel-collector:4318/v1/metrics"
+  headers:
+    api-key: "my-api-key"
+  step: 60000   # push interval in ms
+```
+
+When enabled, an `OtlpMeterRegistry` is created that pushes all kpod metrics via OTLP/HTTP. This works in parallel with Prometheus scraping — both registries receive the same metrics.
 
 ## Configuration
 
@@ -258,7 +276,7 @@ All settings are under the `kpod.*` prefix. Configure via Helm values or environ
 ```yaml
 image:
   repository: internal-registry/kpod-metrics
-  tag: "1.3.0"
+  tag: "1.6.0"
 
 resources:
   requests:
@@ -308,6 +326,10 @@ prometheusRule:
 | `kpod.filter.label-selector` | `""` | Label selector (`key=value`, `key!=value`, `key`) |
 | `kpod.filter.include-labels` | `app, app.kubernetes.io/name, ...` | Pod labels to include as metric tags |
 | `kpod.bpf.enabled` | `true` | Enable eBPF programs |
+| `kpod.otlp.enabled` | `false` | Enable OTLP metrics export |
+| `kpod.otlp.endpoint` | `http://localhost:4318/v1/metrics` | OTLP collector endpoint |
+| `kpod.otlp.headers` | `{}` | OTLP request headers (e.g., API keys) |
+| `kpod.otlp.step` | `60000` | OTLP push interval (ms) |
 
 ### Per-Collector Intervals
 
@@ -356,7 +378,7 @@ Requires JDK 21 and kotlin-ebpf-dsl as a sibling directory:
 
 ```bash
 ./gradlew generateBpf  # Generate BPF C code + Kotlin MapReader classes
-./gradlew build         # Compile + test (140 tests)
+./gradlew build         # Compile + test (201 tests)
 ./gradlew bootJar       # Build executable JAR
 ```
 
@@ -493,7 +515,7 @@ kpod-metrics/
 │   │       ├── discovery/      # PodProvider, PodCgroupMapper
 │   │       ├── k8s/            # PodWatcher (K8s informer)
 │   │       └── model/          # DTOs
-│   └── test/kotlin/            # 140 unit tests
+│   └── test/kotlin/            # 201 unit tests
 ├── grafana/
 │   └── kpod-metrics-dashboard.json  # Standalone Grafana dashboard (importable via UI)
 ├── helm/kpod-metrics/          # Helm chart (DaemonSet, RBAC, ConfigMap)
