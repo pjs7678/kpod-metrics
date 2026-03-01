@@ -1,5 +1,6 @@
 package com.internal.kpodmetrics.collector
 
+import com.internal.kpodmetrics.config.CollectorIntervals
 import com.internal.kpodmetrics.config.CollectorOverrides
 import com.internal.kpodmetrics.discovery.PodCgroupMapper
 import com.internal.kpodmetrics.model.PodCgroupTarget
@@ -206,6 +207,50 @@ class MetricsCollectorServiceTest {
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
             registry = registry
         )
+    }
+
+    @Test
+    fun `per-collector interval skips collector on second cycle`() {
+        // syscall interval = 60000ms, base poll = 30000ms
+        // First cycle: syscall runs (no lastRun recorded yet)
+        // Second cycle: syscall skipped (interval not elapsed)
+        val intervals = CollectorIntervals(syscall = 60000)
+        val intervalService = MetricsCollectorService(
+            cpuCollector, netCollector, syscallCollector,
+            biolatencyCollector, cachestatCollector,
+            tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
+            registry = registry,
+            collectorIntervals = intervals,
+            basePollIntervalMs = 30000
+        )
+        intervalService.collect()
+        verify(exactly = 1) { syscallCollector.collect() }
+        verify(exactly = 1) { cpuCollector.collect() }
+
+        // Second cycle immediately — syscall should be skipped, cpu should run
+        intervalService.collect()
+        verify(exactly = 1) { syscallCollector.collect() }
+        verify(exactly = 2) { cpuCollector.collect() }
+        intervalService.close()
+    }
+
+    @Test
+    fun `per-collector interval runs collector when interval elapsed`() {
+        // With very short interval, collector should run every cycle
+        val intervals = CollectorIntervals(syscall = 1) // 1ms
+        val intervalService = MetricsCollectorService(
+            cpuCollector, netCollector, syscallCollector,
+            biolatencyCollector, cachestatCollector,
+            tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
+            registry = registry,
+            collectorIntervals = intervals,
+            basePollIntervalMs = 30000
+        )
+        intervalService.collect()
+        Thread.sleep(5)
+        intervalService.collect()
+        verify(exactly = 2) { syscallCollector.collect() }
+        intervalService.close()
     }
 
     @Test

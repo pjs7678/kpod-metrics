@@ -16,6 +16,10 @@ data:
       collectors:
         {{- toYaml .Values.config.collectors | nindent 8 }}
       {{- end }}
+      {{- if .Values.config.collectorIntervals }}
+      collector-intervals:
+        {{- toYaml .Values.config.collectorIntervals | nindent 8 }}
+      {{- end }}
       discovery:
         mode: ${KPOD_DISCOVERY_MODE:informer}
         kubelet-poll-interval: {{ .Values.config.discovery.kubeletPollInterval }}
