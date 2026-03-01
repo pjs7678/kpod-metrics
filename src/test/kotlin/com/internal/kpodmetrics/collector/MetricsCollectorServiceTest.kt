@@ -1,5 +1,6 @@
 package com.internal.kpodmetrics.collector
 
+import com.internal.kpodmetrics.config.CollectorOverrides
 import com.internal.kpodmetrics.discovery.PodCgroupMapper
 import com.internal.kpodmetrics.model.PodCgroupTarget
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
@@ -7,6 +8,7 @@ import io.mockk.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.BeforeEach
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class MetricsCollectorServiceTest {
@@ -115,8 +117,80 @@ class MetricsCollectorServiceTest {
 
     @Test
     fun `tracks last successful cycle timestamp`() {
-        assertNotNull(service.getLastSuccessfulCycle() == null)
+        assertNull(service.getLastSuccessfulCycle())
         service.collect()
         assertNotNull(service.getLastSuccessfulCycle())
+    }
+
+    @Test
+    fun `collector overrides disable specific collectors`() {
+        val overrides = CollectorOverrides(cpu = false, network = false, syscall = false)
+        val filteredService = MetricsCollectorService(
+            cpuCollector, netCollector, syscallCollector,
+            biolatencyCollector, cachestatCollector,
+            tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
+            registry = registry,
+            collectorOverrides = overrides
+        )
+        filteredService.collect()
+
+        verify(exactly = 0) { cpuCollector.collect() }
+        verify(exactly = 0) { netCollector.collect() }
+        verify(exactly = 0) { syscallCollector.collect() }
+        // Others should still run
+        verify { biolatencyCollector.collect() }
+        verify { cachestatCollector.collect() }
+        filteredService.close()
+    }
+
+    @Test
+    fun `collector overrides disable cgroup collectors`() {
+        val diskIOCollector = mockk<DiskIOCollector>(relaxed = true)
+        val ifaceNetCollector = mockk<InterfaceNetworkCollector>(relaxed = true)
+        val fsCollector = mockk<FilesystemCollector>(relaxed = true)
+        val mapper = mockk<PodCgroupMapper>()
+        every { mapper.resolve() } returns listOf(PodCgroupTarget("pod", "ns", "c", "/cg", "node"))
+
+        val overrides = CollectorOverrides(diskIO = false, filesystem = false)
+        val filteredService = MetricsCollectorService(
+            cpuCollector, netCollector, syscallCollector,
+            biolatencyCollector, cachestatCollector,
+            tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
+            diskIOCollector, ifaceNetCollector, fsCollector, mapper,
+            registry = registry,
+            collectorOverrides = overrides
+        )
+        filteredService.collect()
+
+        verify(exactly = 0) { diskIOCollector.collect(any()) }
+        verify(exactly = 0) { fsCollector.collect(any()) }
+        verify { ifaceNetCollector.collect(any()) }
+        filteredService.close()
+    }
+
+    @Test
+    fun `collection timeout increments timeout counter`() {
+        every { cpuCollector.collect() } answers {
+            Thread.sleep(500)
+        }
+        val timeoutService = MetricsCollectorService(
+            cpuCollector, netCollector, syscallCollector,
+            biolatencyCollector, cachestatCollector,
+            tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
+            registry = registry,
+            collectionTimeoutMs = 100
+        )
+        timeoutService.collect()
+
+        val counter = registry.find("kpod.collection.timeouts.total").counter()!!
+        assertTrue(counter.count() >= 1.0)
+        timeoutService.close()
+    }
+
+    @Test
+    fun `collection completes within timeout does not increment counter`() {
+        service.collect()
+        val counter = registry.find("kpod.collection.timeouts.total").counter()!!
+        assertTrue(counter.count() == 0.0)
     }
 }

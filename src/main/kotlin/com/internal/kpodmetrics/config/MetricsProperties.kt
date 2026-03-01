@@ -6,12 +6,14 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 data class MetricsProperties(
     val profile: String = "standard",
     val pollInterval: Long = 30000,
+    val collectionTimeout: Long = 20000,
     val nodeName: String = "unknown",
     val cpu: CpuProperties = CpuProperties(),
     val network: NetworkProperties = NetworkProperties(),
     val memory: MemoryProperties = MemoryProperties(),
     val syscall: SyscallProperties = SyscallProperties(),
     val extended: ExtendedProperties = ExtendedProperties(),
+    val collectors: CollectorOverrides = CollectorOverrides(),
     val filter: FilterProperties = FilterProperties(),
     val bpf: BpfProperties = BpfProperties(),
     val discovery: DiscoveryProperties = DiscoveryProperties(),
@@ -140,6 +142,21 @@ data class CgroupCollectorProperties(
     val diskIO: Boolean = true,
     val interfaceNetwork: Boolean = true,
     val filesystem: Boolean = true
+)
+
+data class CollectorOverrides(
+    val cpu: Boolean? = null,
+    val network: Boolean? = null,
+    val syscall: Boolean? = null,
+    val biolatency: Boolean? = null,
+    val cachestat: Boolean? = null,
+    val tcpdrop: Boolean? = null,
+    val hardirqs: Boolean? = null,
+    val softirqs: Boolean? = null,
+    val execsnoop: Boolean? = null,
+    val diskIO: Boolean? = null,
+    val ifaceNet: Boolean? = null,
+    val filesystem: Boolean? = null
 )
 
 val DEFAULT_TRACKED_SYSCALLS = listOf(

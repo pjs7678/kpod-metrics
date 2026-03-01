@@ -7,7 +7,12 @@ data:
     kpod:
       profile: {{ .Values.config.profile }}
       poll-interval: {{ .Values.config.pollInterval }}
+      collection-timeout: {{ .Values.config.collectionTimeout | default 20000 }}
       node-name: ${NODE_NAME}
+      {{- if .Values.config.collectors }}
+      collectors:
+        {{- toYaml .Values.config.collectors | nindent 8 }}
+      {{- end }}
       discovery:
         mode: ${KPOD_DISCOVERY_MODE:informer}
         kubelet-poll-interval: {{ .Values.config.discovery.kubeletPollInterval }}

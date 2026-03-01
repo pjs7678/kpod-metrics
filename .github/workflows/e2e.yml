@@ -1,0 +1,87 @@
+name: E2E Tests
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1" # Weekly Monday 06:00 UTC
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: pjs7678/kotlin-ebpf-dsl
+          path: kotlin-ebpf-dsl
+
+      - uses: medyagh/setup-minikube@latest
+        with:
+          minikube-version: latest
+          kubernetes-version: v1.30.0
+
+      - name: Build image
+        run: |
+          eval $(minikube docker-env)
+          docker build -f Dockerfile \
+            --build-arg TARGETARCH=amd64 \
+            -t kpod-metrics:e2e \
+            -t internal-registry/kpod-metrics:e2e .
+        working-directory: ${{ github.workspace }}
+
+      - uses: azure/setup-helm@v4
+
+      - name: Deploy kpod-metrics
+        run: |
+          helm install kpod-metrics helm/kpod-metrics \
+            --set image.repository=internal-registry/kpod-metrics \
+            --set image.tag=e2e \
+            --set image.pullPolicy=Never \
+            --set securityContext.privileged=true \
+            --set config.profile=comprehensive \
+            --set config.collectionTimeout=30000
+
+      - name: Wait for pod ready
+        run: |
+          kubectl rollout status daemonset/kpod-metrics --timeout=120s
+
+      - name: Run E2E checks
+        run: |
+          POD=$(kubectl get pods -l app=kpod-metrics -o jsonpath='{.items[0].metadata.name}')
+          echo "Pod: $POD"
+
+          # Wait for first collection cycle
+          sleep 45
+
+          # Check health endpoint
+          kubectl exec "$POD" -- curl -sf http://localhost:9090/actuator/health | tee /tmp/health.json
+          echo ""
+
+          # Check Prometheus metrics endpoint
+          kubectl exec "$POD" -- curl -sf http://localhost:9090/actuator/prometheus | tee /tmp/metrics.txt
+          echo ""
+
+          # Verify key metrics exist
+          for metric in kpod_cpu_context_switches_total kpod_collection_cycle_duration_seconds_count kpod_collector_duration_seconds_count; do
+            if grep -q "$metric" /tmp/metrics.txt; then
+              echo "PASS: $metric found"
+            else
+              echo "FAIL: $metric not found"
+              exit 1
+            fi
+          done
+
+          echo "All E2E checks passed"
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          kubectl describe daemonset kpod-metrics || true
+          kubectl logs -l app=kpod-metrics --tail=100 || true
+          kubectl get events --sort-by='.lastTimestamp' || true
