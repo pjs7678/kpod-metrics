@@ -19,6 +19,13 @@ spec:
     spec:
       serviceAccountName: {{ .Release.Name }}
       hostPID: true
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
@@ -43,12 +50,21 @@ spec:
               value: /app/config/
           securityContext:
             privileged: {{ .Values.securityContext.privileged }}
+            allowPrivilegeEscalation: {{ .Values.securityContext.allowPrivilegeEscalation | default false }}
+            {{- if not .Values.securityContext.privileged }}
             capabilities:
               add:
                 - BPF
                 - PERFMON
                 - SYS_RESOURCE
                 - NET_ADMIN
+              drop:
+                - ALL
+            {{- end }}
+            {{- with .Values.securityContext.seccompProfile }}
+            seccompProfile:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
