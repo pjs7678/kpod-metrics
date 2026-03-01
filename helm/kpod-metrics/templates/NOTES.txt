@@ -1,39 +1,52 @@
 kpod-metrics has been deployed as a DaemonSet.
 
+  Profile:  {{ .Values.config.profile }}
+  Poll:     {{ .Values.config.pollInterval }}ms
+  Timeout:  {{ .Values.config.collectionTimeout | default 20000 }}ms
+
 1. Verify pods are running on each node:
 
    kubectl get pods -l app.kubernetes.io/name=kpod-metrics -o wide
 
-2. Check health status (BPF programs and collection pipeline):
+2. Check health status (BPF programs, collection pipeline, discovery):
 
    kubectl exec ds/{{ .Release.Name }} -- curl -s http://localhost:9090/actuator/health | python3 -m json.tool
 
 3. Port-forward to check metrics:
 
    kubectl port-forward ds/{{ .Release.Name }} 9090:9090
-   curl -s http://localhost:9090/actuator/prometheus | grep kpod_collection
-   curl -s http://localhost:9090/actuator/prometheus | grep kpod_bpf_programs
+   curl -s http://localhost:9090/actuator/prometheus | head -50
 
-4. Verify self-monitoring metrics are flowing:
+4. Verify kpod metrics are flowing:
 
    curl -s http://localhost:9090/actuator/prometheus | grep -c '^kpod_'
 
+5. View diagnostics:
+
+   curl -s http://localhost:9090/actuator/kpodDiagnostics | python3 -m json.tool
+
 {{- if .Values.serviceMonitor.enabled }}
 
-Prometheus Operator: ServiceMonitor is enabled. Verify scraping:
-
-   kubectl get servicemonitor {{ .Release.Name }}
+Prometheus Operator:
+  ServiceMonitor is enabled (interval: {{ .Values.serviceMonitor.interval }}).
+  kubectl get servicemonitor {{ .Release.Name }}
 {{- end }}
 {{- if .Values.prometheusRule.enabled }}
 
-Prometheus Operator: PrometheusRule is enabled with alerting rules:
-
-   kubectl get prometheusrule {{ .Release.Name }}
+  PrometheusRule is enabled (15 alerts + 12 recording rules).
+  kubectl get prometheusrule {{ .Release.Name }}
 {{- end }}
 {{- if .Values.grafana.dashboard.enabled }}
 
-Grafana: Dashboard ConfigMap deployed. It will auto-provision if the
-Grafana sidecar is configured with label selector "grafana_dashboard".
+Grafana:
+  Dashboard ConfigMap deployed (label: grafana_dashboard={{ .Values.grafana.dashboard.label | quote }}).
+  It auto-provisions if the Grafana sidecar is configured with a matching label selector.
+  To import manually: copy the JSON from the kpod-metrics-dashboard ConfigMap.
+{{- end }}
+{{- if .Values.otlp.enabled }}
+
+OTLP Export:
+  Enabled → {{ .Values.otlp.endpoint }} (step: {{ .Values.otlp.step }}ms)
 {{- end }}
 
 Troubleshooting: https://github.com/pjs7678/kpod-metrics/blob/main/docs/troubleshooting.md

@@ -198,6 +198,18 @@ class MetricsCollectorService(
 
     fun isShuttingDown(): Boolean = shuttingDown.get()
 
+    fun getEnabledCollectorCount(): Int {
+        val bpfCount = listOf("cpu", "network", "syscall", "biolatency", "cachestat",
+            "tcpdrop", "hardirqs", "softirqs", "execsnoop").count { isCollectorEnabled(it) }
+        val cgroupCount = listOfNotNull(
+            diskIOCollector?.let { "diskIO" },
+            ifaceNetCollector?.let { "ifaceNet" },
+            fsCollector?.let { "filesystem" },
+            memCollector?.let { "memory" }
+        ).count { isCollectorEnabled(it) }
+        return bpfCount + cgroupCount
+    }
+
     /**
      * Removes Micrometer meters for a deleted pod to prevent cardinality growth.
      */

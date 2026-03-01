@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2026-03-01
+
+### Added
+- OpenTelemetry/OTLP metrics export via `micrometer-registry-otlp`
+  - Configurable via `kpod.otlp.enabled`, `kpod.otlp.endpoint`, `kpod.otlp.headers`, `kpod.otlp.step`
+  - Push metrics to any OTLP-compatible collector alongside Prometheus scraping
+- `CollectorConfigHealthIndicator`: health check reports DOWN when all collectors are disabled
+  - `getEnabledCollectorCount()` on MetricsCollectorService for runtime inspection
+- Enhanced Helm NOTES.txt: shows active profile, poll/timeout settings, conditional sections for
+  ServiceMonitor, PrometheusRule, Grafana dashboard, and OTLP export
+- Helm values: `otlp.enabled`, `otlp.endpoint`, `otlp.headers`, `otlp.step`
+
+### Changed
+- `BpfAutoConfiguration` conditionally creates `OtlpMeterRegistry` bean when `kpod.otlp.enabled=true`
+- Helm ConfigMap renders OTLP configuration under `kpod.otlp` when enabled
+
 ## [1.3.0] - 2026-03-01
 
 ### Added

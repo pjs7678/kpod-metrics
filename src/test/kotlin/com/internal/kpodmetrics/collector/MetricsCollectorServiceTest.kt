@@ -254,6 +254,26 @@ class MetricsCollectorServiceTest {
     }
 
     @Test
+    fun `getEnabledCollectorCount returns count of enabled collectors`() {
+        // Default: all 9 BPF collectors enabled, no cgroup collectors wired
+        kotlin.test.assertEquals(9, service.getEnabledCollectorCount())
+    }
+
+    @Test
+    fun `getEnabledCollectorCount reflects overrides`() {
+        val overrides = CollectorOverrides(cpu = false, network = false)
+        val filteredService = MetricsCollectorService(
+            cpuCollector, netCollector, syscallCollector,
+            biolatencyCollector, cachestatCollector,
+            tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
+            registry = registry,
+            collectorOverrides = overrides
+        )
+        kotlin.test.assertEquals(7, filteredService.getEnabledCollectorCount())
+        filteredService.close()
+    }
+
+    @Test
     fun `cleanupPodMetrics removes stale meters`() {
         // Register a counter simulating a pod metric
         registry.counter("kpod.disk.read.bytes",

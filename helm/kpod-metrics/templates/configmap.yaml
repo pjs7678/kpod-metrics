@@ -43,6 +43,16 @@ data:
         {{- end }}
         include-labels:
           {{- toYaml .Values.config.filter.includeLabels | nindent 10 }}
+      {{- if .Values.otlp.enabled }}
+      otlp:
+        enabled: true
+        endpoint: {{ .Values.otlp.endpoint | quote }}
+        step: {{ .Values.otlp.step }}
+        {{- if .Values.otlp.headers }}
+        headers:
+          {{- toYaml .Values.otlp.headers | nindent 10 }}
+        {{- end }}
+      {{- end }}
     spring:
       threads:
         virtual:
