@@ -55,6 +55,28 @@ class KubeletPodProviderTest {
     }
 
     @Test
+    fun `parsePodListJson captures container restartCount`() {
+        val json = """
+        {
+          "items": [{
+            "metadata": { "uid": "uid-1", "name": "crashing", "namespace": "default" },
+            "status": {
+              "qosClass": "Burstable",
+              "containerStatuses": [
+                { "name": "app", "containerID": "containerd://abc", "restartCount": 7 },
+                { "name": "sidecar", "containerID": "containerd://def", "restartCount": 0 }
+              ]
+            }
+          }]
+        }
+        """.trimIndent()
+        val pods = KubeletPodProvider.parsePodListJson(json)
+        val pod = pods["uid-1"]!!
+        assertEquals(7, pod.containers[0].restartCount)
+        assertEquals(0, pod.containers[1].restartCount)
+    }
+
+    @Test
     fun `reconcile removes stale pods`() {
         val provider = KubeletPodProvider("10.0.0.1", 10250, 30)
         val first = KubeletPodProvider.parsePodListJson(sampleResponse)

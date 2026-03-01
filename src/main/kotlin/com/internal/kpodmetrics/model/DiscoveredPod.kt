@@ -4,7 +4,8 @@ enum class QosClass { GUARANTEED, BURSTABLE, BEST_EFFORT }
 
 data class ContainerInfo(
     val name: String,
-    val containerId: String
+    val containerId: String,
+    val restartCount: Int = 0
 )
 
 data class DiscoveredPod(

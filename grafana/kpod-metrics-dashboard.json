@@ -161,7 +161,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.99, sum(rate(kpod_cpu_runqueue_latency_bucket{namespace=~\"$namespace\", pod=~\"$pod\"}[5m])) by (le))",
+          "expr": "kpod:cpu_runqueue_latency:p99{namespace=~\"$namespace\", pod=~\"$pod\"}",
           "legendFormat": "",
           "refId": "A"
         }
@@ -371,7 +371,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.5, sum by (le, pod) (rate(kpod_cpu_runqueue_latency_bucket{namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+          "expr": "kpod:cpu_runqueue_latency:p50{namespace=~\"$namespace\", pod=~\"$pod\"}",
           "legendFormat": "{{pod}} p50",
           "refId": "A"
         },
@@ -380,7 +380,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.99, sum by (le, pod) (rate(kpod_cpu_runqueue_latency_bucket{namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+          "expr": "kpod:cpu_runqueue_latency:p99{namespace=~\"$namespace\", pod=~\"$pod\"}",
           "legendFormat": "{{pod}} p99",
           "refId": "B"
         }
@@ -656,7 +656,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.5, sum by (le, pod) (rate(kpod_net_tcp_rtt_bucket{namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+          "expr": "kpod:tcp_rtt:p50{namespace=~\"$namespace\", pod=~\"$pod\"}",
           "legendFormat": "{{pod}} p50",
           "refId": "A"
         },
@@ -665,7 +665,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.99, sum by (le, pod) (rate(kpod_net_tcp_rtt_bucket{namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+          "expr": "kpod:tcp_rtt:p99{namespace=~\"$namespace\", pod=~\"$pod\"}",
           "legendFormat": "{{pod}} p99",
           "refId": "B"
         }
@@ -1612,6 +1612,56 @@
       "type": "row"
     },
     {
+      "id": 103,
+      "title": "Container Restarts",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "expr": "kpod_container_restarts{namespace=~\"$namespace\", pod=~\"$pod\"}",
+          "legendFormat": "{{pod}}/{{container}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -2013,7 +2063,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.99, sum by (le, syscall) (rate(kpod_syscall_latency_bucket{namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+          "expr": "kpod:syscall_latency:p99{namespace=~\"$namespace\", pod=~\"$pod\"}",
           "legendFormat": "{{syscall}}",
           "refId": "A"
         }

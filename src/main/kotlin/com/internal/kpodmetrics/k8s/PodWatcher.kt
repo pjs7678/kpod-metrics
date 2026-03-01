@@ -17,12 +17,16 @@ import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.BasicFileAttributes
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Tags
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 class PodWatcher(
     private val kubernetesClient: KubernetesClient,
     private val cgroupResolver: CgroupResolver,
-    private val properties: MetricsProperties
+    private val properties: MetricsProperties,
+    private val registry: MeterRegistry? = null
 ) : PodProvider {
     private val log = LoggerFactory.getLogger(PodWatcher::class.java)
     private var watch: Watch? = null
@@ -30,6 +34,8 @@ class PodWatcher(
     private val podCgroupIds = ConcurrentHashMap<String, MutableSet<Long>>()
     private var onPodDeletedCallback: ((Long) -> Unit)? = null
     private var onPodRemovedCallback: ((podName: String, namespace: String) -> Unit)? = null
+    // Gauge stores for container restart counts: key = "namespace/pod/container"
+    private val restartGauges = ConcurrentHashMap<String, AtomicLong>()
 
     override fun getDiscoveredPods(): Map<String, DiscoveredPod> =
         discoveredPods.toMap()
@@ -95,6 +101,7 @@ class PodWatcher(
                                 val ns = meta.namespace
                                 if (name != null && ns != null) {
                                     onPodRemovedCallback?.invoke(name, ns)
+                                    removeRestartGauges(name, ns)
                                 }
                             }
                         }
@@ -147,6 +154,7 @@ class PodWatcher(
         // Track as DiscoveredPod for cgroup-based collectors
         toDiscoveredPod(pod)?.let { discovered ->
             discoveredPods[discovered.uid] = discovered
+            updateRestartGauges(discovered)
         }
 
         return count
@@ -208,6 +216,32 @@ class PodWatcher(
         return null
     }
 
+    private fun updateRestartGauges(pod: DiscoveredPod) {
+        if (registry == null) return
+        for (container in pod.containers) {
+            val key = "${pod.namespace}/${pod.name}/${container.name}"
+            val gauge = restartGauges.computeIfAbsent(key) { k ->
+                val ref = AtomicLong(0)
+                registry.gauge(
+                    "kpod.container.restarts",
+                    Tags.of("namespace", pod.namespace, "pod", pod.name, "container", container.name),
+                    ref
+                )
+                ref
+            }
+            gauge.set(container.restartCount.toLong())
+        }
+    }
+
+    fun removeRestartGauges(podName: String, namespace: String) {
+        if (registry == null) return
+        val prefix = "$namespace/$podName/"
+        val keysToRemove = restartGauges.keys.filter { it.startsWith(prefix) }
+        for (key in keysToRemove) {
+            restartGauges.remove(key)
+        }
+    }
+
     companion object {
         /**
          * Parses the cgroup path from /proc/<pid>/cgroup content.
@@ -248,7 +282,8 @@ class PodWatcher(
                 val rawId = cs.containerID ?: return@mapNotNull null
                 ContainerInfo(
                     name = cs.name,
-                    containerId = rawId.substringAfter("://")
+                    containerId = rawId.substringAfter("://"),
+                    restartCount = cs.restartCount ?: 0
                 )
             }
 
