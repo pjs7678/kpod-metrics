@@ -5,13 +5,19 @@ import com.internal.kpodmetrics.bpf.BpfProgramManager
 import com.internal.kpodmetrics.bpf.CgroupResolver
 import com.internal.kpodmetrics.discovery.PodCgroupMapper
 import com.internal.kpodmetrics.model.PodCgroupTarget
+import io.micrometer.core.instrument.Counter
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Timer
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.time.Instant
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicReference
 
 class MetricsCollectorService(
     private val cpuCollector: CpuSchedulingCollector,
@@ -30,14 +36,38 @@ class MetricsCollectorService(
     private val bridge: BpfBridge? = null,
     private val programManager: BpfProgramManager? = null,
     private val cgroupResolver: CgroupResolver? = null,
-    private val bpfMapStatsCollector: BpfMapStatsCollector? = null
+    private val bpfMapStatsCollector: BpfMapStatsCollector? = null,
+    private val registry: MeterRegistry? = null
 ) {
     private val log = LoggerFactory.getLogger(MetricsCollectorService::class.java)
     private val vtExecutor: ExecutorService = Executors.newVirtualThreadPerTaskExecutor()
     private val vtDispatcher = vtExecutor.asCoroutineDispatcher()
 
+    private val cycleTimer: Timer? = registry?.timer("kpod.collection.cycle.duration")
+    private val collectorTimers = ConcurrentHashMap<String, Timer>()
+    private val collectorErrors = ConcurrentHashMap<String, Counter>()
+    private val lastSuccessfulCycle = AtomicReference<Instant?>(null)
+
+    fun getLastSuccessfulCycle(): Instant? = lastSuccessfulCycle.get()
+
+    private fun collectorTimer(name: String): Timer =
+        collectorTimers.computeIfAbsent(name) {
+            Timer.builder("kpod.collector.duration")
+                .tag("collector", name)
+                .register(registry!!)
+        }
+
+    private fun collectorErrorCounter(name: String): Counter =
+        collectorErrors.computeIfAbsent(name) {
+            Counter.builder("kpod.collector.errors.total")
+                .tag("collector", name)
+                .register(registry!!)
+        }
+
     @Scheduled(fixedDelayString = "\${kpod.poll-interval:30000}")
     fun collect() = runBlocking(vtDispatcher) {
+        val cycleSample = cycleTimer?.let { Timer.start() }
+
         val bpfCollectors = listOfNotNull(
             "cpu" to cpuCollector::collect,
             "network" to netCollector::collect,
@@ -58,6 +88,8 @@ class MetricsCollectorService(
             emptyList()
         }
 
+        registry?.gauge("kpod.discovery.pods.total", targets.size)
+
         val cgroupCollectors = listOfNotNull(
             diskIOCollector?.let { "diskIO" to { it.collect(targets) } },
             ifaceNetCollector?.let { "ifaceNet" to { it.collect(targets) } },
@@ -67,14 +99,21 @@ class MetricsCollectorService(
         (bpfCollectors + cgroupCollectors).map { (name, collectFn) ->
             launch {
                 try {
-                    collectFn()
+                    if (registry != null) {
+                        collectorTimer(name).record { collectFn() }
+                    } else {
+                        collectFn()
+                    }
                 } catch (e: Exception) {
                     log.error("Collector '{}' failed: {}", name, e.message, e)
+                    if (registry != null) collectorErrorCounter(name).increment()
                 }
             }
         }.joinAll()
 
         cgroupResolver?.pruneGraceCache()
+        lastSuccessfulCycle.set(Instant.now())
+        cycleSample?.stop(cycleTimer!!)
     }
 
     /**

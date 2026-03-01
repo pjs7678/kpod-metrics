@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-03-01
+
+### Added
+- Self-monitoring metrics for collection pipeline health:
+  - `kpod.collection.cycle.duration` — timer for full collection cycle
+  - `kpod.collector.duration` — timer per collector (tagged by collector name)
+  - `kpod.collector.errors.total` — counter per collector for failure tracking
+  - `kpod.discovery.pods.total` — gauge of discovered pods per cycle
+  - `kpod.bpf.programs.loaded` / `kpod.bpf.programs.failed` — BPF program load status
+- Custom Spring Boot health indicators for Kubernetes probes:
+  - `BpfHealthIndicator` — reports DOWN when BPF programs fail to load
+  - `CollectionHealthIndicator` — reports DOWN when collection is stale (3x poll interval)
+- Per-program graceful BPF load failures (partial degradation instead of full failure)
+- Grafana dashboard Row 10: Collection Health (7 panels)
+- PrometheusRule alerts: KpodCollectorErrors, KpodNoBpfPrograms
+
 ## [0.3.0] - 2026-02-28
 
 ### Added

@@ -10,6 +10,8 @@ import com.internal.kpodmetrics.collector.*
 import com.internal.kpodmetrics.discovery.KubeletPodProvider
 import com.internal.kpodmetrics.discovery.PodCgroupMapper
 import com.internal.kpodmetrics.discovery.PodProvider
+import com.internal.kpodmetrics.health.BpfHealthIndicator
+import com.internal.kpodmetrics.health.CollectionHealthIndicator
 import com.internal.kpodmetrics.k8s.PodWatcher
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientBuilder
@@ -59,8 +61,8 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
 
     @Bean
     @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
-    fun bpfProgramManager(bridge: BpfBridge, config: ResolvedConfig): BpfProgramManager {
-        val manager = BpfProgramManager(bridge, props.bpf.programDir, config)
+    fun bpfProgramManager(bridge: BpfBridge, config: ResolvedConfig, registry: MeterRegistry): BpfProgramManager {
+        val manager = BpfProgramManager(bridge, props.bpf.programDir, config, registry)
         this.programManager = manager
         return manager
     }
@@ -238,7 +240,8 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         bridge: BpfBridge,
         manager: BpfProgramManager,
         cgroupResolver: CgroupResolver,
-        bpfMapStatsCollector: BpfMapStatsCollector
+        bpfMapStatsCollector: BpfMapStatsCollector,
+        registry: MeterRegistry
     ): MetricsCollectorService {
         val service = MetricsCollectorService(
             cpuCollector, netCollector, syscallCollector,
@@ -251,11 +254,21 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
             bridge,
             manager,
             cgroupResolver,
-            bpfMapStatsCollector
+            bpfMapStatsCollector,
+            registry
         )
         this.metricsCollectorServiceInstance = service
         return service
     }
+
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun bpfHealthIndicator(manager: BpfProgramManager) = BpfHealthIndicator(manager)
+
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun collectionHealthIndicator(service: MetricsCollectorService) =
+        CollectionHealthIndicator(service, props.pollInterval)
 
     @EventListener(ContextRefreshedEvent::class)
     fun onStartup() {
