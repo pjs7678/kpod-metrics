@@ -91,4 +91,22 @@ spec:
           annotations:
             summary: "kpod-metrics target down on {{`{{ $labels.instance }}`}}"
             description: "kpod-metrics instance {{`{{ $labels.instance }}`}} has been unreachable for 5 minutes."
+
+        - alert: KpodCollectorErrors
+          expr: sum by (collector, instance) (rate(kpod_collector_errors_total[5m])) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Collector {{`{{ $labels.collector }}`}} errors on {{`{{ $labels.instance }}`}}"
+            description: "Collector {{`{{ $labels.collector }}`}} has been failing for 5 minutes."
+
+        - alert: KpodNoBpfPrograms
+          expr: kpod_bpf_programs_loaded == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "No BPF programs loaded on {{`{{ $labels.instance }}`}}"
+            description: "kpod-metrics instance {{`{{ $labels.instance }}`}} has zero BPF programs loaded for 5 minutes."
 {{- end }}

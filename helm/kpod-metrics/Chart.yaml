@@ -2,5 +2,5 @@ apiVersion: v2
 name: kpod-metrics
 description: eBPF-based pod-level kernel metrics for Kubernetes
 type: application
-version: 0.3.0
-appVersion: "0.3.0"
+version: 0.4.0
+appVersion: "0.4.0"

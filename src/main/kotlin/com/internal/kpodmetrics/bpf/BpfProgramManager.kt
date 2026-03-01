@@ -1,16 +1,29 @@
 package com.internal.kpodmetrics.bpf
 
 import com.internal.kpodmetrics.config.ResolvedConfig
+import io.micrometer.core.instrument.MeterRegistry
 import org.slf4j.LoggerFactory
+import java.util.concurrent.atomic.AtomicInteger
 
 class BpfProgramManager(
     private val bridge: BpfBridge,
     private val programDir: String,
-    private val config: ResolvedConfig
+    private val config: ResolvedConfig,
+    private val registry: MeterRegistry? = null
 ) {
     private val log = LoggerFactory.getLogger(BpfProgramManager::class.java)
     private val loadedPrograms = mutableMapOf<String, Long>()
+    private val _failedPrograms = mutableSetOf<String>()
+    val failedPrograms: Set<String> get() = _failedPrograms.toSet()
+
+    private val loadedCount = AtomicInteger(0)
+    private val failedCount = AtomicInteger(0)
     private val resolvedProgramDir: String = detectProgramDir(programDir)
+
+    init {
+        registry?.gauge("kpod.bpf.programs.loaded", loadedCount)
+        registry?.gauge("kpod.bpf.programs.failed", failedCount)
+    }
 
     private fun detectProgramDir(baseDir: String): String {
         val btfPath = "/sys/kernel/btf/vmlinux"
@@ -30,35 +43,44 @@ class BpfProgramManager(
 
     fun loadAll() {
         if (config.cpu.scheduling.enabled || config.cpu.throttling.enabled) {
-            loadProgram("cpu_sched")
+            tryLoadProgram("cpu_sched")
         }
         if (config.network.tcp.enabled) {
-            loadProgram("net")
+            tryLoadProgram("net")
         }
         // mem program removed — oom_kills and major_faults duplicate cAdvisor
         if (config.syscall.enabled) {
-            loadProgram("syscall")
+            tryLoadProgram("syscall")
         }
 
         // BCC-style tools from kotlin-ebpf-dsl
         val ext = config.extended
-        if (ext.biolatency) loadProgram("biolatency")
-        if (ext.cachestat) loadProgram("cachestat")
-        if (ext.tcpdrop) loadProgram("tcpdrop")
-        if (ext.hardirqs) loadProgram("hardirqs")
-        if (ext.softirqs) loadProgram("softirqs")
-        if (ext.execsnoop) loadProgram("execsnoop")
+        if (ext.biolatency) tryLoadProgram("biolatency")
+        if (ext.cachestat) tryLoadProgram("cachestat")
+        if (ext.tcpdrop) tryLoadProgram("tcpdrop")
+        if (ext.hardirqs) tryLoadProgram("hardirqs")
+        if (ext.softirqs) tryLoadProgram("softirqs")
+        if (ext.execsnoop) tryLoadProgram("execsnoop")
 
-        log.info("Loaded {} BPF programs: {}", loadedPrograms.size, loadedPrograms.keys)
+        loadedCount.set(loadedPrograms.size)
+        failedCount.set(_failedPrograms.size)
+        log.info("Loaded {} BPF programs: {}{}",
+            loadedPrograms.size, loadedPrograms.keys,
+            if (_failedPrograms.isNotEmpty()) ", failed: $_failedPrograms" else "")
     }
 
-    private fun loadProgram(name: String) {
-        val path = "$resolvedProgramDir/$name.bpf.o"
-        log.info("Loading BPF program: {}", path)
-        val handle = bridge.openObject(path)
-        bridge.loadObject(handle)
-        bridge.attachAll(handle)
-        loadedPrograms[name] = handle
+    private fun tryLoadProgram(name: String) {
+        try {
+            val path = "$resolvedProgramDir/$name.bpf.o"
+            log.info("Loading BPF program: {}", path)
+            val handle = bridge.openObject(path)
+            bridge.loadObject(handle)
+            bridge.attachAll(handle)
+            loadedPrograms[name] = handle
+        } catch (e: Exception) {
+            log.warn("Failed to load BPF program '{}': {}", name, e.message)
+            _failedPrograms.add(name)
+        }
     }
 
     fun destroyAll() {

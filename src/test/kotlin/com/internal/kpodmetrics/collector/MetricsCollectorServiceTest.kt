@@ -2,9 +2,12 @@ package com.internal.kpodmetrics.collector
 
 import com.internal.kpodmetrics.discovery.PodCgroupMapper
 import com.internal.kpodmetrics.model.PodCgroupTarget
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.BeforeEach
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 class MetricsCollectorServiceTest {
 
@@ -17,6 +20,7 @@ class MetricsCollectorServiceTest {
     private lateinit var hardirqsCollector: HardirqsCollector
     private lateinit var softirqsCollector: SoftirqsCollector
     private lateinit var execsnoopCollector: ExecsnoopCollector
+    private lateinit var registry: SimpleMeterRegistry
     private lateinit var service: MetricsCollectorService
 
     @BeforeEach
@@ -30,10 +34,12 @@ class MetricsCollectorServiceTest {
         hardirqsCollector = mockk(relaxed = true)
         softirqsCollector = mockk(relaxed = true)
         execsnoopCollector = mockk(relaxed = true)
+        registry = SimpleMeterRegistry()
         service = MetricsCollectorService(
             cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
-            tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector
+            tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
+            registry = registry
         )
     }
 
@@ -80,5 +86,37 @@ class MetricsCollectorServiceTest {
         verify { ifaceNetCollector.collect(targets) }
         verify { fsCollector.collect(targets) }
         serviceWithCgroup.close()
+    }
+
+    @Test
+    fun `records collection cycle duration metric`() {
+        service.collect()
+        val timer = registry.find("kpod.collection.cycle.duration").timer()
+        assertNotNull(timer)
+        assertTrue(timer.count() >= 1)
+    }
+
+    @Test
+    fun `records per-collector duration metrics`() {
+        service.collect()
+        val cpuTimer = registry.find("kpod.collector.duration").tag("collector", "cpu").timer()
+        assertNotNull(cpuTimer)
+        assertTrue(cpuTimer.count() >= 1)
+    }
+
+    @Test
+    fun `records collector error counter on failure`() {
+        every { netCollector.collect() } throws RuntimeException("boom")
+        service.collect()
+        val errorCounter = registry.find("kpod.collector.errors.total").tag("collector", "network").counter()
+        assertNotNull(errorCounter)
+        assertTrue(errorCounter.count() >= 1.0)
+    }
+
+    @Test
+    fun `tracks last successful cycle timestamp`() {
+        assertNotNull(service.getLastSuccessfulCycle() == null)
+        service.collect()
+        assertNotNull(service.getLastSuccessfulCycle())
     }
 }
