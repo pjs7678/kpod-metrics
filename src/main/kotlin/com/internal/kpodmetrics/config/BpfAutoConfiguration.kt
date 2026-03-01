@@ -280,7 +280,9 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
             bpfMapStatsCollector,
             registry,
             props.collectionTimeout,
-            props.collectors
+            props.collectors,
+            props.collectorIntervals,
+            props.pollInterval
         )
         this.metricsCollectorServiceInstance = service
         return service

@@ -178,4 +178,24 @@ spec:
           annotations:
             summary: "Memory pressure on {{`{{ $labels.pod }}`}}"
             description: "Pod {{`{{ $labels.pod }}`}} in {{`{{ $labels.namespace }}`}} is using > 95% of peak memory (> 100MB) for 5 minutes."
+
+        - alert: KpodHighRestartRate
+          expr: >-
+            changes(kpod_container_restarts{namespace!="kube-system"}[15m]) > 3
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High restart rate on {{`{{ $labels.pod }}`}}/{{`{{ $labels.container }}`}}"
+            description: "Container {{`{{ $labels.container }}`}} in pod {{`{{ $labels.pod }}`}} ({{`{{ $labels.namespace }}`}}) restarted > 3 times in 15 minutes."
+
+        - alert: KpodPodCrashLooping
+          expr: >-
+            changes(kpod_container_restarts{namespace!="kube-system"}[30m]) > 5
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Crash loop detected on {{`{{ $labels.pod }}`}}/{{`{{ $labels.container }}`}}"
+            description: "Container {{`{{ $labels.container }}`}} in pod {{`{{ $labels.pod }}`}} ({{`{{ $labels.namespace }}`}}) restarted > 5 times in 30 minutes — likely crash looping."
 {{- end }}

@@ -1,6 +1,6 @@
 image:
   repository: internal-registry/kpod-metrics
-  tag: "1.2.0"
+  tag: "1.3.0"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -34,6 +34,10 @@ nodeSelector:
 
 tolerations:
   - operator: Exists
+
+affinity: {}
+
+topologySpreadConstraints: []
 
 podSecurityContext:
   runAsUser: 0
@@ -94,6 +98,13 @@ config:
       - app
       - app.kubernetes.io/name
       - app.kubernetes.io/component
+  # Per-collector intervals in ms (null = same as pollInterval)
+  # Heavy collectors can run less often to reduce kernel overhead
+  # collector-intervals:
+  #   syscall: 60000
+  #   biolatency: 60000
+  #   hardirqs: 60000
+  #   softirqs: 60000
   # Per-collector overrides (null = use profile default, true/false = force)
   # collectors:
   #   cpu: true

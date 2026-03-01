@@ -3,6 +3,7 @@ package com.internal.kpodmetrics.collector
 import com.internal.kpodmetrics.bpf.BpfBridge
 import com.internal.kpodmetrics.bpf.BpfProgramManager
 import com.internal.kpodmetrics.bpf.CgroupResolver
+import com.internal.kpodmetrics.config.CollectorIntervals
 import com.internal.kpodmetrics.config.CollectorOverrides
 import com.internal.kpodmetrics.discovery.PodCgroupMapper
 import com.internal.kpodmetrics.model.PodCgroupTarget
@@ -43,7 +44,9 @@ class MetricsCollectorService(
     private val bpfMapStatsCollector: BpfMapStatsCollector? = null,
     private val registry: MeterRegistry? = null,
     private val collectionTimeoutMs: Long = 20000,
-    private val collectorOverrides: CollectorOverrides = CollectorOverrides()
+    private val collectorOverrides: CollectorOverrides = CollectorOverrides(),
+    private val collectorIntervals: CollectorIntervals = CollectorIntervals(),
+    private val basePollIntervalMs: Long = 30000
 ) {
     private val log = LoggerFactory.getLogger(MetricsCollectorService::class.java)
     private val vtExecutor: ExecutorService = Executors.newVirtualThreadPerTaskExecutor()
@@ -56,6 +59,23 @@ class MetricsCollectorService(
     private val collectorTimers = ConcurrentHashMap<String, Timer>()
     private val collectorErrors = ConcurrentHashMap<String, Counter>()
     private val lastSuccessfulCycle = AtomicReference<Instant?>(null)
+    private val lastCollectorRun = ConcurrentHashMap<String, Instant>()
+
+    private val intervalMap: Map<String, Long?> = mapOf(
+        "cpu" to collectorIntervals.cpu,
+        "network" to collectorIntervals.network,
+        "syscall" to collectorIntervals.syscall,
+        "biolatency" to collectorIntervals.biolatency,
+        "cachestat" to collectorIntervals.cachestat,
+        "tcpdrop" to collectorIntervals.tcpdrop,
+        "hardirqs" to collectorIntervals.hardirqs,
+        "softirqs" to collectorIntervals.softirqs,
+        "execsnoop" to collectorIntervals.execsnoop,
+        "diskIO" to collectorIntervals.diskIO,
+        "ifaceNet" to collectorIntervals.ifaceNet,
+        "filesystem" to collectorIntervals.filesystem,
+        "memory" to collectorIntervals.memory
+    )
 
     private val overrideMap: Map<String, Boolean?> = mapOf(
         "cpu" to collectorOverrides.cpu,
@@ -74,6 +94,17 @@ class MetricsCollectorService(
     )
 
     private fun isCollectorEnabled(name: String): Boolean = overrideMap[name] ?: true
+
+    private fun shouldRunCollector(name: String): Boolean {
+        if (!isCollectorEnabled(name)) return false
+        val interval = intervalMap[name] ?: return true
+        val lastRun = lastCollectorRun[name] ?: return true
+        return java.time.Duration.between(lastRun, Instant.now()).toMillis() >= interval
+    }
+
+    private fun markCollectorRun(name: String) {
+        lastCollectorRun[name] = Instant.now()
+    }
 
     fun getLastSuccessfulCycle(): Instant? = lastSuccessfulCycle.get()
 
@@ -119,7 +150,7 @@ class MetricsCollectorService(
             "softirqs" to softirqsCollector::collect,
             "execsnoop" to execsnoopCollector::collect,
             bpfMapStatsCollector?.let { "bpfMapStats" to it::collect }
-        ).filter { isCollectorEnabled(it.first) }
+        ).filter { shouldRunCollector(it.first) }
 
         val targets = try {
             podCgroupMapper?.resolve() ?: emptyList()
@@ -135,7 +166,7 @@ class MetricsCollectorService(
             ifaceNetCollector?.let { "ifaceNet" to { it.collect(targets) } },
             fsCollector?.let { "filesystem" to { it.collect(targets) } },
             memCollector?.let { "memory" to { it.collect(targets) } }
-        ).filter { isCollectorEnabled(it.first) }
+        ).filter { shouldRunCollector(it.first) }
 
         val completed = withTimeoutOrNull(collectionTimeoutMs) {
             (bpfCollectors + cgroupCollectors).map { (name, collectFn) ->
@@ -146,6 +177,7 @@ class MetricsCollectorService(
                         } else {
                             collectFn()
                         }
+                        markCollectorRun(name)
                     } catch (e: Exception) {
                         log.error("Collector '{}' failed: {}", name, e.message, e)
                         if (registry != null) collectorErrorCounter(name).increment()

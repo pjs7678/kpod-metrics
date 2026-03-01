@@ -15,6 +15,7 @@ data class MetricsProperties(
     val syscall: SyscallProperties = SyscallProperties(),
     val extended: ExtendedProperties = ExtendedProperties(),
     val collectors: CollectorOverrides = CollectorOverrides(),
+    val collectorIntervals: CollectorIntervals = CollectorIntervals(),
     val filter: FilterProperties = FilterProperties(),
     val bpf: BpfProperties = BpfProperties(),
     val discovery: DiscoveryProperties = DiscoveryProperties(),
@@ -145,6 +146,22 @@ data class CgroupCollectorProperties(
     val interfaceNetwork: Boolean = true,
     val filesystem: Boolean = true,
     val memory: Boolean = true
+)
+
+data class CollectorIntervals(
+    val cpu: Long? = null,
+    val network: Long? = null,
+    val syscall: Long? = null,
+    val biolatency: Long? = null,
+    val cachestat: Long? = null,
+    val tcpdrop: Long? = null,
+    val hardirqs: Long? = null,
+    val softirqs: Long? = null,
+    val execsnoop: Long? = null,
+    val diskIO: Long? = null,
+    val ifaceNet: Long? = null,
+    val filesystem: Long? = null,
+    val memory: Long? = null
 )
 
 data class CollectorOverrides(

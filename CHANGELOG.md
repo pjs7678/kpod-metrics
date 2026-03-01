@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-03-01
+
+### Added
+- Per-collector interval configuration (`kpod.collector-intervals.<name>`)
+  - Heavy collectors (syscall, biolatency, hardirqs) can run at longer intervals
+  - Default: all collectors run every cycle (backward compatible)
+  - Tracks per-collector last-run timestamps; skips when interval hasn't elapsed
+- PrometheusRule alerts: `KpodHighRestartRate` (> 3 restarts/15min) and `KpodPodCrashLooping` (> 5 restarts/30min)
+- Helm DaemonSet: `affinity` and `topologySpreadConstraints` support
+- README: comprehensive configuration reference (40+ properties documented)
+- README: memory cgroup, pod lifecycle, and self-monitoring metric tables
+
+### Changed
+- `MetricsCollectorService` accepts `CollectorIntervals` for per-collector scheduling
+- `BpfAutoConfiguration` passes `collectorIntervals` and `basePollInterval` to service
+- Helm ConfigMap renders `collector-intervals` when configured
+- README Prometheus Operator section updated to reflect 15 alert rules + 12 recording rules
+
 ## [1.2.0] - 2026-03-01
 
 ### Added

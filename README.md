@@ -102,6 +102,32 @@ All metrics are labeled with `namespace`, `pod`, `container`, and `node`.
 | `kpod.fs.usage.bytes` | Gauge | `mountpoint` | Filesystem used bytes |
 | `kpod.fs.available.bytes` | Gauge | `mountpoint` | Filesystem available bytes |
 
+### Memory Cgroup Metrics
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `kpod.mem.cgroup.usage.bytes` | Gauge | Current memory usage |
+| `kpod.mem.cgroup.peak.bytes` | Gauge | Peak memory usage |
+| `kpod.mem.cgroup.cache.bytes` | Gauge | Page cache usage |
+| `kpod.mem.cgroup.swap.bytes` | Gauge | Swap usage |
+
+### Pod Lifecycle Metrics
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `kpod.container.restarts` | Gauge | `container` | Container restart count from K8s API |
+
+### Self-Monitoring Metrics
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `kpod.collection.cycle.duration` | Timer | — | Full collection cycle duration |
+| `kpod.collector.duration` | Timer | `collector` | Per-collector execution time |
+| `kpod.collector.errors.total` | Counter | `collector` | Per-collector failure count |
+| `kpod.collection.timeouts.total` | Counter | — | Collection timeout count |
+| `kpod.discovery.pods.total` | Gauge | — | Discovered pods per cycle |
+| `kpod.cgroup.read.errors` | Counter | `collector` | Cgroup read failures |
+
 ### BPF Map Diagnostics
 
 | Metric | Type | Labels | Description |
@@ -221,7 +247,7 @@ prometheusRule:
   enabled: true
 ```
 
-This provisions 8 alerting rules out of the box: high runqueue latency, TCP retransmits/drops, syscall error rate, filesystem full, and BPF map health.
+This provisions 15 alerting rules including: high runqueue latency, TCP retransmits/drops, syscall error rate, filesystem full, BPF map health, container restart rate, crash loop detection, and memory pressure. Plus 12 recording rules for precomputed p50/p99 aggregations.
 
 ## Configuration
 
@@ -232,7 +258,7 @@ All settings are under the `kpod.*` prefix. Configure via Helm values or environ
 ```yaml
 image:
   repository: internal-registry/kpod-metrics
-  tag: "0.5.0"
+  tag: "1.3.0"
 
 resources:
   requests:
@@ -271,12 +297,32 @@ prometheusRule:
 | Property | Default | Description |
 |----------|---------|-------------|
 | `kpod.profile` | `standard` | Metric collection profile |
-| `kpod.poll-interval` | `30000` | Collection interval (ms) |
+| `kpod.poll-interval` | `30000` | Base collection interval (ms) |
+| `kpod.collection-timeout` | `20000` | Max time per collection cycle (ms) |
+| `kpod.initial-delay` | `10000` | Delay before first collection (ms) |
+| `kpod.node-name` | `${NODE_NAME}` | Node name for metric tags |
+| `kpod.cluster-name` | `""` | Cluster name for multi-cluster tag |
 | `kpod.discovery.mode` | `informer` | Pod discovery: `informer` or `kubelet` |
-| `kpod.filter.exclude-namespaces` | `kube-system, kube-public` | Namespaces to skip |
 | `kpod.filter.namespaces` | `[]` (all) | Namespaces to include (empty = all) |
-| `kpod.filter.label-selector` | `""` | K8s label selector filter |
+| `kpod.filter.exclude-namespaces` | `kube-system, kube-public` | Namespaces to skip |
+| `kpod.filter.label-selector` | `""` | Label selector (`key=value`, `key!=value`, `key`) |
+| `kpod.filter.include-labels` | `app, app.kubernetes.io/name, ...` | Pod labels to include as metric tags |
 | `kpod.bpf.enabled` | `true` | Enable eBPF programs |
+
+### Per-Collector Intervals
+
+Heavy collectors can run less frequently than the base `poll-interval`. Set per-collector intervals in milliseconds:
+
+```yaml
+config:
+  collectorIntervals:
+    syscall: 60000      # every 60s instead of 30s
+    biolatency: 60000
+    hardirqs: 60000
+    softirqs: 60000
+```
+
+Collectors without an explicit interval run every cycle. Use `config.collectors.<name>: false` to disable a collector entirely.
 | `kpod.bpf.program-dir` | `/app/bpf` | Path to compiled BPF objects |
 | `kpod.syscall.tracked-syscalls` | `read, write, openat, ...` | Syscalls to trace (comprehensive profile) |
 
