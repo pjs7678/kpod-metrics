@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.0] - 2026-03-01
+
+### Added
+- Spring graceful shutdown (`server.shutdown=graceful`, 30s timeout) for clean request draining
+- `DiscoveryHealthIndicator`: readiness check that reports DOWN if no pods discovered after 60s grace period
+- Initial collection delay (`kpod.initial-delay`, default 10s) to allow PodWatcher to discover pods before first cycle
+- Collection overlap guard: skips cycle with warning if previous cycle is still running
+- Helm test pod (`helm test`) for health endpoint validation
+- Dockerfile `HEALTHCHECK` for non-Kubernetes environments
+
+### Changed
+- `MetricsCollectorService.collect()` uses `compareAndSet` for atomic overlap detection
+- Helm ConfigMap includes graceful shutdown configuration
+- `build.gradle.kts` version set to `1.0.0`
+
 ## [0.9.0] - 2026-03-01
 
 ### Added

@@ -45,6 +45,9 @@ data:
           enabled: true
     server:
       port: 9090
+      shutdown: graceful
+    spring.lifecycle:
+      timeout-per-shutdown-phase: 30s
     management:
       endpoints:
         web:
