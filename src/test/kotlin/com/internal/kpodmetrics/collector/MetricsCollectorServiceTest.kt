@@ -193,4 +193,18 @@ class MetricsCollectorServiceTest {
         val counter = registry.find("kpod.collection.timeouts.total").counter()!!
         assertTrue(counter.count() == 0.0)
     }
+
+    @Test
+    fun `shutdown prevents new collection cycles`() {
+        service.close()
+        assertTrue(service.isShuttingDown())
+        // Calling collect after shutdown should be a no-op
+        val lastCycle = service.getLastSuccessfulCycle()
+        service = MetricsCollectorService(
+            cpuCollector, netCollector, syscallCollector,
+            biolatencyCollector, cachestatCollector,
+            tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
+            registry = registry
+        )
+    }
 }

@@ -54,6 +54,6 @@ class FilesystemCollectorTest {
         val targets = listOf(PodCgroupTarget("no-pid-pod", "default", "ghost",
             containerDir.toString(), "test-node"))
         collector.collect(targets)
-        assertTrue(registry.meters.isEmpty())
+        assertNull(registry.find("kpod.fs.capacity.bytes").tag("pod", "no-pid-pod").gauge())
     }
 }

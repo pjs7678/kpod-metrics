@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2026-03-01
+
+### Added
+- Per-target error handling in cgroup collectors (DiskIO, InterfaceNetwork, Filesystem)
+  - `kpod.cgroup.read.errors` counter per collector — one pod's failure no longer blocks others
+- Graceful shutdown with drain timeout — waits for in-flight collection cycle to complete
+- `/actuator/kpodDiagnostics` endpoint: uptime, collector states, BPF program status, profile summary
+- Startup cardinality estimation with configurable warning threshold
+  - Logs estimated metric series count per profile at boot
+  - Warns if estimate exceeds 100k (configurable)
+
+### Changed
+- `MetricsCollectorService.close()` now drains in-flight cycles before shutting down executor
+- Cgroup collector tests updated for error counter registration at construction
+
 ## [0.6.0] - 2026-03-01
 
 ### Added
