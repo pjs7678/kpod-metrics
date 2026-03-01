@@ -235,6 +235,34 @@ class MetricsCollectorServiceTest {
     }
 
     @Test
+    fun `per-collector interval increments skip counter`() {
+        val intervals = CollectorIntervals(syscall = 60000)
+        val intervalService = MetricsCollectorService(
+            cpuCollector, netCollector, syscallCollector,
+            biolatencyCollector, cachestatCollector,
+            tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
+            registry = registry,
+            collectorIntervals = intervals,
+            basePollIntervalMs = 30000
+        )
+        intervalService.collect()
+        intervalService.collect()
+        val skipCounter = registry.find("kpod.collector.skipped.total").tag("collector", "syscall").counter()
+        assertNotNull(skipCounter)
+        assertTrue(skipCounter.count() >= 1.0)
+        intervalService.close()
+    }
+
+    @Test
+    fun `collector failure records last error`() {
+        every { netCollector.collect() } throws RuntimeException("boom")
+        service.collect()
+        val errors = service.getLastCollectorErrors()
+        assertTrue(errors.containsKey("network"))
+        assertTrue(errors["network"]!!.contains("boom"))
+    }
+
+    @Test
     fun `per-collector interval runs collector when interval elapsed`() {
         // With very short interval, collector should run every cycle
         val intervals = CollectorIntervals(syscall = 1) // 1ms
