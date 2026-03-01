@@ -37,7 +37,7 @@ data:
       endpoints:
         web:
           exposure:
-            include: health, prometheus, info
+            include: health, prometheus, info, kpodDiagnostics
       metrics:
         export:
           prometheus:

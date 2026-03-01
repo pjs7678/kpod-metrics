@@ -12,6 +12,7 @@ import com.internal.kpodmetrics.discovery.PodCgroupMapper
 import com.internal.kpodmetrics.discovery.PodProvider
 import com.internal.kpodmetrics.health.BpfHealthIndicator
 import com.internal.kpodmetrics.health.CollectionHealthIndicator
+import com.internal.kpodmetrics.health.DiagnosticsEndpoint
 import com.internal.kpodmetrics.k8s.PodWatcher
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientBuilder
@@ -272,8 +273,20 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
     fun collectionHealthIndicator(service: MetricsCollectorService) =
         CollectionHealthIndicator(service, props.pollInterval)
 
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun diagnosticsEndpoint(
+        service: MetricsCollectorService,
+        manager: Optional<BpfProgramManager>,
+        config: ResolvedConfig
+    ) = DiagnosticsEndpoint(service, manager.orElse(null), config)
+
     @EventListener(ContextRefreshedEvent::class)
     fun onStartup() {
+        // Log cardinality estimate at startup
+        val resolvedConfig = props.resolveProfile()
+        CardinalityEstimator(resolvedConfig).estimateAndLog()
+
         programManager?.let {
             log.info("Loading BPF programs from {}", props.bpf.programDir)
             try {

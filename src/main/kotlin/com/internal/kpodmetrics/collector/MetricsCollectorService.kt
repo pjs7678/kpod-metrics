@@ -18,6 +18,8 @@ import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 class MetricsCollectorService(
@@ -46,6 +48,8 @@ class MetricsCollectorService(
     private val vtExecutor: ExecutorService = Executors.newVirtualThreadPerTaskExecutor()
     private val vtDispatcher = vtExecutor.asCoroutineDispatcher()
 
+    private val shuttingDown = AtomicBoolean(false)
+    private val collecting = AtomicBoolean(false)
     private val cycleTimer: Timer? = registry?.timer("kpod.collection.cycle.duration")
     private val timeoutCounter: Counter? = registry?.counter("kpod.collection.timeouts.total")
     private val collectorTimers = ConcurrentHashMap<String, Timer>()
@@ -87,6 +91,16 @@ class MetricsCollectorService(
 
     @Scheduled(fixedDelayString = "\${kpod.poll-interval:30000}")
     fun collect() = runBlocking(vtDispatcher) {
+        if (shuttingDown.get()) return@runBlocking
+        collecting.set(true)
+        try {
+            collectInternal()
+        } finally {
+            collecting.set(false)
+        }
+    }
+
+    private suspend fun collectInternal() {
         val cycleSample = cycleTimer?.let { Timer.start() }
 
         val bpfCollectors = listOfNotNull(
@@ -143,6 +157,8 @@ class MetricsCollectorService(
         lastSuccessfulCycle.set(Instant.now())
         cycleSample?.stop(cycleTimer!!)
     }
+
+    fun isShuttingDown(): Boolean = shuttingDown.get()
 
     /**
      * Cleans up BPF map entries for a deleted pod's cgroup ID.
@@ -203,7 +219,17 @@ class MetricsCollectorService(
     }
 
     fun close() {
+        shuttingDown.set(true)
+        // Wait for in-flight collection cycle to drain
+        val deadline = System.currentTimeMillis() + collectionTimeoutMs
+        while (collecting.get() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(100)
+        }
+        if (collecting.get()) {
+            log.warn("Shutdown: collection cycle did not drain within {}ms", collectionTimeoutMs)
+        }
+        vtExecutor.shutdown()
+        vtExecutor.awaitTermination(5, TimeUnit.SECONDS)
         vtDispatcher.close()
-        vtExecutor.close()
     }
 }

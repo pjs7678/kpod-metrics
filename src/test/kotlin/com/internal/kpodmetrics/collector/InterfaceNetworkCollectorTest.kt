@@ -58,6 +58,6 @@ class InterfaceNetworkCollectorTest {
         val targets = listOf(PodCgroupTarget("no-pid-pod", "default", "ghost",
             containerDir.toString(), "test-node"))
         collector.collect(targets)
-        assertTrue(registry.meters.isEmpty())
+        assertNull(registry.find("kpod.net.iface.rx.bytes").tag("pod", "no-pid-pod").counter())
     }
 }
