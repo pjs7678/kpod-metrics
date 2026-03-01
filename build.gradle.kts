@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.internal"
-version = "1.3.0"
+version = "1.4.0"
 
 java {
     toolchain {
@@ -34,6 +34,9 @@ dependencies {
 
     // Prometheus metrics
     implementation(libs.micrometer.registry.prometheus)
+
+    // OTLP metrics export (optional at runtime)
+    implementation(libs.micrometer.registry.otlp)
 
     // JSON parsing
     implementation(libs.jackson.module.kotlin)

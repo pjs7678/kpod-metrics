@@ -12,6 +12,7 @@ import com.internal.kpodmetrics.discovery.PodCgroupMapper
 import com.internal.kpodmetrics.discovery.PodProvider
 import com.internal.kpodmetrics.health.BpfHealthIndicator
 import com.internal.kpodmetrics.health.CollectionHealthIndicator
+import com.internal.kpodmetrics.health.CollectorConfigHealthIndicator
 import com.internal.kpodmetrics.health.DiagnosticsEndpoint
 import com.internal.kpodmetrics.health.DiscoveryHealthIndicator
 import com.internal.kpodmetrics.k8s.PodWatcher
@@ -19,6 +20,8 @@ import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientBuilder
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.config.MeterFilter
+import io.micrometer.registry.otlp.OtlpConfig
+import io.micrometer.registry.otlp.OtlpMeterRegistry
 import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -39,6 +42,20 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
     private var podWatcherInstance: PodWatcher? = null
     private var metricsCollectorServiceInstance: MetricsCollectorService? = null
     private var kubeletPodProviderInstance: KubeletPodProvider? = null
+
+    @Bean
+    @ConditionalOnProperty("kpod.otlp.enabled", havingValue = "true")
+    fun otlpMeterRegistry(): OtlpMeterRegistry {
+        val otlpProps = props.otlp
+        val config = object : OtlpConfig {
+            override fun url(): String = otlpProps.endpoint
+            override fun headers(): Map<String, String> = otlpProps.headers
+            override fun step(): java.time.Duration = java.time.Duration.ofMillis(otlpProps.step)
+            override fun get(key: String): String? = null
+        }
+        log.info("OTLP metrics export enabled → {}", otlpProps.endpoint)
+        return OtlpMeterRegistry(config, io.micrometer.core.instrument.Clock.SYSTEM)
+    }
 
     @Bean
     fun resolvedConfig(): ResolvedConfig = props.resolveProfile()
@@ -296,6 +313,11 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
     @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
     fun collectionHealthIndicator(service: MetricsCollectorService) =
         CollectionHealthIndicator(service, props.pollInterval)
+
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun collectorConfigHealthIndicator(service: MetricsCollectorService) =
+        CollectorConfigHealthIndicator(service)
 
     @Bean
     fun discoveryHealthIndicator(podProvider: PodProvider) =

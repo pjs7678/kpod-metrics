@@ -1,6 +1,6 @@
 image:
   repository: internal-registry/kpod-metrics
-  tag: "1.3.0"
+  tag: "1.4.0"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -76,6 +76,13 @@ prometheusRule:
   enabled: false
   labels: {}
   annotations: {}
+
+otlp:
+  enabled: false
+  endpoint: "http://localhost:4318/v1/metrics"
+  headers: {}
+  # api-key: "my-api-key"
+  step: 60000
 
 config:
   profile: standard

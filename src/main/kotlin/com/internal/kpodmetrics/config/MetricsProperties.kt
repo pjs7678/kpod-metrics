@@ -19,7 +19,8 @@ data class MetricsProperties(
     val filter: FilterProperties = FilterProperties(),
     val bpf: BpfProperties = BpfProperties(),
     val discovery: DiscoveryProperties = DiscoveryProperties(),
-    val cgroup: CgroupProperties = CgroupProperties()
+    val cgroup: CgroupProperties = CgroupProperties(),
+    val otlp: OtlpProperties = OtlpProperties()
 ) {
     fun resolveProfile(override: String? = null): ResolvedConfig {
         return when (override ?: profile) {
@@ -130,6 +131,13 @@ data class DiscoveryProperties(
 data class CgroupProperties(
     val root: String = "/host/sys/fs/cgroup",
     val procRoot: String = "/host/proc"
+)
+
+data class OtlpProperties(
+    val enabled: Boolean = false,
+    val endpoint: String = "http://localhost:4318/v1/metrics",
+    val headers: Map<String, String> = emptyMap(),
+    val step: Long = 60000
 )
 
 data class ExtendedProperties(
