@@ -109,4 +109,33 @@ spec:
           annotations:
             summary: "No BPF programs loaded on {{`{{ $labels.instance }}`}}"
             description: "kpod-metrics instance {{`{{ $labels.instance }}`}} has zero BPF programs loaded for 5 minutes."
+
+        - alert: KpodCgroupReadErrors
+          expr: sum by (collector, instance) (rate(kpod_cgroup_read_errors_total[5m])) > 1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Cgroup read errors in {{`{{ $labels.collector }}`}} on {{`{{ $labels.instance }}`}}"
+            description: "Cgroup collector {{`{{ $labels.collector }}`}} is experiencing > 1 read error/s for 5 minutes."
+
+        - alert: KpodCollectionTimeouts
+          expr: rate(kpod_collection_timeouts_total[5m]) > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Collection timeouts on {{`{{ $labels.instance }}`}}"
+            description: "kpod-metrics instance {{`{{ $labels.instance }}`}} has been timing out for 10 minutes."
+
+        - alert: KpodMemoryPressure
+          expr: >-
+            kpod_mem_cgroup_usage_bytes / kpod_mem_cgroup_peak_bytes > 0.95
+            and kpod_mem_cgroup_usage_bytes > 100e6
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Memory pressure on {{`{{ $labels.pod }}`}}"
+            description: "Pod {{`{{ $labels.pod }}`}} in {{`{{ $labels.namespace }}`}} is using > 95% of peak memory (> 100MB) for 5 minutes."
 {{- end }}

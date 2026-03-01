@@ -1,6 +1,6 @@
 image:
   repository: internal-registry/kpod-metrics
-  tag: "0.7.0"
+  tag: "0.8.0"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -70,6 +70,7 @@ config:
   profile: standard
   pollInterval: 30000
   collectionTimeout: 20000
+  clusterName: ""
   discovery:
     mode: informer
     kubeletPollInterval: 30

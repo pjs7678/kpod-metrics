@@ -9,6 +9,9 @@ data:
       poll-interval: {{ .Values.config.pollInterval }}
       collection-timeout: {{ .Values.config.collectionTimeout | default 20000 }}
       node-name: ${NODE_NAME}
+      {{- if .Values.config.clusterName }}
+      cluster-name: {{ .Values.config.clusterName }}
+      {{- end }}
       {{- if .Values.config.collectors }}
       collectors:
         {{- toYaml .Values.config.collectors | nindent 8 }}

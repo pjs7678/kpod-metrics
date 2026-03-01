@@ -71,7 +71,8 @@ class DiagnosticsEndpoint(
         "execsnoop" to config.extended.execsnoop,
         "diskIO" to config.cgroup.diskIO,
         "ifaceNet" to config.cgroup.interfaceNetwork,
-        "filesystem" to config.cgroup.filesystem
+        "filesystem" to config.cgroup.filesystem,
+        "memory" to config.cgroup.memory
     )
 
     private fun profileSummary(): Map<String, Any> = mapOf(
@@ -89,7 +90,8 @@ class DiagnosticsEndpoint(
         "cgroupCollectors" to listOfNotNull(
             if (config.cgroup.diskIO) "diskIO" else null,
             if (config.cgroup.interfaceNetwork) "ifaceNet" else null,
-            if (config.cgroup.filesystem) "filesystem" else null
+            if (config.cgroup.filesystem) "filesystem" else null,
+            if (config.cgroup.memory) "memory" else null
         )
     )
 }

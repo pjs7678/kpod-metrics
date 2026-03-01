@@ -17,10 +17,12 @@ import com.internal.kpodmetrics.k8s.PodWatcher
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientBuilder
 import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.config.MeterFilter
 import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.boot.actuate.autoconfigure.metrics.MeterRegistryCustomizer
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.event.ContextRefreshedEvent
@@ -39,6 +41,17 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
 
     @Bean
     fun resolvedConfig(): ResolvedConfig = props.resolveProfile()
+
+    @Bean
+    fun commonTagsCustomizer(): MeterRegistryCustomizer<MeterRegistry> {
+        return MeterRegistryCustomizer { registry ->
+            var tags = io.micrometer.core.instrument.Tags.of("node", props.nodeName)
+            if (props.clusterName.isNotBlank()) {
+                tags = tags.and("cluster", props.clusterName)
+            }
+            registry.config().meterFilter(MeterFilter.commonTags(tags))
+        }
+    }
 
     @Bean
     fun cgroupResolver(): CgroupResolver = CgroupResolver()
@@ -220,6 +233,12 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         return FilesystemCollector(reader, props.cgroup.procRoot, registry)
     }
 
+    @Bean
+    fun memoryCgroupCollector(reader: CgroupReader, registry: MeterRegistry, config: ResolvedConfig): MemoryCgroupCollector? {
+        if (!config.cgroup.memory) return null
+        return MemoryCgroupCollector(reader, registry)
+    }
+
     // --- Aggregated service ---
 
     @Bean
@@ -237,6 +256,7 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         diskIOCollector: Optional<DiskIOCollector>,
         ifaceNetCollector: Optional<InterfaceNetworkCollector>,
         fsCollector: Optional<FilesystemCollector>,
+        memCollector: Optional<MemoryCgroupCollector>,
         podCgroupMapper: PodCgroupMapper,
         bridge: BpfBridge,
         manager: BpfProgramManager,
@@ -251,6 +271,7 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
             diskIOCollector.orElse(null),
             ifaceNetCollector.orElse(null),
             fsCollector.orElse(null),
+            memCollector.orElse(null),
             podCgroupMapper,
             bridge,
             manager,

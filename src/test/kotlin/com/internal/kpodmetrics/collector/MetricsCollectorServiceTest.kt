@@ -80,7 +80,7 @@ class MetricsCollectorServiceTest {
             cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
-            diskIOCollector, ifaceNetCollector, fsCollector, mapper
+            diskIOCollector, ifaceNetCollector, fsCollector, null, mapper
         )
         serviceWithCgroup.collect()
 
@@ -156,7 +156,7 @@ class MetricsCollectorServiceTest {
             cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
-            diskIOCollector, ifaceNetCollector, fsCollector, mapper,
+            diskIOCollector, ifaceNetCollector, fsCollector, null, mapper,
             registry = registry,
             collectorOverrides = overrides
         )

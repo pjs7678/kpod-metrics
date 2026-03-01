@@ -24,8 +24,85 @@ data class FilesystemStat(
     val availableBytes: Long
 )
 
+data class MemoryStat(
+    val usageBytes: Long,
+    val peakBytes: Long,
+    val cacheBytes: Long,
+    val swapBytes: Long
+)
+
 class CgroupReader(private val version: CgroupVersion) {
     private val log = LoggerFactory.getLogger(CgroupReader::class.java)
+
+    fun readMemoryStats(containerCgroupPath: String): MemoryStat? {
+        return when (version) {
+            CgroupVersion.V2 -> readMemoryV2(containerCgroupPath)
+            CgroupVersion.V1 -> readMemoryV1(containerCgroupPath)
+        }
+    }
+
+    private fun readMemoryV2(containerCgroupPath: String): MemoryStat? {
+        val currentFile = Paths.get(containerCgroupPath, "memory.current")
+        if (!Files.exists(currentFile)) return null
+        return try {
+            val usage = Files.readString(currentFile).trim().toLongOrNull() ?: 0L
+            val peak = try {
+                val peakFile = Paths.get(containerCgroupPath, "memory.peak")
+                if (Files.exists(peakFile)) Files.readString(peakFile).trim().toLongOrNull() ?: 0L else 0L
+            } catch (_: Exception) { 0L }
+            val swap = try {
+                val swapFile = Paths.get(containerCgroupPath, "memory.swap.current")
+                if (Files.exists(swapFile)) Files.readString(swapFile).trim().toLongOrNull() ?: 0L else 0L
+            } catch (_: Exception) { 0L }
+            val statFile = Paths.get(containerCgroupPath, "memory.stat")
+            val statMap = if (Files.exists(statFile)) {
+                Files.readAllLines(statFile)
+                    .filter { it.isNotBlank() }
+                    .mapNotNull { line ->
+                        val parts = line.trim().split("\\s+".toRegex())
+                        if (parts.size == 2) parts[0] to (parts[1].toLongOrNull() ?: 0L) else null
+                    }.toMap()
+            } else emptyMap()
+            val cache = (statMap["inactive_file"] ?: 0L) + (statMap["active_file"] ?: 0L)
+            MemoryStat(usage, peak, cache, swap)
+        } catch (e: Exception) {
+            log.warn("Failed to read memory stats from {}: {}", containerCgroupPath, e.message)
+            null
+        }
+    }
+
+    private fun readMemoryV1(containerCgroupPath: String): MemoryStat? {
+        val usageFile = Paths.get(containerCgroupPath, "memory.usage_in_bytes")
+        if (!Files.exists(usageFile)) return null
+        return try {
+            val usage = Files.readString(usageFile).trim().toLongOrNull() ?: 0L
+            val peak = try {
+                val peakFile = Paths.get(containerCgroupPath, "memory.max_usage_in_bytes")
+                if (Files.exists(peakFile)) Files.readString(peakFile).trim().toLongOrNull() ?: 0L else 0L
+            } catch (_: Exception) { 0L }
+            val swap = try {
+                val swapFile = Paths.get(containerCgroupPath, "memory.memsw.usage_in_bytes")
+                if (Files.exists(swapFile)) {
+                    val memsw = Files.readString(swapFile).trim().toLongOrNull() ?: 0L
+                    (memsw - usage).coerceAtLeast(0L)
+                } else 0L
+            } catch (_: Exception) { 0L }
+            val statFile = Paths.get(containerCgroupPath, "memory.stat")
+            val statMap = if (Files.exists(statFile)) {
+                Files.readAllLines(statFile)
+                    .filter { it.isNotBlank() }
+                    .mapNotNull { line ->
+                        val parts = line.trim().split("\\s+".toRegex())
+                        if (parts.size == 2) parts[0] to (parts[1].toLongOrNull() ?: 0L) else null
+                    }.toMap()
+            } else emptyMap()
+            val cache = statMap["total_cache"] ?: statMap["cache"] ?: 0L
+            MemoryStat(usage, peak, cache, swap)
+        } catch (e: Exception) {
+            log.warn("Failed to read memory stats from {}: {}", containerCgroupPath, e.message)
+            null
+        }
+    }
 
     fun readDiskIO(containerCgroupPath: String): List<DiskIOStat> {
         return when (version) {
