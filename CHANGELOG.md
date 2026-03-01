@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-03-01
+
+### Added
+- Helm chart: `imagePullSecrets` support for private registries
+- Helm chart: `priorityClassName` support for guaranteed scheduling
+- Helm chart: `allowPrivilegeEscalation: false` and `drop: ALL` capabilities hardening
+- Helm chart: optional `seccompProfile` configuration
+- Helm chart: NetworkPolicy template (`networkPolicy.enabled`)
+- Enhanced NOTES.txt with health check verification and feature status
+- Troubleshooting guide (`docs/troubleshooting.md`)
+- CONTRIBUTING.md with development setup and PR process
+- SECURITY.md with security model and vulnerability reporting
+
 ## [0.4.0] - 2026-03-01
 
 ### Added

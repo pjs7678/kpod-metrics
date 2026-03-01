@@ -232,7 +232,7 @@ All settings are under the `kpod.*` prefix. Configure via Helm values or environ
 ```yaml
 image:
   repository: internal-registry/kpod-metrics
-  tag: "0.4.0"
+  tag: "0.5.0"
 
 resources:
   requests:

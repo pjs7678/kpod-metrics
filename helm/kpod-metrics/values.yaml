@@ -1,7 +1,13 @@
 image:
   repository: internal-registry/kpod-metrics
-  tag: "0.4.0"
+  tag: "0.5.0"
   pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+# - name: my-registry-secret
+
+priorityClassName: ""
+# system-node-critical — recommended for production to guarantee scheduling
 
 resources:
   requests:
@@ -31,10 +37,16 @@ securityContext:
   # Set to true for kind/minikube or environments without proper seccomp profiles.
   # In production, false + BPF/PERFMON capabilities is preferred.
   privileged: false
+  allowPrivilegeEscalation: false
+  # seccompProfile:
+  #   type: RuntimeDefault
 
 pdb:
   enabled: true
   maxUnavailable: 1
+
+networkPolicy:
+  enabled: false
 
 grafana:
   dashboard:
