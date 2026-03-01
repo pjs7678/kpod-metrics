@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-03-01
+
+### Added
+- Container restart tracking: `kpod.container.restarts` gauge per pod/container
+  - Automatically updated from K8s container status `restartCount`
+  - Cleaned up on pod deletion to prevent cardinality growth
+- Grafana dashboard: Container Restarts panel in Process Activity row
+- KubeletPodProvider now captures container restart counts
+
+### Changed
+- Dashboard histogram queries optimized to use precomputed recording rules
+  - 6 queries replaced: runqueue latency p50/p99, TCP RTT p50/p99, syscall latency p99
+  - Reduces Prometheus query load on large clusters
+- Helm dashboard ConfigMap synced with standalone dashboard (fixes v1.1.0 panel gap)
+- PodWatcher now accepts optional `MeterRegistry` for restart gauge registration
+
+### Fixed
+- Helm dashboards copy missing 5 panels added in v1.1.0 (interface errors/drops/packets, buffer dirty, fs available)
+
 ## [1.1.0] - 2026-03-01
 
 ### Added

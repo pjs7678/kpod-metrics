@@ -61,8 +61,8 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
     fun kubernetesClient(): KubernetesClient = KubernetesClientBuilder().build()
 
     @Bean
-    fun podWatcher(kubernetesClient: KubernetesClient, cgroupResolver: CgroupResolver): PodWatcher {
-        val watcher = PodWatcher(kubernetesClient, cgroupResolver, props)
+    fun podWatcher(kubernetesClient: KubernetesClient, cgroupResolver: CgroupResolver, registry: MeterRegistry): PodWatcher {
+        val watcher = PodWatcher(kubernetesClient, cgroupResolver, props, registry)
         this.podWatcherInstance = watcher
         return watcher
     }

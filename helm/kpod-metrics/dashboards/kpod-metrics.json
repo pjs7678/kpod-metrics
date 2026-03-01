@@ -161,7 +161,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.99, sum(rate(kpod_cpu_runqueue_latency_bucket{namespace=~\"$namespace\", pod=~\"$pod\"}[5m])) by (le))",
+          "expr": "kpod:cpu_runqueue_latency:p99{namespace=~\"$namespace\", pod=~\"$pod\"}",
           "legendFormat": "",
           "refId": "A"
         }
@@ -371,7 +371,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.5, sum by (le, pod) (rate(kpod_cpu_runqueue_latency_bucket{namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+          "expr": "kpod:cpu_runqueue_latency:p50{namespace=~\"$namespace\", pod=~\"$pod\"}",
           "legendFormat": "{{pod}} p50",
           "refId": "A"
         },
@@ -380,7 +380,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.99, sum by (le, pod) (rate(kpod_cpu_runqueue_latency_bucket{namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+          "expr": "kpod:cpu_runqueue_latency:p99{namespace=~\"$namespace\", pod=~\"$pod\"}",
           "legendFormat": "{{pod}} p99",
           "refId": "B"
         }
@@ -656,7 +656,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.5, sum by (le, pod) (rate(kpod_net_tcp_rtt_bucket{namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+          "expr": "kpod:tcp_rtt:p50{namespace=~\"$namespace\", pod=~\"$pod\"}",
           "legendFormat": "{{pod}} p50",
           "refId": "A"
         },
@@ -665,7 +665,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.99, sum by (le, pod) (rate(kpod_net_tcp_rtt_bucket{namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+          "expr": "kpod:tcp_rtt:p99{namespace=~\"$namespace\", pod=~\"$pod\"}",
           "legendFormat": "{{pod}} p99",
           "refId": "B"
         }
@@ -809,6 +809,183 @@
           "expr": "sum by (pod) (rate(kpod_net_iface_tx_bytes_total{namespace=~\"$namespace\", pod=~\"$pod\"}[5m]))",
           "legendFormat": "{{pod}} TX",
           "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 100,
+      "title": "Interface Packets",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "pps",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (pod) (rate(kpod_net_iface_rx_packets_total{namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
+          "legendFormat": "{{pod}} rx_packets",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        },
+        {
+          "expr": "sum by (pod) (rate(kpod_net_iface_tx_packets_total{namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
+          "legendFormat": "{{pod}} tx_packets",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 99,
+      "title": "Interface Drops",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (pod) (rate(kpod_net_iface_rx_drops_total{namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
+          "legendFormat": "{{pod}} rx_drops",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        },
+        {
+          "expr": "sum by (pod) (rate(kpod_net_iface_tx_drops_total{namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
+          "legendFormat": "{{pod}} tx_drops",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 98,
+      "title": "Interface Errors",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (pod) (rate(kpod_net_iface_rx_errors_total{namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
+          "legendFormat": "{{pod}} rx_errors",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        },
+        {
+          "expr": "sum by (pod) (rate(kpod_net_iface_tx_errors_total{namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
+          "legendFormat": "{{pod}} tx_errors",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
         }
       ]
     },
@@ -1109,6 +1286,57 @@
       ]
     },
     {
+      "id": 102,
+      "title": "Filesystem Available",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "expr": "kpod_fs_available_bytes{namespace=~\"$namespace\", pod=~\"$pod\"}",
+          "legendFormat": "{{pod}} {{mountpoint}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -1321,6 +1549,57 @@
       ]
     },
     {
+      "id": 101,
+      "title": "Buffer Dirty Rate",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (pod) (rate(kpod_mem_cache_buf_dirtied_total{namespace=~\"$namespace\", pod=~\"$pod\"}[$__rate_interval]))",
+          "legendFormat": "{{pod}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -1331,6 +1610,56 @@
       "id": 50,
       "title": "Process Activity",
       "type": "row"
+    },
+    {
+      "id": 103,
+      "title": "Container Restarts",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "expr": "kpod_container_restarts{namespace=~\"$namespace\", pod=~\"$pod\"}",
+          "legendFormat": "{{pod}}/{{container}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
     },
     {
       "datasource": {
@@ -1734,7 +2063,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.99, sum by (le, syscall) (rate(kpod_syscall_latency_bucket{namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+          "expr": "kpod:syscall_latency:p99{namespace=~\"$namespace\", pod=~\"$pod\"}",
           "legendFormat": "{{syscall}}",
           "refId": "A"
         }
