@@ -2,6 +2,7 @@ package com.internal.kpodmetrics.bpf
 
 import com.internal.kpodmetrics.config.ResolvedConfig
 import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Timer
 import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -73,10 +74,14 @@ class BpfProgramManager(
         try {
             val path = "$resolvedProgramDir/$name.bpf.o"
             log.info("Loading BPF program: {}", path)
+            val sample = registry?.let { Timer.start() }
             val handle = bridge.openObject(path)
             bridge.loadObject(handle)
             bridge.attachAll(handle)
             loadedPrograms[name] = handle
+            sample?.stop(Timer.builder("kpod.bpf.program.load.duration")
+                .tag("program", name)
+                .register(registry!!))
         } catch (e: Exception) {
             log.warn("Failed to load BPF program '{}': {}", name, e.message)
             _failedPrograms.add(name)

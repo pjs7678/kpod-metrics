@@ -26,6 +26,8 @@ class DiagnosticsEndpoint(
             "uptimeSeconds" to uptime.seconds,
             "lastCollectionCycle" to lastCycle?.toString(),
             "shuttingDown" to collectorService.isShuttingDown(),
+            "enabledCollectorCount" to collectorService.getEnabledCollectorCount(),
+            "lastCollectorErrors" to collectorService.getLastCollectorErrors(),
             "bpf" to bpfDiagnostics(),
             "enabledCollectors" to enabledCollectors(),
             "profile" to profileSummary()

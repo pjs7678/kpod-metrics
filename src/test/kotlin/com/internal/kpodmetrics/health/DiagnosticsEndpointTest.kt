@@ -20,6 +20,8 @@ class DiagnosticsEndpointTest {
         val manager = mockk<BpfProgramManager>()
         every { service.getLastSuccessfulCycle() } returns Instant.now()
         every { service.isShuttingDown() } returns false
+        every { service.getEnabledCollectorCount() } returns 4
+        every { service.getLastCollectorErrors() } returns emptyMap()
         every { manager.failedPrograms } returns emptySet()
         every { manager.isProgramLoaded("cpu_sched") } returns true
         every { manager.isProgramLoaded("net") } returns true
@@ -55,6 +57,8 @@ class DiagnosticsEndpointTest {
     fun `returns diagnostics without BPF manager`() {
         every { service.getLastSuccessfulCycle() } returns null
         every { service.isShuttingDown() } returns false
+        every { service.getEnabledCollectorCount() } returns 9
+        every { service.getLastCollectorErrors() } returns emptyMap()
 
         val config = ResolvedConfig(
             cpu = CpuProperties(),
@@ -71,9 +75,34 @@ class DiagnosticsEndpointTest {
     }
 
     @Test
+    fun `diagnostics includes collector error details`() {
+        every { service.getLastSuccessfulCycle() } returns Instant.now()
+        every { service.isShuttingDown() } returns false
+        every { service.getEnabledCollectorCount() } returns 9
+        every { service.getLastCollectorErrors() } returns mapOf("network" to "2026-03-01T12:00:00Z connection timeout")
+
+        val config = ResolvedConfig(
+            cpu = CpuProperties(),
+            network = NetworkProperties(),
+            syscall = SyscallProperties()
+        )
+
+        val endpoint = DiagnosticsEndpoint(service, null, config)
+        val result = endpoint.diagnostics()
+
+        assertEquals(9, result["enabledCollectorCount"])
+        @Suppress("UNCHECKED_CAST")
+        val errors = result["lastCollectorErrors"] as Map<String, String>
+        assertTrue(errors.containsKey("network"))
+        assertTrue(errors["network"]!!.contains("connection timeout"))
+    }
+
+    @Test
     fun `enabled collectors reflects config`() {
         every { service.getLastSuccessfulCycle() } returns null
         every { service.isShuttingDown() } returns false
+        every { service.getEnabledCollectorCount() } returns 3
+        every { service.getLastCollectorErrors() } returns emptyMap()
 
         val config = ResolvedConfig(
             cpu = CpuProperties(scheduling = SchedulingProperties(enabled = true)),

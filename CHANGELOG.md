@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2026-03-01
+
+### Added
+- `kpod.collector.skipped.total` counter — tracks interval-based collector skips per collector
+- `kpod.bpf.program.load.duration` timer — measures BPF program load time per program
+- `lastCollectorErrors` in DiagnosticsEndpoint — shows last error message per collector
+- `enabledCollectorCount` in DiagnosticsEndpoint — runtime count of active collectors
+- Helm probe customization: `probes.startup`, `probes.liveness`, `probes.readiness` in values.yaml
+  - Configurable `periodSeconds`, `failureThreshold`, `initialDelaySeconds`
+
+### Changed
+- `MetricsCollectorService` tracks last error per collector for diagnostics
+- `BpfProgramManager.tryLoadProgram` records load duration via Micrometer timer
+- DaemonSet template uses `{{ .Values.probes.* }}` instead of hardcoded probe intervals
+
 ## [1.4.0] - 2026-03-01
 
 ### Added

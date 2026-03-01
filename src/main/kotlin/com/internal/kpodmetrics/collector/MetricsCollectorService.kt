@@ -58,8 +58,10 @@ class MetricsCollectorService(
     private val timeoutCounter: Counter? = registry?.counter("kpod.collection.timeouts.total")
     private val collectorTimers = ConcurrentHashMap<String, Timer>()
     private val collectorErrors = ConcurrentHashMap<String, Counter>()
+    private val collectorSkips = ConcurrentHashMap<String, Counter>()
     private val lastSuccessfulCycle = AtomicReference<Instant?>(null)
     private val lastCollectorRun = ConcurrentHashMap<String, Instant>()
+    private val lastCollectorError = ConcurrentHashMap<String, String>()
 
     private val intervalMap: Map<String, Long?> = mapOf(
         "cpu" to collectorIntervals.cpu,
@@ -122,6 +124,13 @@ class MetricsCollectorService(
                 .register(registry!!)
         }
 
+    private fun collectorSkipCounter(name: String): Counter =
+        collectorSkips.computeIfAbsent(name) {
+            Counter.builder("kpod.collector.skipped.total")
+                .tag("collector", name)
+                .register(registry!!)
+        }
+
     @Scheduled(fixedDelayString = "\${kpod.poll-interval:30000}", initialDelayString = "\${kpod.initial-delay:10000}")
     fun collect() = runBlocking(vtDispatcher) {
         if (shuttingDown.get()) return@runBlocking
@@ -139,7 +148,7 @@ class MetricsCollectorService(
     private suspend fun collectInternal() {
         val cycleSample = cycleTimer?.let { Timer.start() }
 
-        val bpfCollectors = listOfNotNull(
+        val allBpfCollectors = listOfNotNull(
             "cpu" to cpuCollector::collect,
             "network" to netCollector::collect,
             "syscall" to syscallCollector::collect,
@@ -150,7 +159,14 @@ class MetricsCollectorService(
             "softirqs" to softirqsCollector::collect,
             "execsnoop" to execsnoopCollector::collect,
             bpfMapStatsCollector?.let { "bpfMapStats" to it::collect }
-        ).filter { shouldRunCollector(it.first) }
+        )
+        val bpfCollectors = allBpfCollectors.filter { (name, _) ->
+            val run = shouldRunCollector(name)
+            if (!run && isCollectorEnabled(name) && registry != null) {
+                collectorSkipCounter(name).increment()
+            }
+            run
+        }
 
         val targets = try {
             podCgroupMapper?.resolve() ?: emptyList()
@@ -161,12 +177,19 @@ class MetricsCollectorService(
 
         registry?.gauge("kpod.discovery.pods.total", targets.size)
 
-        val cgroupCollectors = listOfNotNull(
+        val allCgroupCollectors = listOfNotNull(
             diskIOCollector?.let { "diskIO" to { it.collect(targets) } },
             ifaceNetCollector?.let { "ifaceNet" to { it.collect(targets) } },
             fsCollector?.let { "filesystem" to { it.collect(targets) } },
             memCollector?.let { "memory" to { it.collect(targets) } }
-        ).filter { shouldRunCollector(it.first) }
+        )
+        val cgroupCollectors = allCgroupCollectors.filter { (name, _) ->
+            val run = shouldRunCollector(name)
+            if (!run && isCollectorEnabled(name) && registry != null) {
+                collectorSkipCounter(name).increment()
+            }
+            run
+        }
 
         val completed = withTimeoutOrNull(collectionTimeoutMs) {
             (bpfCollectors + cgroupCollectors).map { (name, collectFn) ->
@@ -180,6 +203,7 @@ class MetricsCollectorService(
                         markCollectorRun(name)
                     } catch (e: Exception) {
                         log.error("Collector '{}' failed: {}", name, e.message, e)
+                        lastCollectorError[name] = "${Instant.now()} ${e.message}"
                         if (registry != null) collectorErrorCounter(name).increment()
                     }
                 }
@@ -197,6 +221,8 @@ class MetricsCollectorService(
     }
 
     fun isShuttingDown(): Boolean = shuttingDown.get()
+
+    fun getLastCollectorErrors(): Map<String, String> = lastCollectorError.toMap()
 
     fun getEnabledCollectorCount(): Int {
         val bpfCount = listOf("cpu", "network", "syscall", "biolatency", "cachestat",
