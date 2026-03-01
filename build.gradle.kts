@@ -48,6 +48,7 @@ dependencies {
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(kotlin("test"))
     testImplementation(sourceSets["bpfGenerator"].output)
     testImplementation("dev.ebpf:kotlin-ebpf-dsl")
 

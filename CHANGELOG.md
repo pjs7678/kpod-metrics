@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-03-01
+
+### Added
+- Collection cycle timeout (`kpod.collection-timeout`) with `kpod.collection.timeouts.total` counter
+- Per-collector enable/disable overrides (`kpod.collectors.*`) on top of profiles
+- E2E test CI workflow (`.github/workflows/e2e.yml`) with minikube, weekly schedule + manual dispatch
+
+### Changed
+- Collection cycle now wrapped in `withTimeoutOrNull` for bounded execution
+- Helm ConfigMap template renders `collection-timeout` and `collectors` config
+- Added `kotlin("test")` dependency for test assertions
+
 ## [0.5.0] - 2026-03-01
 
 ### Added

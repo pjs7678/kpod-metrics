@@ -1,6 +1,6 @@
 image:
   repository: internal-registry/kpod-metrics
-  tag: "0.5.0"
+  tag: "0.6.0"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -69,9 +69,24 @@ prometheusRule:
 config:
   profile: standard
   pollInterval: 30000
+  collectionTimeout: 20000
   discovery:
     mode: informer
     kubeletPollInterval: 30
   cgroup:
     root: /sys/fs/cgroup
     procRoot: /host/proc
+  # Per-collector overrides (null = use profile default, true/false = force)
+  # collectors:
+  #   cpu: true
+  #   network: true
+  #   syscall: false
+  #   biolatency: false
+  #   cachestat: false
+  #   tcpdrop: true
+  #   hardirqs: false
+  #   softirqs: false
+  #   execsnoop: true
+  #   diskIO: true
+  #   ifaceNet: true
+  #   filesystem: true

@@ -3,6 +3,7 @@ package com.internal.kpodmetrics.collector
 import com.internal.kpodmetrics.bpf.BpfBridge
 import com.internal.kpodmetrics.bpf.BpfProgramManager
 import com.internal.kpodmetrics.bpf.CgroupResolver
+import com.internal.kpodmetrics.config.CollectorOverrides
 import com.internal.kpodmetrics.discovery.PodCgroupMapper
 import com.internal.kpodmetrics.model.PodCgroupTarget
 import io.micrometer.core.instrument.Counter
@@ -37,16 +38,36 @@ class MetricsCollectorService(
     private val programManager: BpfProgramManager? = null,
     private val cgroupResolver: CgroupResolver? = null,
     private val bpfMapStatsCollector: BpfMapStatsCollector? = null,
-    private val registry: MeterRegistry? = null
+    private val registry: MeterRegistry? = null,
+    private val collectionTimeoutMs: Long = 20000,
+    private val collectorOverrides: CollectorOverrides = CollectorOverrides()
 ) {
     private val log = LoggerFactory.getLogger(MetricsCollectorService::class.java)
     private val vtExecutor: ExecutorService = Executors.newVirtualThreadPerTaskExecutor()
     private val vtDispatcher = vtExecutor.asCoroutineDispatcher()
 
     private val cycleTimer: Timer? = registry?.timer("kpod.collection.cycle.duration")
+    private val timeoutCounter: Counter? = registry?.counter("kpod.collection.timeouts.total")
     private val collectorTimers = ConcurrentHashMap<String, Timer>()
     private val collectorErrors = ConcurrentHashMap<String, Counter>()
     private val lastSuccessfulCycle = AtomicReference<Instant?>(null)
+
+    private val overrideMap: Map<String, Boolean?> = mapOf(
+        "cpu" to collectorOverrides.cpu,
+        "network" to collectorOverrides.network,
+        "syscall" to collectorOverrides.syscall,
+        "biolatency" to collectorOverrides.biolatency,
+        "cachestat" to collectorOverrides.cachestat,
+        "tcpdrop" to collectorOverrides.tcpdrop,
+        "hardirqs" to collectorOverrides.hardirqs,
+        "softirqs" to collectorOverrides.softirqs,
+        "execsnoop" to collectorOverrides.execsnoop,
+        "diskIO" to collectorOverrides.diskIO,
+        "ifaceNet" to collectorOverrides.ifaceNet,
+        "filesystem" to collectorOverrides.filesystem
+    )
+
+    private fun isCollectorEnabled(name: String): Boolean = overrideMap[name] ?: true
 
     fun getLastSuccessfulCycle(): Instant? = lastSuccessfulCycle.get()
 
@@ -79,7 +100,7 @@ class MetricsCollectorService(
             "softirqs" to softirqsCollector::collect,
             "execsnoop" to execsnoopCollector::collect,
             bpfMapStatsCollector?.let { "bpfMapStats" to it::collect }
-        )
+        ).filter { isCollectorEnabled(it.first) }
 
         val targets = try {
             podCgroupMapper?.resolve() ?: emptyList()
@@ -94,22 +115,29 @@ class MetricsCollectorService(
             diskIOCollector?.let { "diskIO" to { it.collect(targets) } },
             ifaceNetCollector?.let { "ifaceNet" to { it.collect(targets) } },
             fsCollector?.let { "filesystem" to { it.collect(targets) } }
-        )
+        ).filter { isCollectorEnabled(it.first) }
 
-        (bpfCollectors + cgroupCollectors).map { (name, collectFn) ->
-            launch {
-                try {
-                    if (registry != null) {
-                        collectorTimer(name).record { collectFn() }
-                    } else {
-                        collectFn()
+        val completed = withTimeoutOrNull(collectionTimeoutMs) {
+            (bpfCollectors + cgroupCollectors).map { (name, collectFn) ->
+                launch {
+                    try {
+                        if (registry != null) {
+                            collectorTimer(name).record(Runnable { collectFn() })
+                        } else {
+                            collectFn()
+                        }
+                    } catch (e: Exception) {
+                        log.error("Collector '{}' failed: {}", name, e.message, e)
+                        if (registry != null) collectorErrorCounter(name).increment()
                     }
-                } catch (e: Exception) {
-                    log.error("Collector '{}' failed: {}", name, e.message, e)
-                    if (registry != null) collectorErrorCounter(name).increment()
                 }
-            }
-        }.joinAll()
+            }.joinAll()
+        }
+
+        if (completed == null) {
+            log.warn("Collection cycle timed out after {}ms", collectionTimeoutMs)
+            timeoutCounter?.increment()
+        }
 
         cgroupResolver?.pruneGraceCache()
         lastSuccessfulCycle.set(Instant.now())
