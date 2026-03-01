@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ .Release.Name }}-test-connection"
+  labels:
+    app.kubernetes.io/name: kpod-metrics
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox:1.36
+      command: ['wget']
+      args: ['--timeout=5', '-qO-', 'http://{{ .Release.Name }}-kpod-metrics:9090/actuator/health']
+  restartPolicy: Never

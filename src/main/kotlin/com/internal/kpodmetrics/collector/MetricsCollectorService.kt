@@ -91,10 +91,13 @@ class MetricsCollectorService(
                 .register(registry!!)
         }
 
-    @Scheduled(fixedDelayString = "\${kpod.poll-interval:30000}")
+    @Scheduled(fixedDelayString = "\${kpod.poll-interval:30000}", initialDelayString = "\${kpod.initial-delay:10000}")
     fun collect() = runBlocking(vtDispatcher) {
         if (shuttingDown.get()) return@runBlocking
-        collecting.set(true)
+        if (!collecting.compareAndSet(false, true)) {
+            log.warn("Collection cycle skipped: previous cycle still running")
+            return@runBlocking
+        }
         try {
             collectInternal()
         } finally {

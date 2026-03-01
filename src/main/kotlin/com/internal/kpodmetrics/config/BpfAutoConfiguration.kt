@@ -13,6 +13,7 @@ import com.internal.kpodmetrics.discovery.PodProvider
 import com.internal.kpodmetrics.health.BpfHealthIndicator
 import com.internal.kpodmetrics.health.CollectionHealthIndicator
 import com.internal.kpodmetrics.health.DiagnosticsEndpoint
+import com.internal.kpodmetrics.health.DiscoveryHealthIndicator
 import com.internal.kpodmetrics.k8s.PodWatcher
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientBuilder
@@ -293,6 +294,10 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
     @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
     fun collectionHealthIndicator(service: MetricsCollectorService) =
         CollectionHealthIndicator(service, props.pollInterval)
+
+    @Bean
+    fun discoveryHealthIndicator(podProvider: PodProvider) =
+        DiscoveryHealthIndicator(podProvider)
 
     @Bean
     @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
