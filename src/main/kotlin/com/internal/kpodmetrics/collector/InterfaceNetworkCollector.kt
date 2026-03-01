@@ -21,13 +21,7 @@ class InterfaceNetworkCollector(
                 val pid = reader.readInitPid(target.cgroupPath) ?: continue
                 val stats = reader.readNetworkStats(procRoot, pid)
                 for (stat in stats) {
-                    val tags = Tags.of(
-                        "namespace", target.namespace,
-                        "pod", target.podName,
-                        "container", target.containerName,
-                        "node", target.nodeName,
-                        "interface", stat.interfaceName
-                    )
+                    val tags = target.tags().and("interface", stat.interfaceName)
                     registry.counter("kpod.net.iface.rx.bytes", tags).increment(stat.rxBytes.toDouble())
                     registry.counter("kpod.net.iface.tx.bytes", tags).increment(stat.txBytes.toDouble())
                     registry.counter("kpod.net.iface.rx.packets", tags).increment(stat.rxPackets.toDouble())

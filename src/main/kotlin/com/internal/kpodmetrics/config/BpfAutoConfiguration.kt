@@ -211,7 +211,7 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
 
     @Bean
     fun podCgroupMapper(podProvider: PodProvider, resolver: CgroupPathResolver): PodCgroupMapper =
-        PodCgroupMapper(podProvider, resolver, props.nodeName)
+        PodCgroupMapper(podProvider, resolver, props.nodeName, props.filter.includeLabels)
 
     // --- Cgroup-based collectors (conditionally created) ---
 
@@ -321,6 +321,9 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
             metricsCollectorServiceInstance?.let { service ->
                 watcher.setOnPodDeletedCallback { cgroupId ->
                     service.cleanupCgroupEntries(cgroupId)
+                }
+                watcher.setOnPodRemovedCallback { podName, namespace ->
+                    service.cleanupPodMetrics(podName, namespace)
                 }
             }
             try {

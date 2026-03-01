@@ -207,4 +207,18 @@ class MetricsCollectorServiceTest {
             registry = registry
         )
     }
+
+    @Test
+    fun `cleanupPodMetrics removes stale meters`() {
+        // Register a counter simulating a pod metric
+        registry.counter("kpod.disk.read.bytes",
+            "namespace", "default", "pod", "deleted-pod", "container", "nginx", "node", "n1", "device", "8:0")
+            .increment(100.0)
+
+        assertNotNull(registry.find("kpod.disk.read.bytes").tag("pod", "deleted-pod").counter())
+
+        service.cleanupPodMetrics("deleted-pod", "default")
+
+        assertNull(registry.find("kpod.disk.read.bytes").tag("pod", "deleted-pod").counter())
+    }
 }

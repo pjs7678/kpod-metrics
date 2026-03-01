@@ -164,6 +164,28 @@ class MetricsCollectorService(
     fun isShuttingDown(): Boolean = shuttingDown.get()
 
     /**
+     * Removes Micrometer meters for a deleted pod to prevent cardinality growth.
+     */
+    fun cleanupPodMetrics(podName: String, namespace: String) {
+        if (registry == null) return
+        val metersToRemove = registry.meters.filter { meter ->
+            val tags = meter.id.tags
+            tags.any { it.key == "pod" && it.value == podName } &&
+            tags.any { it.key == "namespace" && it.value == namespace }
+        }
+        for (meter in metersToRemove) {
+            registry.remove(meter)
+        }
+        if (metersToRemove.isNotEmpty()) {
+            log.debug("Removed {} stale meters for pod {}/{}", metersToRemove.size, namespace, podName)
+        }
+
+        // Clean gauge stores in cgroup collectors
+        fsCollector?.removeStaleEntries(podName, namespace)
+        memCollector?.removeStaleEntries(podName, namespace)
+    }
+
+    /**
      * Cleans up BPF map entries for a deleted pod's cgroup ID.
      * Iterates all relevant BPF maps and deletes entries matching the cgroup ID.
      */

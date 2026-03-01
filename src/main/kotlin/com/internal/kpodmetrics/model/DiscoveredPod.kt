@@ -12,5 +12,6 @@ data class DiscoveredPod(
     val name: String,
     val namespace: String,
     val qosClass: QosClass,
-    val containers: List<ContainerInfo>
+    val containers: List<ContainerInfo>,
+    val labels: Map<String, String> = emptyMap()
 )

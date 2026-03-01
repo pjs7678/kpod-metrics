@@ -7,7 +7,8 @@ import org.slf4j.LoggerFactory
 class PodCgroupMapper(
     private val podProvider: PodProvider,
     private val pathResolver: CgroupPathResolver,
-    private val nodeName: String
+    private val nodeName: String,
+    private val includeLabels: List<String> = emptyList()
 ) {
     private val log = LoggerFactory.getLogger(PodCgroupMapper::class.java)
 
@@ -16,6 +17,8 @@ class PodCgroupMapper(
         for ((_, pod) in podProvider.getDiscoveredPods()) {
             val podPath = pathResolver.resolvePodPath(pod.uid, pod.qosClass) ?: continue
             val containerCgroups = pathResolver.listContainerPaths(podPath)
+            val filteredLabels = if (includeLabels.isEmpty()) emptyMap()
+                else pod.labels.filterKeys { it in includeLabels }
             for (container in pod.containers) {
                 val matchedCgroup = containerCgroups.find { cg ->
                     cg.containerId == container.containerId ||
@@ -26,7 +29,7 @@ class PodCgroupMapper(
                     targets.add(PodCgroupTarget(
                         podName = pod.name, namespace = pod.namespace,
                         containerName = container.name, cgroupPath = matchedCgroup.path,
-                        nodeName = nodeName
+                        nodeName = nodeName, labels = filteredLabels
                     ))
                 } else {
                     log.debug("No cgroup match for container {} in pod {}", container.name, pod.name)

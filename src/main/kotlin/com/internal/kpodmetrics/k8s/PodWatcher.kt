@@ -29,12 +29,17 @@ class PodWatcher(
     private val discoveredPods = ConcurrentHashMap<String, DiscoveredPod>()
     private val podCgroupIds = ConcurrentHashMap<String, MutableSet<Long>>()
     private var onPodDeletedCallback: ((Long) -> Unit)? = null
+    private var onPodRemovedCallback: ((podName: String, namespace: String) -> Unit)? = null
 
     override fun getDiscoveredPods(): Map<String, DiscoveredPod> =
         discoveredPods.toMap()
 
     fun setOnPodDeletedCallback(callback: (Long) -> Unit) {
         this.onPodDeletedCallback = callback
+    }
+
+    fun setOnPodRemovedCallback(callback: (podName: String, namespace: String) -> Unit) {
+        this.onPodRemovedCallback = callback
     }
 
     fun start() {
@@ -56,7 +61,7 @@ class PodWatcher(
 
         var registered = 0
         for (pod in pods) {
-            if (shouldWatch(pod.metadata.namespace, filter)) {
+            if (shouldWatch(pod.metadata.namespace, pod.metadata.labels ?: emptyMap(), filter)) {
                 registered += registerPod(pod)
             }
         }
@@ -70,7 +75,7 @@ class PodWatcher(
                 override fun eventReceived(action: Watcher.Action, pod: Pod) {
                     when (action) {
                         Watcher.Action.ADDED, Watcher.Action.MODIFIED -> {
-                            if (shouldWatch(pod.metadata.namespace, filter)) {
+                            if (shouldWatch(pod.metadata.namespace, pod.metadata.labels ?: emptyMap(), filter)) {
                                 registerPod(pod)
                             }
                         }
@@ -78,11 +83,18 @@ class PodWatcher(
                             log.debug(
                                 "Pod deleted: {}/{}", pod.metadata.namespace, pod.metadata.name
                             )
-                            pod.metadata?.uid?.let { uid ->
-                                discoveredPods.remove(uid)
-                                podCgroupIds.remove(uid)?.forEach { cgroupId ->
-                                    cgroupResolver.onPodDeleted(cgroupId)
-                                    onPodDeletedCallback?.invoke(cgroupId)
+                            pod.metadata?.let { meta ->
+                                meta.uid?.let { uid ->
+                                    discoveredPods.remove(uid)
+                                    podCgroupIds.remove(uid)?.forEach { cgroupId ->
+                                        cgroupResolver.onPodDeleted(cgroupId)
+                                        onPodDeletedCallback?.invoke(cgroupId)
+                                    }
+                                }
+                                val name = meta.name
+                                val ns = meta.namespace
+                                if (name != null && ns != null) {
+                                    onPodRemovedCallback?.invoke(name, ns)
                                 }
                             }
                         }
@@ -245,7 +257,8 @@ class PodWatcher(
                 name = metadata.name ?: return null,
                 namespace = metadata.namespace ?: return null,
                 qosClass = qosClass,
-                containers = containers
+                containers = containers,
+                labels = metadata.labels ?: emptyMap()
             )
         }
 
@@ -266,11 +279,38 @@ class PodWatcher(
             }
         }
 
-        fun shouldWatch(namespace: String, filter: FilterProperties): Boolean {
-            if (filter.namespaces.isNotEmpty()) {
-                return namespace in filter.namespaces
+        fun shouldWatch(namespace: String, podLabels: Map<String, String>, filter: FilterProperties): Boolean {
+            if (filter.namespaces.isNotEmpty() && namespace !in filter.namespaces) {
+                return false
             }
-            return namespace !in filter.excludeNamespaces
+            if (filter.namespaces.isEmpty() && namespace in filter.excludeNamespaces) {
+                return false
+            }
+            if (filter.labelSelector.isNotBlank()) {
+                return matchesLabelSelector(podLabels, filter.labelSelector)
+            }
+            return true
+        }
+
+        /**
+         * Matches a simple comma-separated label selector.
+         * Supports: key=value, key!=value, key (exists)
+         */
+        internal fun matchesLabelSelector(labels: Map<String, String>, selector: String): Boolean {
+            val terms = selector.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            return terms.all { term ->
+                when {
+                    "!=" in term -> {
+                        val (key, value) = term.split("!=", limit = 2)
+                        labels[key.trim()] != value.trim()
+                    }
+                    "=" in term -> {
+                        val (key, value) = term.split("=", limit = 2)
+                        labels[key.trim()] == value.trim()
+                    }
+                    else -> labels.containsKey(term.trim())
+                }
+            }
         }
     }
 }

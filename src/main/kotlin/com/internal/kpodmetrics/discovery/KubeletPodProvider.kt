@@ -119,7 +119,7 @@ class KubeletPodProvider(
                     val rawId = cs.containerID ?: return@mapNotNull null
                     ContainerInfo(cName, rawId.substringAfter("://"))
                 }
-                result[uid] = DiscoveredPod(uid, name, namespace, qosClass, containers)
+                result[uid] = DiscoveredPod(uid, name, namespace, qosClass, containers, item.metadata.labels ?: emptyMap())
             }
             return result
         }
@@ -133,7 +133,7 @@ data class KubeletPodList(val items: List<KubeletPod> = emptyList())
 data class KubeletPod(val metadata: KubeletPodMeta? = null, val status: KubeletPodStatus? = null)
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-data class KubeletPodMeta(val uid: String? = null, val name: String? = null, val namespace: String? = null)
+data class KubeletPodMeta(val uid: String? = null, val name: String? = null, val namespace: String? = null, val labels: Map<String, String>? = null)
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class KubeletPodStatus(val qosClass: String? = null, val containerStatuses: List<KubeletContainerStatus>? = null)

@@ -27,12 +27,7 @@ class MemoryCgroupCollector(
             try {
                 val stat = reader.readMemoryStats(target.cgroupPath) ?: continue
                 val key = GaugeKey(target.podName, target.namespace, target.containerName, target.nodeName)
-                val tags = Tags.of(
-                    "namespace", target.namespace,
-                    "pod", target.podName,
-                    "container", target.containerName,
-                    "node", target.nodeName
-                )
+                val tags = target.tags()
                 getOrRegisterGauge(usageValues, key, "kpod.mem.cgroup.usage.bytes", tags).set(stat.usageBytes)
                 getOrRegisterGauge(peakValues, key, "kpod.mem.cgroup.peak.bytes", tags).set(stat.peakBytes)
                 getOrRegisterGauge(cacheValues, key, "kpod.mem.cgroup.cache.bytes", tags).set(stat.cacheBytes)
@@ -42,6 +37,13 @@ class MemoryCgroupCollector(
                 errorCounter.increment()
             }
         }
+    }
+
+    fun removeStaleEntries(podName: String, namespace: String) {
+        usageValues.keys.removeAll { it.pod == podName && it.ns == namespace }
+        peakValues.keys.removeAll { it.pod == podName && it.ns == namespace }
+        cacheValues.keys.removeAll { it.pod == podName && it.ns == namespace }
+        swapValues.keys.removeAll { it.pod == podName && it.ns == namespace }
     }
 
     private fun getOrRegisterGauge(

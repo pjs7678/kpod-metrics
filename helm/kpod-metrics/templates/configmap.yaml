@@ -26,10 +26,19 @@ data:
         root: {{ .Values.config.cgroup.root }}
         proc-root: {{ .Values.config.cgroup.procRoot }}
       filter:
+        {{- if .Values.config.filter.namespaces }}
+        namespaces:
+          {{- toYaml .Values.config.filter.namespaces | nindent 10 }}
+        {{- else }}
         namespaces: []
+        {{- end }}
         exclude-namespaces:
-          - kube-system
-          - kube-public
+          {{- toYaml .Values.config.filter.excludeNamespaces | nindent 10 }}
+        {{- if .Values.config.filter.labelSelector }}
+        label-selector: {{ .Values.config.filter.labelSelector | quote }}
+        {{- end }}
+        include-labels:
+          {{- toYaml .Values.config.filter.includeLabels | nindent 10 }}
     spring:
       threads:
         virtual:
