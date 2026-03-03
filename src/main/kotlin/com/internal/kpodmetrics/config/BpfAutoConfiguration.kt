@@ -200,6 +200,16 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         config: ResolvedConfig
     ) = ExecsnoopCollector(bridge, manager, resolver, registry, config, props.nodeName)
 
+    // --- Profiling ---
+
+    @Bean
+    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
+    fun cpuProfileCollector(
+        bridge: BpfBridge,
+        manager: BpfProgramManager,
+        resolver: CgroupResolver
+    ) = CpuProfileCollector(bridge, manager, resolver, props.profiling.cpu.stackDepth)
+
     // --- Cgroup infrastructure beans ---
 
     @Bean
@@ -367,6 +377,13 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
             try {
                 it.loadAll()
                 log.info("BPF programs loaded successfully")
+                if (props.profiling.enabled && props.profiling.cpu.enabled) {
+                    try {
+                        it.loadCpuProfile(props.profiling.cpu.frequency)
+                    } catch (e: Exception) {
+                        log.warn("CPU profiling BPF program failed to load: {}", e.message)
+                    }
+                }
             } catch (e: Exception) {
                 log.warn("BPF program loading failed (kernel may not support tracing); cgroup collectors will still run: {}", e.message)
             }
