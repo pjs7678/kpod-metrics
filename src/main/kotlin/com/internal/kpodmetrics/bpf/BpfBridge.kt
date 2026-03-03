@@ -46,6 +46,9 @@ class BpfBridge {
         keySize: Int, valueSize: Int, maxBatch: Int
     ): Int
 
+    @Throws(BpfLoadException::class)
+    private external fun nativePerfEventAttach(objPtr: Long, progName: String, sampleFreq: Int): Int
+
     // --- Public API wrapping JNI with handle safety ---
 
     fun openObject(path: String): Long {
@@ -149,6 +152,11 @@ class BpfBridge {
             mapDelete(mapFd, k)
         }
         return results
+    }
+
+    fun perfEventAttach(handle: Long, progName: String, sampleFreq: Int): Int {
+        val ptr = handleRegistry.resolve(handle)
+        return nativePerfEventAttach(ptr, progName, sampleFreq)
     }
 
     fun <T> withBpfObject(path: String, block: (Long) -> T): T {
