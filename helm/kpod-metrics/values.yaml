@@ -150,3 +150,15 @@ profiling:
     tenantId: ""
     authToken: ""
   symbolCacheMaxEntries: 50000
+
+# Java profiling via Pyroscope Java agent (sidecar injection for workloads)
+# These values are not used by the kpod-metrics DaemonSet itself.
+# Copy this section to your application chart's values.yaml.
+javaProfiling:
+  enabled: false
+  image: "grafana/pyroscope-java:0.14.0"
+  appName: ""           # e.g., "myapp{namespace=default}"
+  pyroscopeEndpoint: "http://pyroscope:4040"
+  tenantId: ""
+  authToken: ""
+  extraJavaOpts: ""
