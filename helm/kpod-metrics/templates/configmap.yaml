@@ -44,6 +44,23 @@ data:
         {{- end }}
         include-labels:
           {{- toYaml .Values.config.filter.includeLabels | nindent 10 }}
+      {{- if .Values.profiling.enabled }}
+      profiling:
+        enabled: true
+        cpu:
+          enabled: {{ .Values.profiling.cpu.enabled }}
+          frequency: {{ .Values.profiling.cpu.frequency }}
+          stack-depth: {{ .Values.profiling.cpu.stackDepth }}
+        pyroscope:
+          endpoint: {{ .Values.profiling.pyroscope.endpoint | quote }}
+          {{- if .Values.profiling.pyroscope.tenantId }}
+          tenant-id: {{ .Values.profiling.pyroscope.tenantId | quote }}
+          {{- end }}
+          {{- if .Values.profiling.pyroscope.authToken }}
+          auth-token: {{ .Values.profiling.pyroscope.authToken | quote }}
+          {{- end }}
+        symbol-cache-max-entries: {{ .Values.profiling.symbolCacheMaxEntries }}
+      {{- end }}
       {{- if .Values.otlp.enabled }}
       otlp:
         enabled: true

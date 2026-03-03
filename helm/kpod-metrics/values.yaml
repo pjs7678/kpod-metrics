@@ -138,3 +138,15 @@ config:
   #   diskIO: true
   #   ifaceNet: true
   #   filesystem: true
+
+profiling:
+  enabled: false
+  cpu:
+    enabled: true
+    frequency: 99
+    stackDepth: 128
+  pyroscope:
+    endpoint: "http://pyroscope:4040"
+    tenantId: ""
+    authToken: ""
+  symbolCacheMaxEntries: 50000
