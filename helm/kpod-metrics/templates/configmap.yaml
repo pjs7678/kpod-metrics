@@ -7,6 +7,7 @@ data:
     kpod:
       profile: {{ .Values.config.profile }}
       poll-interval: {{ .Values.config.pollInterval }}
+      startup-jitter: {{ .Values.config.startupJitter | default 5000 }}
       collection-timeout: {{ .Values.config.collectionTimeout | default 20000 }}
       node-name: ${NODE_NAME}
       {{- if .Values.config.clusterName }}

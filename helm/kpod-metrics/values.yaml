@@ -97,7 +97,8 @@ otlp:
 
 config:
   profile: standard
-  pollInterval: 30000
+  pollInterval: 29000
+  startupJitter: 5000
   collectionTimeout: 20000
   clusterName: ""
   discovery:

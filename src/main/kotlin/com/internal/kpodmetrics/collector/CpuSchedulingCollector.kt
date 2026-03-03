@@ -39,9 +39,9 @@ class CpuSchedulingCollector(
             val cgroupId = CpuSchedMapReader.HistKeyLayout.decodeCgroupId(keyBytes)
             val podInfo = cgroupResolver.resolve(cgroupId) ?: return@collectMap
 
-            val slots = CpuSchedMapReader.HistValueLayout.decodeSlotsArray(valueBytes)
             val count = CpuSchedMapReader.HistValueLayout.decodeCount(valueBytes)
             val sumNs = CpuSchedMapReader.HistValueLayout.decodeSumNs(valueBytes)
+            if (!BpfValueValidation.isValidLatency(count, sumNs, log, "cpu_runq")) return@collectMap
 
             val tags = Tags.of(
                 "namespace", podInfo.namespace,

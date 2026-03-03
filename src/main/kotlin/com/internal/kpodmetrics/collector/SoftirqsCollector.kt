@@ -38,6 +38,7 @@ class SoftirqsCollector(
 
             val count = SoftirqsMapReader.HistValueLayout.decodeCount(valueBytes)
             val sumNs = SoftirqsMapReader.HistValueLayout.decodeSumNs(valueBytes)
+            if (!BpfValueValidation.isValidLatency(count, sumNs, log, "softirqs")) return@forEach
 
             val tags = Tags.of(
                 "namespace", podInfo.namespace,

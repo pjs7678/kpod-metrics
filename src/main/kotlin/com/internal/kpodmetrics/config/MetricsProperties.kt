@@ -5,9 +5,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 @ConfigurationProperties(prefix = "kpod")
 data class MetricsProperties(
     val profile: String = "standard",
-    val pollInterval: Long = 30000,
+    val pollInterval: Long = 29000,
     val collectionTimeout: Long = 20000,
     val initialDelay: Long = 10000,
+    val startupJitter: Long = 5000,
     val nodeName: String = "unknown",
     val clusterName: String = "",
     val cpu: CpuProperties = CpuProperties(),

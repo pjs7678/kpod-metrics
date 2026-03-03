@@ -42,6 +42,7 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
     private var podWatcherInstance: PodWatcher? = null
     private var metricsCollectorServiceInstance: MetricsCollectorService? = null
     private var kubeletPodProviderInstance: KubeletPodProvider? = null
+    private var registryInstance: MeterRegistry? = null
 
     @Bean
     @ConditionalOnProperty("kpod.otlp.enabled", havingValue = "true")
@@ -282,6 +283,7 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         bpfMapStatsCollector: BpfMapStatsCollector,
         registry: MeterRegistry
     ): MetricsCollectorService {
+        this.registryInstance = registry
         val service = MetricsCollectorService(
             cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
@@ -299,7 +301,8 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
             props.collectionTimeout,
             props.collectors,
             props.collectorIntervals,
-            props.pollInterval
+            props.pollInterval,
+            props.startupJitter
         )
         this.metricsCollectorServiceInstance = service
         return service
@@ -336,6 +339,28 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         // Log cardinality estimate at startup
         val resolvedConfig = props.resolveProfile()
         CardinalityEstimator(resolvedConfig).estimateAndLog()
+
+        // Emit kpod_config_info gauge (value=1) with configuration labels for debugging
+        registryInstance?.let { reg ->
+            val bpfVariant = programManager?.let {
+                val btfPath = java.io.File("/sys/kernel/btf/vmlinux")
+                if (btfPath.exists()) "core" else "legacy"
+            } ?: "disabled"
+            val kernelVersion = try {
+                java.io.File("/proc/version").readText().split(" ").getOrElse(2) { "unknown" }
+            } catch (_: Exception) { "unknown" }
+
+            io.micrometer.core.instrument.Gauge.builder("kpod.config.info") { 1.0 }
+                .tags(
+                    "profile", props.profile,
+                    "poll_interval_ms", props.pollInterval.toString(),
+                    "bpf_variant", bpfVariant,
+                    "kernel", kernelVersion,
+                    "node", props.nodeName
+                )
+                .description("kpod-metrics configuration metadata")
+                .register(reg)
+        }
 
         programManager?.let {
             log.info("Loading BPF programs from {}", props.bpf.programDir)
