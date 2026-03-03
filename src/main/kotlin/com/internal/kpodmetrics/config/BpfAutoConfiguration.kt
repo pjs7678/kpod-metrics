@@ -7,6 +7,10 @@ import com.internal.kpodmetrics.cgroup.CgroupPathResolver
 import com.internal.kpodmetrics.cgroup.CgroupReader
 import com.internal.kpodmetrics.cgroup.CgroupVersionDetector
 import com.internal.kpodmetrics.collector.*
+import com.internal.kpodmetrics.profiling.KallsymsResolver
+import com.internal.kpodmetrics.profiling.SymbolResolver
+import com.internal.kpodmetrics.profiling.PyroscopePusher
+import com.internal.kpodmetrics.profiling.ProfilingPipeline
 import com.internal.kpodmetrics.discovery.KubeletPodProvider
 import com.internal.kpodmetrics.discovery.PodCgroupMapper
 import com.internal.kpodmetrics.discovery.PodProvider
@@ -210,6 +214,35 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         resolver: CgroupResolver
     ) = CpuProfileCollector(bridge, manager, resolver, props.profiling.cpu.stackDepth)
 
+    @Bean
+    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
+    fun kallsymsResolver(): KallsymsResolver = KallsymsResolver.fromFile()
+
+    @Bean
+    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
+    fun symbolResolver(kallsyms: KallsymsResolver) = SymbolResolver(kallsyms, props.profiling.symbolCacheMaxEntries)
+
+    @Bean
+    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
+    fun pyroscopePusher() = PyroscopePusher(
+        endpoint = props.profiling.pyroscope.endpoint,
+        tenantId = props.profiling.pyroscope.tenantId,
+        authToken = props.profiling.pyroscope.authToken,
+        sampleRate = props.profiling.cpu.frequency
+    )
+
+    @Bean
+    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
+    fun profilingPipeline(
+        cpuProfileCollector: CpuProfileCollector,
+        symbolResolver: SymbolResolver,
+        pusher: PyroscopePusher
+    ) = ProfilingPipeline(
+        cpuProfileCollector, symbolResolver, pusher, props.nodeName,
+        props.pollInterval * 1_000_000, // convert ms to nanos
+        props.profiling.cpu.frequency
+    )
+
     // --- Cgroup infrastructure beans ---
 
     @Bean
@@ -291,7 +324,8 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         manager: BpfProgramManager,
         cgroupResolver: CgroupResolver,
         bpfMapStatsCollector: BpfMapStatsCollector,
-        registry: MeterRegistry
+        registry: MeterRegistry,
+        profilingPipeline: Optional<ProfilingPipeline>
     ): MetricsCollectorService {
         this.registryInstance = registry
         val service = MetricsCollectorService(
@@ -312,7 +346,8 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
             props.collectors,
             props.collectorIntervals,
             props.pollInterval,
-            props.startupJitter
+            props.startupJitter,
+            profilingPipeline.orElse(null)
         )
         this.metricsCollectorServiceInstance = service
         return service

@@ -47,7 +47,8 @@ class MetricsCollectorService(
     private val collectorOverrides: CollectorOverrides = CollectorOverrides(),
     private val collectorIntervals: CollectorIntervals = CollectorIntervals(),
     private val basePollIntervalMs: Long = 29000,
-    private val startupJitterMs: Long = 0
+    private val startupJitterMs: Long = 0,
+    private val profilingPipeline: com.internal.kpodmetrics.profiling.ProfilingPipeline? = null
 ) {
     private val log = LoggerFactory.getLogger(MetricsCollectorService::class.java)
     private val vtExecutor: ExecutorService = Executors.newVirtualThreadPerTaskExecutor()
@@ -227,6 +228,16 @@ class MetricsCollectorService(
         }
 
         cgroupResolver?.pruneGraceCache()
+
+        // Run profiling pipeline (collect → resolve → pprof → push)
+        profilingPipeline?.let { pipeline ->
+            try {
+                pipeline.collect()
+            } catch (e: Exception) {
+                log.warn("Profiling pipeline failed: {}", e.message)
+            }
+        }
+
         lastSuccessfulCycle.set(Instant.now())
         cycleSample?.stop(cycleTimer!!)
     }
