@@ -22,7 +22,8 @@ data class MetricsProperties(
     val bpf: BpfProperties = BpfProperties(),
     val discovery: DiscoveryProperties = DiscoveryProperties(),
     val cgroup: CgroupProperties = CgroupProperties(),
-    val otlp: OtlpProperties = OtlpProperties()
+    val otlp: OtlpProperties = OtlpProperties(),
+    val profiling: ProfilingProperties = ProfilingProperties()
 ) {
     fun resolveProfile(override: String? = null): ResolvedConfig {
         return when (override ?: profile) {
@@ -172,6 +173,25 @@ data class CollectorIntervals(
     val ifaceNet: Long? = null,
     val filesystem: Long? = null,
     val memory: Long? = null
+)
+
+data class ProfilingProperties(
+    val enabled: Boolean = false,
+    val cpu: CpuProfilingProperties = CpuProfilingProperties(),
+    val pyroscope: PyroscopeProperties = PyroscopeProperties(),
+    val symbolCacheMaxEntries: Int = 50000
+)
+
+data class CpuProfilingProperties(
+    val enabled: Boolean = true,
+    val frequency: Int = 99,
+    val stackDepth: Int = 128
+)
+
+data class PyroscopeProperties(
+    val endpoint: String = "http://pyroscope:4040",
+    val tenantId: String = "",
+    val authToken: String = ""
 )
 
 data class CollectorOverrides(
