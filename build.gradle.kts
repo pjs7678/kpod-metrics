@@ -44,6 +44,9 @@ dependencies {
     // Kubernetes client
     implementation(libs.kubernetes.client)
 
+    // Protobuf (pprof profile format)
+    implementation(libs.protobuf.java)
+
     // eBPF DSL (composite build)
     implementation("dev.ebpf:kotlin-ebpf-dsl")
 
