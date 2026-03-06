@@ -3,6 +3,7 @@ package com.internal.kpodmetrics.health
 import com.internal.kpodmetrics.bpf.BpfProgramManager
 import com.internal.kpodmetrics.collector.MetricsCollectorService
 import com.internal.kpodmetrics.config.ResolvedConfig
+import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation
 import java.time.Duration
@@ -13,8 +14,23 @@ class DiagnosticsEndpoint(
     private val collectorService: MetricsCollectorService,
     private val programManager: BpfProgramManager?,
     private val config: ResolvedConfig,
+    private val registry: MeterRegistry? = null,
     private val startTime: Instant = Instant.now()
 ) {
+
+    companion object {
+        val BPF_METRIC_MAP = mapOf(
+            "cpu_sched" to listOf("kpod.cpu.context.switches"),
+            "net" to listOf("kpod.net.tcp.connections"),
+            "syscall" to listOf("kpod.syscall.count"),
+            "biolatency" to listOf("kpod.disk.io.latency"),
+            "cachestat" to listOf("kpod.mem.cache.accesses"),
+            "tcpdrop" to listOf("kpod.net.tcp.drops"),
+            "hardirqs" to listOf("kpod.irq.hw.count"),
+            "softirqs" to listOf("kpod.irq.sw.count"),
+            "execsnoop" to listOf("kpod.exec.count")
+        )
+    }
 
     @ReadOperation
     fun diagnostics(): Map<String, Any?> {
@@ -30,7 +46,11 @@ class DiagnosticsEndpoint(
             "lastCollectorErrors" to collectorService.getLastCollectorErrors(),
             "bpf" to bpfDiagnostics(),
             "enabledCollectors" to enabledCollectors(),
-            "profile" to profileSummary()
+            "profile" to profileSummary(),
+            "metricHealth" to metricHealth(),
+            "monitoredPods" to monitoredPodCount(),
+            "overhead" to overhead(),
+            "recommendations" to recommendations()
         )
     }
 
@@ -96,4 +116,83 @@ class DiagnosticsEndpoint(
             if (config.cgroup.memory) "memory" else null
         )
     )
+
+    private fun metricHealth(): Map<String, Any> {
+        if (registry == null) return mapOf("available" to false)
+        val expected = allExpectedPrograms()
+        val producing = mutableListOf<String>()
+        val silent = mutableListOf<String>()
+        for (prog in expected) {
+            val metricNames = BPF_METRIC_MAP[prog] ?: continue
+            val hasMetric = metricNames.any { name ->
+                registry.find(name).meters().isNotEmpty()
+            }
+            if (hasMetric) producing.add(prog) else silent.add(prog)
+        }
+        return mapOf(
+            "available" to true,
+            "producingMetrics" to producing,
+            "silentPrograms" to silent,
+            "healthy" to silent.isEmpty()
+        )
+    }
+
+    private fun monitoredPodCount(): Int {
+        if (registry == null) return 0
+        val podTags = mutableSetOf<String>()
+        for (metricNames in BPF_METRIC_MAP.values) {
+            for (metricName in metricNames) {
+                for (meter in registry.find(metricName).meters()) {
+                    val podTag = meter.id.getTag("pod")
+                    if (podTag != null) podTags.add(podTag)
+                }
+            }
+        }
+        return podTags.size
+    }
+
+    private fun overhead(): Map<String, Any?> {
+        if (registry == null) return mapOf("available" to false)
+        return mapOf(
+            "available" to true,
+            "jvmCpuUsage" to gaugeValue("process.cpu.usage"),
+            "jvmMemoryUsedBytes" to gaugeValue("jvm.memory.used"),
+            "jvmGcPauseSecondsTotal" to timerTotalTime("jvm.gc.pause"),
+            "jvmThreadsLive" to gaugeValue("jvm.threads.live")
+        )
+    }
+
+    private fun gaugeValue(name: String): Double? {
+        return registry?.find(name)?.meters()?.firstOrNull()?.let { meter ->
+            meter.measure().firstOrNull()?.value
+        }
+    }
+
+    private fun timerTotalTime(name: String): Double? {
+        return registry?.find(name)?.meters()?.sumOf { meter ->
+            meter.measure().sumOf { it.value }
+        }
+    }
+
+    private fun recommendations(): List<String> {
+        val recs = mutableListOf<String>()
+        val errors = collectorService.getLastCollectorErrors()
+        if (errors.isNotEmpty()) {
+            recs.add("${errors.size} collector(s) have errors: ${errors.keys.joinToString()}")
+        }
+        if (programManager != null && programManager.failedPrograms.isNotEmpty()) {
+            recs.add("BPF programs failed to load: ${programManager.failedPrograms.joinToString()}. Check kernel support.")
+        }
+        if (registry != null) {
+            val expected = allExpectedPrograms()
+            val silent = expected.filter { prog ->
+                val metricNames = BPF_METRIC_MAP[prog] ?: return@filter false
+                metricNames.none { name -> registry.find(name).meters().isNotEmpty() }
+            }
+            if (silent.isNotEmpty()) {
+                recs.add("Programs loaded but not producing metrics: ${silent.joinToString()}. Workload may be idle.")
+            }
+        }
+        return recs
+    }
 }

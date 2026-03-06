@@ -191,7 +191,8 @@ data class CpuProfilingProperties(
 data class PyroscopeProperties(
     val endpoint: String = "http://pyroscope:4040",
     val tenantId: String = "",
-    val authToken: String = ""
+    val authToken: String = "",
+    val renderPath: String = ""
 )
 
 data class CollectorOverrides(

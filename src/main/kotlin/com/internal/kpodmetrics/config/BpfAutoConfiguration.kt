@@ -19,6 +19,11 @@ import com.internal.kpodmetrics.health.CollectionHealthIndicator
 import com.internal.kpodmetrics.health.CollectorConfigHealthIndicator
 import com.internal.kpodmetrics.health.DiagnosticsEndpoint
 import com.internal.kpodmetrics.health.DiscoveryHealthIndicator
+import com.internal.kpodmetrics.analysis.AnomalyEndpoint
+import com.internal.kpodmetrics.analysis.AnomalyService
+import com.internal.kpodmetrics.analysis.PyroscopeClient
+import com.internal.kpodmetrics.analysis.RecommendEndpoint
+import com.internal.kpodmetrics.analysis.RecommendService
 import com.internal.kpodmetrics.k8s.PodWatcher
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientBuilder
@@ -376,8 +381,43 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
     fun diagnosticsEndpoint(
         service: MetricsCollectorService,
         manager: Optional<BpfProgramManager>,
-        config: ResolvedConfig
-    ) = DiagnosticsEndpoint(service, manager.orElse(null), config)
+        config: ResolvedConfig,
+        registry: MeterRegistry
+    ) = DiagnosticsEndpoint(service, manager.orElse(null), config, registry)
+
+    // --- Analysis endpoints ---
+
+    @Bean
+    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
+    fun pyroscopeClient() = PyroscopeClient(
+        endpoint = props.profiling.pyroscope.endpoint,
+        tenantId = props.profiling.pyroscope.tenantId,
+        authToken = props.profiling.pyroscope.authToken,
+        renderPath = props.profiling.pyroscope.renderPath
+    )
+
+    @Bean
+    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
+    fun recommendService(
+        pyroscopeClient: PyroscopeClient,
+        kubernetesClient: KubernetesClient,
+        registry: MeterRegistry
+    ) = RecommendService(pyroscopeClient, kubernetesClient, registry)
+
+    @Bean
+    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
+    fun recommendEndpoint(recommendService: RecommendService) =
+        RecommendEndpoint(recommendService)
+
+    @Bean
+    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
+    fun anomalyService(pyroscopeClient: PyroscopeClient) =
+        AnomalyService(pyroscopeClient)
+
+    @Bean
+    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
+    fun anomalyEndpoint(anomalyService: AnomalyService) =
+        AnomalyEndpoint(anomalyService)
 
     @EventListener(ContextRefreshedEvent::class)
     fun onStartup() {
