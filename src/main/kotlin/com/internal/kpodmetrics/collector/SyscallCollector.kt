@@ -61,7 +61,7 @@ class SyscallCollector(
             val count = SyscallMapReader.SyscallStatsLayout.decodeCount(valueBytes)
             val errorCount = SyscallMapReader.SyscallStatsLayout.decodeErrorCount(valueBytes)
             val latencySumNs = SyscallMapReader.SyscallStatsLayout.decodeLatencySumNs(valueBytes)
-            // skip latency_slots - not needed for summary metrics
+            if (!BpfValueValidation.isValidLatency(count, latencySumNs, log, "syscall")) return@collectMap
 
             val tags = Tags.of(
                 "namespace", podInfo.namespace,

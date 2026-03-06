@@ -38,6 +38,7 @@ class BiolatencyCollector(
 
             val count = BiolatencyMapReader.HistValueLayout.decodeCount(valueBytes)
             val sumNs = BiolatencyMapReader.HistValueLayout.decodeSumNs(valueBytes)
+            if (!BpfValueValidation.isValidLatency(count, sumNs, log, "biolatency")) return@forEach
 
             val tags = Tags.of(
                 "namespace", podInfo.namespace,

@@ -42,6 +42,8 @@ class NetworkCollector(
             val connections = NetMapReader.TcpStatsLayout.decodeConnections(valueBytes)
             val rttSumUs = NetMapReader.TcpStatsLayout.decodeRttSumUs(valueBytes)
             val rttCount = NetMapReader.TcpStatsLayout.decodeRttCount(valueBytes)
+            // Convert RTT from microseconds to nanoseconds for validation
+            if (!BpfValueValidation.isValidLatency(rttCount, rttSumUs * 1000, log, "net_rtt")) return@collectMap
 
             val tags = Tags.of(
                 "namespace", podInfo.namespace,

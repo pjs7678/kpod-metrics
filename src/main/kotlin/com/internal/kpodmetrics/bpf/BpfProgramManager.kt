@@ -88,6 +88,27 @@ class BpfProgramManager(
         }
     }
 
+    fun loadCpuProfile(sampleFreq: Int) {
+        try {
+            val path = "$resolvedProgramDir/cpu_profile.bpf.o"
+            log.info("Loading CPU profile BPF program: {}", path)
+            val sample = registry?.let { Timer.start() }
+            val handle = bridge.openObject(path)
+            bridge.loadObject(handle)
+            val cpuCount = bridge.perfEventAttach(handle, "cpu_profile", sampleFreq)
+            loadedPrograms["cpu_profile"] = handle
+            sample?.stop(Timer.builder("kpod.bpf.program.load.duration")
+                .tag("program", "cpu_profile")
+                .register(registry!!))
+            loadedCount.set(loadedPrograms.size)
+            log.info("CPU profile BPF program attached to {} CPUs at {}Hz", cpuCount, sampleFreq)
+        } catch (e: Exception) {
+            log.warn("Failed to load CPU profile BPF program: {}", e.message)
+            _failedPrograms.add("cpu_profile")
+            failedCount.set(_failedPrograms.size)
+        }
+    }
+
     fun destroyAll() {
         loadedPrograms.forEach { (name, handle) ->
             try {

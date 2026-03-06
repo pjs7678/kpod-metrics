@@ -42,6 +42,7 @@ class HardirqsCollector(
 
             val count = HardirqsMapReader.HistValueLayout.decodeCount(valueBytes)
             val sumNs = HardirqsMapReader.HistValueLayout.decodeSumNs(valueBytes)
+            if (!BpfValueValidation.isValidLatency(count, sumNs, log, "hardirqs")) return@forEach
 
             val tags = Tags.of(
                 "namespace", podInfo.namespace,

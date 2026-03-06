@@ -6,6 +6,10 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdint.h>
+#include <linux/perf_event.h>
+#include <sys/ioctl.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 
 #define MAX_BPF_LINKS 32
 
@@ -259,4 +263,63 @@ JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeMapBatc
     }
 
     return (jint)count;
+}
+
+static int perf_event_open_cpu(int cpu, int freq) {
+    struct perf_event_attr attr = {
+        .type = PERF_TYPE_SOFTWARE,
+        .config = PERF_COUNT_SW_CPU_CLOCK,
+        .sample_freq = freq,
+        .freq = 1,
+        .size = sizeof(attr),
+    };
+    return syscall(__NR_perf_event_open, &attr, -1 /* all pids */, cpu, -1, PERF_FLAG_FD_CLOEXEC);
+}
+
+JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativePerfEventAttach(
+    JNIEnv *env, jobject self, jlong ptr, jstring progName, jint sampleFreq) {
+    (void)self;
+    if (ptr == 0) {
+        throw_load_exception(env, "Null BPF object pointer");
+        return -1;
+    }
+    struct bpf_obj_wrapper *wrapper = (struct bpf_obj_wrapper *)(uintptr_t)ptr;
+    const char *name_str = (*env)->GetStringUTFChars(env, progName, NULL);
+    if (!name_str) {
+        throw_load_exception(env, "Failed to get program name string");
+        return -1;
+    }
+    struct bpf_program *prog = bpf_object__find_program_by_name(wrapper->obj, name_str);
+    (*env)->ReleaseStringUTFChars(env, progName, name_str);
+    if (!prog) {
+        throw_load_exception(env, "BPF program not found");
+        return -1;
+    }
+    int prog_fd = bpf_program__fd(prog);
+    if (prog_fd < 0) {
+        throw_load_exception(env, "BPF program fd not available");
+        return -1;
+    }
+
+    int num_cpus = libbpf_num_possible_cpus();
+    int attached = 0;
+    for (int cpu = 0; cpu < num_cpus; cpu++) {
+        if (wrapper->link_count >= MAX_BPF_LINKS) break;
+        int perf_fd = perf_event_open_cpu(cpu, sampleFreq);
+        if (perf_fd < 0) continue; /* CPU may be offline */
+        if (ioctl(perf_fd, PERF_EVENT_IOC_SET_BPF, prog_fd) != 0) {
+            close(perf_fd);
+            continue;
+        }
+        ioctl(perf_fd, PERF_EVENT_IOC_ENABLE, 0);
+        /* Store as bpf_link via perf_event attach for cleanup */
+        struct bpf_link *link = bpf_program__attach_perf_event(prog, perf_fd);
+        if (link) {
+            wrapper->links[wrapper->link_count++] = link;
+            attached++;
+        } else {
+            close(perf_fd);
+        }
+    }
+    return attached;
 }

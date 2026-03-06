@@ -46,7 +46,9 @@ class MetricsCollectorService(
     private val collectionTimeoutMs: Long = 20000,
     private val collectorOverrides: CollectorOverrides = CollectorOverrides(),
     private val collectorIntervals: CollectorIntervals = CollectorIntervals(),
-    private val basePollIntervalMs: Long = 30000
+    private val basePollIntervalMs: Long = 29000,
+    private val startupJitterMs: Long = 0,
+    private val profilingPipeline: com.internal.kpodmetrics.profiling.ProfilingPipeline? = null
 ) {
     private val log = LoggerFactory.getLogger(MetricsCollectorService::class.java)
     private val vtExecutor: ExecutorService = Executors.newVirtualThreadPerTaskExecutor()
@@ -54,6 +56,7 @@ class MetricsCollectorService(
 
     private val shuttingDown = AtomicBoolean(false)
     private val collecting = AtomicBoolean(false)
+    private val firstRun = AtomicBoolean(true)
     private val cycleTimer: Timer? = registry?.timer("kpod.collection.cycle.duration")
     private val timeoutCounter: Counter? = registry?.counter("kpod.collection.timeouts.total")
     private val collectorTimers = ConcurrentHashMap<String, Timer>()
@@ -131,9 +134,18 @@ class MetricsCollectorService(
                 .register(registry!!)
         }
 
-    @Scheduled(fixedDelayString = "\${kpod.poll-interval:30000}", initialDelayString = "\${kpod.initial-delay:10000}")
+    @Scheduled(fixedDelayString = "\${kpod.poll-interval:29000}", initialDelayString = "\${kpod.initial-delay:10000}")
     fun collect() = runBlocking(vtDispatcher) {
         if (shuttingDown.get()) return@runBlocking
+        // Startup jitter: delay the first cycle by a random amount to prevent
+        // thundering herd when all DaemonSet pods start simultaneously
+        if (firstRun.compareAndSet(true, false) && startupJitterMs > 0) {
+            val jitter = java.util.concurrent.ThreadLocalRandom.current().nextLong(startupJitterMs)
+            if (jitter > 0) {
+                log.info("Applying startup jitter: {}ms", jitter)
+                delay(jitter)
+            }
+        }
         if (!collecting.compareAndSet(false, true)) {
             log.warn("Collection cycle skipped: previous cycle still running")
             return@runBlocking
@@ -216,6 +228,16 @@ class MetricsCollectorService(
         }
 
         cgroupResolver?.pruneGraceCache()
+
+        // Run profiling pipeline (collect → resolve → pprof → push)
+        profilingPipeline?.let { pipeline ->
+            try {
+                pipeline.collect()
+            } catch (e: Exception) {
+                log.warn("Profiling pipeline failed: {}", e.message)
+            }
+        }
+
         lastSuccessfulCycle.set(Instant.now())
         cycleSample?.stop(cycleTimer!!)
     }

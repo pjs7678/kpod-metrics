@@ -48,5 +48,21 @@ Grafana:
 OTLP Export:
   Enabled → {{ .Values.otlp.endpoint }} (step: {{ .Values.otlp.step }}ms)
 {{- end }}
+{{- if .Values.profiling.enabled }}
+
+Continuous Profiling (CPU):
+  Profiling is enabled. Profiles will be pushed to:
+    {{ .Values.profiling.pyroscope.endpoint }}
+  {{- if .Values.profiling.pyroscope.tenantId }}
+  Tenant: {{ .Values.profiling.pyroscope.tenantId }}
+  {{- end }}
+{{- end }}
+
+Java Profiling (Application Sidecar Injection):
+  To enable Pyroscope Java agent for your application workloads, add the
+  java-profiler helper templates to your chart. See _java-profiler.tpl for examples.
+
+  Example annotation for opt-in profiling:
+    pyroscope.io/profile: "true"
 
 Troubleshooting: https://github.com/pjs7678/kpod-metrics/blob/main/docs/troubleshooting.md

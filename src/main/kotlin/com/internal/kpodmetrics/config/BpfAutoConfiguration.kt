@@ -7,6 +7,10 @@ import com.internal.kpodmetrics.cgroup.CgroupPathResolver
 import com.internal.kpodmetrics.cgroup.CgroupReader
 import com.internal.kpodmetrics.cgroup.CgroupVersionDetector
 import com.internal.kpodmetrics.collector.*
+import com.internal.kpodmetrics.profiling.KallsymsResolver
+import com.internal.kpodmetrics.profiling.SymbolResolver
+import com.internal.kpodmetrics.profiling.PyroscopePusher
+import com.internal.kpodmetrics.profiling.ProfilingPipeline
 import com.internal.kpodmetrics.discovery.KubeletPodProvider
 import com.internal.kpodmetrics.discovery.PodCgroupMapper
 import com.internal.kpodmetrics.discovery.PodProvider
@@ -15,6 +19,11 @@ import com.internal.kpodmetrics.health.CollectionHealthIndicator
 import com.internal.kpodmetrics.health.CollectorConfigHealthIndicator
 import com.internal.kpodmetrics.health.DiagnosticsEndpoint
 import com.internal.kpodmetrics.health.DiscoveryHealthIndicator
+import com.internal.kpodmetrics.analysis.AnomalyEndpoint
+import com.internal.kpodmetrics.analysis.AnomalyService
+import com.internal.kpodmetrics.analysis.PyroscopeClient
+import com.internal.kpodmetrics.analysis.RecommendEndpoint
+import com.internal.kpodmetrics.analysis.RecommendService
 import com.internal.kpodmetrics.k8s.PodWatcher
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientBuilder
@@ -42,6 +51,7 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
     private var podWatcherInstance: PodWatcher? = null
     private var metricsCollectorServiceInstance: MetricsCollectorService? = null
     private var kubeletPodProviderInstance: KubeletPodProvider? = null
+    private var registryInstance: MeterRegistry? = null
 
     @Bean
     @ConditionalOnProperty("kpod.otlp.enabled", havingValue = "true")
@@ -199,6 +209,45 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         config: ResolvedConfig
     ) = ExecsnoopCollector(bridge, manager, resolver, registry, config, props.nodeName)
 
+    // --- Profiling ---
+
+    @Bean
+    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
+    fun cpuProfileCollector(
+        bridge: BpfBridge,
+        manager: BpfProgramManager,
+        resolver: CgroupResolver
+    ) = CpuProfileCollector(bridge, manager, resolver, props.profiling.cpu.stackDepth)
+
+    @Bean
+    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
+    fun kallsymsResolver(): KallsymsResolver = KallsymsResolver.fromFile()
+
+    @Bean
+    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
+    fun symbolResolver(kallsyms: KallsymsResolver) = SymbolResolver(kallsyms, props.profiling.symbolCacheMaxEntries)
+
+    @Bean
+    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
+    fun pyroscopePusher() = PyroscopePusher(
+        endpoint = props.profiling.pyroscope.endpoint,
+        tenantId = props.profiling.pyroscope.tenantId,
+        authToken = props.profiling.pyroscope.authToken,
+        sampleRate = props.profiling.cpu.frequency
+    )
+
+    @Bean
+    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
+    fun profilingPipeline(
+        cpuProfileCollector: CpuProfileCollector,
+        symbolResolver: SymbolResolver,
+        pusher: PyroscopePusher
+    ) = ProfilingPipeline(
+        cpuProfileCollector, symbolResolver, pusher, props.nodeName,
+        props.pollInterval * 1_000_000, // convert ms to nanos
+        props.profiling.cpu.frequency
+    )
+
     // --- Cgroup infrastructure beans ---
 
     @Bean
@@ -280,8 +329,10 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         manager: BpfProgramManager,
         cgroupResolver: CgroupResolver,
         bpfMapStatsCollector: BpfMapStatsCollector,
-        registry: MeterRegistry
+        registry: MeterRegistry,
+        profilingPipeline: Optional<ProfilingPipeline>
     ): MetricsCollectorService {
+        this.registryInstance = registry
         val service = MetricsCollectorService(
             cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
@@ -299,7 +350,9 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
             props.collectionTimeout,
             props.collectors,
             props.collectorIntervals,
-            props.pollInterval
+            props.pollInterval,
+            props.startupJitter,
+            profilingPipeline.orElse(null)
         )
         this.metricsCollectorServiceInstance = service
         return service
@@ -328,8 +381,43 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
     fun diagnosticsEndpoint(
         service: MetricsCollectorService,
         manager: Optional<BpfProgramManager>,
-        config: ResolvedConfig
-    ) = DiagnosticsEndpoint(service, manager.orElse(null), config)
+        config: ResolvedConfig,
+        registry: MeterRegistry
+    ) = DiagnosticsEndpoint(service, manager.orElse(null), config, registry)
+
+    // --- Analysis endpoints ---
+
+    @Bean
+    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
+    fun pyroscopeClient() = PyroscopeClient(
+        endpoint = props.profiling.pyroscope.endpoint,
+        tenantId = props.profiling.pyroscope.tenantId,
+        authToken = props.profiling.pyroscope.authToken,
+        renderPath = props.profiling.pyroscope.renderPath
+    )
+
+    @Bean
+    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
+    fun recommendService(
+        pyroscopeClient: PyroscopeClient,
+        kubernetesClient: KubernetesClient,
+        registry: MeterRegistry
+    ) = RecommendService(pyroscopeClient, kubernetesClient, registry)
+
+    @Bean
+    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
+    fun recommendEndpoint(recommendService: RecommendService) =
+        RecommendEndpoint(recommendService)
+
+    @Bean
+    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
+    fun anomalyService(pyroscopeClient: PyroscopeClient) =
+        AnomalyService(pyroscopeClient)
+
+    @Bean
+    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
+    fun anomalyEndpoint(anomalyService: AnomalyService) =
+        AnomalyEndpoint(anomalyService)
 
     @EventListener(ContextRefreshedEvent::class)
     fun onStartup() {
@@ -337,11 +425,40 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         val resolvedConfig = props.resolveProfile()
         CardinalityEstimator(resolvedConfig).estimateAndLog()
 
+        // Emit kpod_config_info gauge (value=1) with configuration labels for debugging
+        registryInstance?.let { reg ->
+            val bpfVariant = programManager?.let {
+                val btfPath = java.io.File("/sys/kernel/btf/vmlinux")
+                if (btfPath.exists()) "core" else "legacy"
+            } ?: "disabled"
+            val kernelVersion = try {
+                java.io.File("/proc/version").readText().split(" ").getOrElse(2) { "unknown" }
+            } catch (_: Exception) { "unknown" }
+
+            io.micrometer.core.instrument.Gauge.builder("kpod.config.info") { 1.0 }
+                .tags(
+                    "profile", props.profile,
+                    "poll_interval_ms", props.pollInterval.toString(),
+                    "bpf_variant", bpfVariant,
+                    "kernel", kernelVersion,
+                    "node", props.nodeName
+                )
+                .description("kpod-metrics configuration metadata")
+                .register(reg)
+        }
+
         programManager?.let {
             log.info("Loading BPF programs from {}", props.bpf.programDir)
             try {
                 it.loadAll()
                 log.info("BPF programs loaded successfully")
+                if (props.profiling.enabled && props.profiling.cpu.enabled) {
+                    try {
+                        it.loadCpuProfile(props.profiling.cpu.frequency)
+                    } catch (e: Exception) {
+                        log.warn("CPU profiling BPF program failed to load: {}", e.message)
+                    }
+                }
             } catch (e: Exception) {
                 log.warn("BPF program loading failed (kernel may not support tracing); cgroup collectors will still run: {}", e.message)
             }
