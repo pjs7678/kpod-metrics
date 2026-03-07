@@ -399,6 +399,15 @@ assert_metric_gt_zero \
     "kpod_dns_top_domains_total{pod=e2e-dns-worker} > 0" \
     "warn"
 
+# --- TCP Peer metrics ---
+info "Checking TCP peer metrics (warn-only on minikube)..."
+
+assert_metric_gt_zero_regex \
+    "kpod_net_tcp_peer_connections_total" \
+    "e2e-net" \
+    "kpod_net_tcp_peer_connections_total{pod=~e2e-net.*} > 0" \
+    "warn"
+
 # --- Cgroup metrics (must pass) ---
 info "Checking cgroup-based metrics..."
 

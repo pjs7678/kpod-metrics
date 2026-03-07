@@ -63,6 +63,7 @@ class BpfProgramManager(
         if (ext.softirqs) tryLoadProgram("softirqs")
         if (ext.execsnoop) tryLoadProgram("execsnoop")
         if (ext.dns) tryLoadProgram("dns")
+        if (ext.tcpPeer) tryLoadProgram("tcp_peer")
 
         loadedCount.set(loadedPrograms.size)
         failedCount.set(_failedPrograms.size)
