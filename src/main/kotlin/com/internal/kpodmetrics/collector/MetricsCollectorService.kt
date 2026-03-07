@@ -33,6 +33,7 @@ class MetricsCollectorService(
     private val hardirqsCollector: HardirqsCollector,
     private val softirqsCollector: SoftirqsCollector,
     private val execsnoopCollector: ExecsnoopCollector,
+    private val dnsCollector: DnsCollector,
     private val diskIOCollector: DiskIOCollector? = null,
     private val ifaceNetCollector: InterfaceNetworkCollector? = null,
     private val fsCollector: FilesystemCollector? = null,
@@ -76,6 +77,7 @@ class MetricsCollectorService(
         "hardirqs" to collectorIntervals.hardirqs,
         "softirqs" to collectorIntervals.softirqs,
         "execsnoop" to collectorIntervals.execsnoop,
+        "dns" to collectorIntervals.dns,
         "diskIO" to collectorIntervals.diskIO,
         "ifaceNet" to collectorIntervals.ifaceNet,
         "filesystem" to collectorIntervals.filesystem,
@@ -92,6 +94,7 @@ class MetricsCollectorService(
         "hardirqs" to collectorOverrides.hardirqs,
         "softirqs" to collectorOverrides.softirqs,
         "execsnoop" to collectorOverrides.execsnoop,
+        "dns" to collectorOverrides.dns,
         "diskIO" to collectorOverrides.diskIO,
         "ifaceNet" to collectorOverrides.ifaceNet,
         "filesystem" to collectorOverrides.filesystem,
@@ -170,6 +173,7 @@ class MetricsCollectorService(
             "hardirqs" to hardirqsCollector::collect,
             "softirqs" to softirqsCollector::collect,
             "execsnoop" to execsnoopCollector::collect,
+            "dns" to dnsCollector::collect,
             bpfMapStatsCollector?.let { "bpfMapStats" to it::collect }
         )
         val bpfCollectors = allBpfCollectors.filter { (name, _) ->
@@ -248,7 +252,7 @@ class MetricsCollectorService(
 
     fun getEnabledCollectorCount(): Int {
         val bpfCount = listOf("cpu", "network", "syscall", "biolatency", "cachestat",
-            "tcpdrop", "hardirqs", "softirqs", "execsnoop").count { isCollectorEnabled(it) }
+            "tcpdrop", "hardirqs", "softirqs", "execsnoop", "dns").count { isCollectorEnabled(it) }
         val cgroupCount = listOfNotNull(
             diskIOCollector?.let { "diskIO" },
             ifaceNetCollector?.let { "ifaceNet" },
@@ -299,7 +303,10 @@ class MetricsCollectorService(
             "hardirqs" to "irq_latency",
             "hardirqs" to "irq_count",
             "softirqs" to "softirq_latency",
-            "execsnoop" to "exec_stats"
+            "execsnoop" to "exec_stats",
+            "dns" to "dns_requests",
+            "dns" to "dns_latency",
+            "dns" to "dns_errors"
         )
 
         val key8 = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(cgroupId).array()
@@ -334,6 +341,28 @@ class MetricsCollectorService(
                 }
             } catch (_: Exception) {
                 // Ignore errors
+            }
+        }
+
+        // dns_domains has 40-byte keys, dns_inflight has 16-byte keys
+        if (programManager.isProgramLoaded("dns")) {
+            for ((mapName, keySize) in listOf("dns_domains" to 40, "dns_inflight" to 16)) {
+                try {
+                    val fd = programManager.getMapFd("dns", mapName)
+                    val keysToDelete = mutableListOf<ByteArray>()
+                    var prevKey: ByteArray? = null
+                    while (true) {
+                        val nextKey = bridge.mapGetNextKey(fd, prevKey, keySize) ?: break
+                        val keyCgroupId = ByteBuffer.wrap(nextKey).order(ByteOrder.LITTLE_ENDIAN).long
+                        if (keyCgroupId == cgroupId) {
+                            keysToDelete.add(nextKey)
+                        }
+                        prevKey = nextKey
+                    }
+                    for (k in keysToDelete) {
+                        bridge.mapDelete(fd, k)
+                    }
+                } catch (_: Exception) {}
             }
         }
     }
