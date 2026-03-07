@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.11.0] - 2026-03-07
+
+### Added
+- Grafana dashboard: p90 percentile lines for CPU runqueue, TCP RTT, syscall, and disk I/O latency panels
+- Grafana dashboard: p50/p90 queries added to syscall latency and block I/O latency panels
+- Helm `_helpers.tpl`: centralized label/selector templates replacing 13 hardcoded blocks
+- `.github/CODEOWNERS`: automatic reviewer assignment
+- Dependabot: docker ecosystem for base image update tracking
+
+### Changed
+- All dashboard latency panels now use pre-computed recording rules for efficient rendering
+- Dockerfile: added root requirement comment and `AS runtime` stage alias
+
 ## [1.10.0] - 2026-03-07
 
 ### Added
