@@ -1,5 +1,6 @@
 package com.internal.kpodmetrics.analysis
 
+import io.fabric8.kubernetes.api.model.Quantity
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.micrometer.core.instrument.MeterRegistry
 import org.slf4j.LoggerFactory
@@ -42,7 +43,7 @@ class RecommendService(
     }
 
     private fun queryCpuTimeline(app: String, namespace: String, from: Long, until: Long): List<Double> {
-        val query = "kpod.cpu{namespace=$namespace,app=$app}"
+        val query = "kpod.cpu{namespace=${escapeLabelValue(namespace)},app=${escapeLabelValue(app)}}"
         val response = pyroscopeClient.queryProfile(query, from, until)
         val timeline = response?.timeline ?: return emptyList()
         if (timeline.durationDelta <= 0) return emptyList()
@@ -52,7 +53,7 @@ class RecommendService(
     }
 
     private fun queryMemTimeline(app: String, namespace: String, from: Long, until: Long): List<Double> {
-        val query = "kpod.alloc{namespace=$namespace,app=$app}"
+        val query = "kpod.alloc{namespace=${escapeLabelValue(namespace)},app=${escapeLabelValue(app)}}"
         val response = pyroscopeClient.queryProfile(query, from, until)
         val timeline = response?.timeline ?: return emptyList()
         if (timeline.durationDelta <= 0) return emptyList()
@@ -207,7 +208,8 @@ class RecommendService(
             parts.add("limits.memory=${it.recommended.limit}")
         }
         val resourcePatch = parts.joinToString(",")
-        return "kubectl -n $namespace set resources deployment/$app -c $app --$resourcePatch"
+        // app/namespace are already validated as DNS labels by RecommendEndpoint.validateLabel
+        return "kubectl -n $namespace set resources deployment/$app --containers=$app --$resourcePatch"
     }
 
     private fun generateSummary(recs: List<ResourceRecommendation>): String {
@@ -220,28 +222,34 @@ class RecommendService(
         val APP_LABELS = listOf("app", "app.kubernetes.io/name", "app.kubernetes.io/component")
 
         internal fun parseMillicores(value: String): Long {
-            return when {
-                value.endsWith("m") -> value.removeSuffix("m").toLongOrNull() ?: 0
-                else -> (value.toDoubleOrNull()?.times(1000))?.toLong() ?: 0
+            return try {
+                val q = Quantity.parse(value)
+                // getNumericalAmount returns in base unit (cores), multiply by 1000 for millicores
+                q.getNumericalAmount().multiply(java.math.BigDecimal(1000)).toLong()
+            } catch (_: Exception) {
+                0L
             }
         }
 
         internal fun parseBytes(value: String): Long {
-            return when {
-                value.endsWith("Gi") -> (value.removeSuffix("Gi").toDoubleOrNull()?.times(1024 * 1024 * 1024))?.toLong() ?: 0
-                value.endsWith("Mi") -> (value.removeSuffix("Mi").toDoubleOrNull()?.times(1024 * 1024))?.toLong() ?: 0
-                value.endsWith("Ki") -> (value.removeSuffix("Ki").toDoubleOrNull()?.times(1024))?.toLong() ?: 0
-                else -> value.toLongOrNull() ?: 0
+            return try {
+                Quantity.getAmountInBytes(Quantity.parse(value)).toLong()
+            } catch (_: Exception) {
+                0L
             }
         }
 
         internal fun formatBytes(bytes: Long): String {
             return when {
-                bytes >= 1024 * 1024 * 1024 -> "${bytes / (1024 * 1024 * 1024)}Gi"
-                bytes >= 1024 * 1024 -> "${bytes / (1024 * 1024)}Mi"
-                bytes >= 1024 -> "${bytes / 1024}Ki"
-                else -> "${bytes}"
+                bytes >= 1024 * 1024 * 1024 && bytes % (1024 * 1024 * 1024) == 0L -> "${bytes / (1024 * 1024 * 1024)}Gi"
+                bytes >= 1024 * 1024 && bytes % (1024 * 1024) == 0L -> "${bytes / (1024 * 1024)}Mi"
+                bytes >= 1024 && bytes % 1024 == 0L -> "${bytes / 1024}Ki"
+                else -> "$bytes"
             }
+        }
+
+        internal fun escapeLabelValue(value: String): String {
+            return value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "")
         }
     }
 }

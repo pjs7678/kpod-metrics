@@ -29,10 +29,12 @@ class AnomalyService(
         val timelineSamples = mutableMapOf<String, List<Double>>()
 
         // Query Pyroscope profiles
+        val escNs = RecommendService.escapeLabelValue(namespace)
+        val escApp = RecommendService.escapeLabelValue(app)
         val profiles = mapOf(
-            "cpu" to "kpod.cpu{namespace=$namespace,app=$app}",
-            "alloc" to "kpod.alloc{namespace=$namespace,app=$app}",
-            "iowait" to "kpod.iowait{namespace=$namespace,app=$app}"
+            "cpu" to "kpod.cpu{namespace=$escNs,app=$escApp}",
+            "alloc" to "kpod.alloc{namespace=$escNs,app=$escApp}",
+            "iowait" to "kpod.iowait{namespace=$escNs,app=$escApp}"
         )
 
         for ((name, query) in profiles) {
