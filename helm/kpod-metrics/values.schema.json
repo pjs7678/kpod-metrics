@@ -308,7 +308,9 @@
             "diskIO": { "type": "boolean" },
             "ifaceNet": { "type": "boolean" },
             "filesystem": { "type": "boolean" },
-            "memory": { "type": "boolean" }
+            "memory": { "type": "boolean" },
+            "cpuProfile": { "type": "boolean" },
+            "bpfMapStats": { "type": "boolean" }
           }
         },
         "collectorIntervals": {

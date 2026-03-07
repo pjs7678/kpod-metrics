@@ -53,7 +53,7 @@ jobs:
 
       - name: Run E2E checks
         run: |
-          POD=$(kubectl get pods -l app=kpod-metrics -o jsonpath='{.items[0].metadata.name}')
+          POD=$(kubectl get pods -l app.kubernetes.io/name=kpod-metrics -o jsonpath='{.items[0].metadata.name}')
           echo "Pod: $POD"
 
           # Wait for first collection cycle
@@ -67,21 +67,46 @@ jobs:
           kubectl exec "$POD" -- curl -sf http://localhost:9090/actuator/prometheus | tee /tmp/metrics.txt
           echo ""
 
-          # Verify key metrics exist
-          for metric in kpod_cpu_context_switches_total kpod_collection_cycle_duration_seconds_count kpod_collector_duration_seconds_count; do
+          # Verify core metrics (always present)
+          FAIL=0
+          for metric in \
+            kpod_cpu_context_switches_total \
+            kpod_cpu_runqueue_latency_bucket \
+            kpod_net_tcp_connections_total \
+            kpod_net_tcp_retransmits_total \
+            kpod_disk_read_bytes_total \
+            kpod_fs_usage_bytes \
+            kpod_collection_cycle_duration_seconds_count \
+            kpod_collector_duration_seconds_count \
+            kpod_bpf_programs_loaded; do
             if grep -q "$metric" /tmp/metrics.txt; then
-              echo "PASS: $metric found"
+              echo "PASS: $metric"
             else
               echo "FAIL: $metric not found"
-              exit 1
+              FAIL=1
             fi
           done
 
+          # Verify health status
+          if python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if d['status']=='UP' else 1)" < /tmp/health.json; then
+            echo "PASS: health status UP"
+          else
+            echo "FAIL: health status not UP"
+            FAIL=1
+          fi
+
+          if [ "$FAIL" -eq 1 ]; then
+            echo "E2E checks failed"
+            exit 1
+          fi
           echo "All E2E checks passed"
 
       - name: Collect logs on failure
         if: failure()
         run: |
+          echo "=== Pod logs ==="
+          kubectl logs -l app.kubernetes.io/name=kpod-metrics --tail=200 || true
+          echo "=== DaemonSet describe ==="
           kubectl describe daemonset kpod-metrics || true
-          kubectl logs -l app=kpod-metrics --tail=100 || true
+          echo "=== Events ==="
           kubectl get events --sort-by='.lastTimestamp' || true
