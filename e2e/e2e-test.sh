@@ -201,7 +201,7 @@ info "=== Step 2: Deploy targeted workloads ==="
 kubectl apply -f "$SCRIPT_DIR/workloads.yaml"
 
 info "Waiting for e2e workload pods to be Running..."
-E2E_PODS="e2e-cpu-worker e2e-net-server e2e-net-client e2e-syscall-worker e2e-mem-worker"
+E2E_PODS="e2e-cpu-worker e2e-net-server e2e-net-client e2e-dns-worker e2e-syscall-worker e2e-mem-worker"
 WAITED=0
 while [ $WAITED -lt 60 ]; do
     ALL_RUNNING=true
@@ -365,6 +365,38 @@ assert_metric_gt_zero \
     "kpod_syscall_count_total" \
     "e2e-syscall-worker" \
     "kpod_syscall_count_total{pod=e2e-syscall-worker} > 0" \
+    "warn"
+
+# --- DNS metrics ---
+info "Checking DNS metrics (warn-only on minikube)..."
+
+assert_metric_gt_zero \
+    "kpod_dns_requests_total" \
+    "e2e-dns-worker" \
+    "kpod_dns_requests_total{pod=e2e-dns-worker} > 0" \
+    "warn"
+
+assert_metric_gt_zero \
+    "kpod_dns_latency_count" \
+    "e2e-dns-worker" \
+    "kpod_dns_latency_count{pod=e2e-dns-worker} > 0" \
+    "warn"
+
+# Check for NXDOMAIN errors (nonexistent.example.com should trigger rcode=3)
+DNS_ERR_MATCHES=$(echo "$PROM_RESPONSE" | grep -v '^#' | grep "kpod_dns_errors_total" | grep "e2e-dns-worker" || true)
+if [ -n "$DNS_ERR_MATCHES" ]; then
+    check_pass "kpod_dns_errors_total{pod=e2e-dns-worker} exists (NXDOMAIN expected)"
+else
+    check_warn "kpod_dns_errors_total{pod=e2e-dns-worker} — not found (eBPF may not be supported)"
+    WARNINGS=$((WARNINGS + 1))
+    TOTAL=$((TOTAL + 1))
+fi
+
+# Check top domains metric
+assert_metric_gt_zero \
+    "kpod_dns_top_domains_total" \
+    "e2e-dns-worker" \
+    "kpod_dns_top_domains_total{pod=e2e-dns-worker} > 0" \
     "warn"
 
 # --- Cgroup metrics (must pass) ---
