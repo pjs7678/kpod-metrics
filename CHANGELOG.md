@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.0] - 2026-03-07
+
+### Added
+- Unit tests for `AnomalyEndpoint` (4 tests: delegation, defaults, sensitivity validation)
+- Unit tests for `RecommendEndpoint` (8 tests: delegation, defaults, confidence clamping, time expression parsing, label validation)
+- README: OTLP Secret support documentation with `existingSecret` example
+- README: Analysis Endpoints section documenting `/actuator/kpodAnomaly` and `/actuator/kpodRecommend` with curl examples
+- Troubleshooting guide: OTLP export, analysis endpoints, NetworkPolicy sections
+- CONTRIBUTING.md: step for updating `values.schema.json` when modifying Helm values
+
+### Changed
+- README: updated test count (201 → 293), image tag (1.6.0 → 1.8.0)
+
 ## [1.7.0] - 2026-03-07
 
 ### Added

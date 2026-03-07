@@ -8,7 +8,8 @@ object TimeSeriesStats {
     fun percentile(sorted: List<Double>, pct: Double): Double {
         if (sorted.isEmpty()) return 0.0
         if (sorted.size == 1) return sorted[0]
-        val rank = (pct / 100.0) * (sorted.size - 1)
+        val clampedPct = pct.coerceIn(0.0, 100.0)
+        val rank = (clampedPct / 100.0) * (sorted.size - 1)
         val lower = rank.toInt()
         val upper = (lower + 1).coerceAtMost(sorted.size - 1)
         val frac = rank - lower

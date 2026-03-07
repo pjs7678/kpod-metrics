@@ -21,13 +21,23 @@ class RecommendEndpoint(
         val now = Instant.now().epochSecond
         val fromEpoch = parseTimeExpr(from ?: "now-30m", now)
         val untilEpoch = parseTimeExpr(until ?: "now", now)
-        val conf = confidence ?: 95
-        val ns = namespace ?: "default"
+        val conf = (confidence ?: 95).coerceIn(1, 100)
+        val ns = validateLabel(namespace ?: "default")
+        val validApp = validateLabel(app)
 
-        return recommendService.recommend(app, ns, fromEpoch, untilEpoch, conf)
+        return recommendService.recommend(validApp, ns, fromEpoch, untilEpoch, conf)
     }
 
     companion object {
+        private val LABEL_PATTERN = Regex("""^[a-zA-Z0-9]([a-zA-Z0-9._-]{0,61}[a-zA-Z0-9])?$""")
+
+        internal fun validateLabel(value: String): String {
+            require(value.isNotBlank() && LABEL_PATTERN.matches(value)) {
+                "Invalid label value: '$value'. Must be 1-63 alphanumeric chars, dashes, dots, or underscores."
+            }
+            return value
+        }
+
         internal fun parseTimeExpr(expr: String, nowEpoch: Long): Long {
             if (expr == "now") return nowEpoch
             val match = Regex("""^now-(\d+)([smhd])$""").matchEntire(expr)
@@ -43,8 +53,9 @@ class RecommendEndpoint(
                 }
                 return nowEpoch - seconds
             }
-            // Try as epoch seconds
-            return expr.toLongOrNull() ?: nowEpoch
+            val epoch = expr.toLongOrNull()
+            require(epoch != null) { "Invalid time expression: '$expr'. Use 'now', 'now-30m', or epoch seconds." }
+            return epoch
         }
     }
 }

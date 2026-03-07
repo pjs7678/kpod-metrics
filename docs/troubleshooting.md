@@ -137,3 +137,63 @@ kubectl logs ds/kpod-metrics | grep -E "CO-RE|legacy|BTF"
 | comprehensive | 100+ | 500m | 512Mi |
 
 These are starting points. Monitor `kpod_collection_cycle_duration_seconds` and adjust based on actual usage.
+
+## OTLP Export Not Working
+
+**Symptom:** Metrics are not reaching the OTLP collector.
+
+**Check OTLP configuration:**
+```bash
+kubectl logs ds/kpod-metrics | grep -i "otlp"
+```
+
+**Common causes:**
+
+| Cause | Fix |
+|-------|-----|
+| OTLP not enabled | Set `otlp.enabled: true` in Helm values |
+| Wrong endpoint | Verify `otlp.endpoint` URL and port (default: 4318 for HTTP, 4317 for gRPC) |
+| NetworkPolicy blocking egress | Enable `networkPolicy.enabled: true` with `otlp.enabled: true` — egress rules for ports 4317/4318 are auto-added |
+| Auth headers missing | Use `otlp.existingSecret` to reference a K8s Secret with API keys |
+
+## Analysis Endpoints Return Empty Data
+
+**Symptom:** `/actuator/kpodAnomaly` or `/actuator/kpodRecommend` return empty results.
+
+**Prerequisites:**
+- Pyroscope must be configured and reachable (`profiling.pyroscope.endpoint`)
+- Profiling must be enabled (`profiling.enabled: true`)
+- Target workload must be actively running and generating profiling data
+
+**Check connectivity:**
+```bash
+# Verify Pyroscope is reachable from kpod-metrics pod
+kubectl exec ds/kpod-metrics -- curl -s http://pyroscope:4040/ready
+
+# Check profiling logs
+kubectl logs ds/kpod-metrics | grep -i "pyroscope\|profil"
+```
+
+**Common causes:**
+
+| Cause | Fix |
+|-------|-----|
+| Pyroscope not deployed | Deploy Pyroscope (e.g., `helm install pyroscope grafana/pyroscope`) |
+| NetworkPolicy blocking Pyroscope | Egress to port 4040 is auto-added when `networkPolicy.enabled` + `profiling.enabled` |
+| Wrong app name | Use the exact `app` label value from the target pod |
+| Time range too short | Use at least `from=now-30m` for meaningful analysis |
+
+## NetworkPolicy Blocking Features
+
+**Symptom:** OTLP export or Pyroscope profiling stops working after enabling NetworkPolicy.
+
+kpod-metrics automatically adds egress rules for enabled features:
+
+| Feature | Egress Ports |
+|---------|-------------|
+| K8s API (always) | 443, 6443 |
+| DNS (always) | 53/UDP, 53/TCP |
+| OTLP (when `otlp.enabled`) | 4317, 4318 |
+| Pyroscope (when `profiling.enabled`) | 4040 |
+
+If your OTLP collector or Pyroscope server uses non-standard ports, add custom egress rules via `extraNetworkPolicyEgress` or disable the NetworkPolicy.

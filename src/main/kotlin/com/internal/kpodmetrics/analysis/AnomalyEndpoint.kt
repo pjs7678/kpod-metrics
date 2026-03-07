@@ -21,9 +21,21 @@ class AnomalyEndpoint(
         val now = Instant.now().epochSecond
         val fromEpoch = RecommendEndpoint.parseTimeExpr(from ?: "now-1h", now)
         val untilEpoch = RecommendEndpoint.parseTimeExpr(until ?: "now", now)
-        val sens = sensitivity ?: "medium"
-        val ns = namespace ?: "default"
+        val sens = validateSensitivity(sensitivity ?: "medium")
+        val ns = RecommendEndpoint.validateLabel(namespace ?: "default")
+        val validApp = RecommendEndpoint.validateLabel(app)
 
-        return anomalyService.detect(app, ns, fromEpoch, untilEpoch, sens)
+        return anomalyService.detect(validApp, ns, fromEpoch, untilEpoch, sens)
+    }
+
+    companion object {
+        private val VALID_SENSITIVITIES = setOf("low", "medium", "high")
+
+        internal fun validateSensitivity(value: String): String {
+            require(value in VALID_SENSITIVITIES) {
+                "Invalid sensitivity: '$value'. Must be one of: ${VALID_SENSITIVITIES.joinToString()}"
+            }
+            return value
+        }
     }
 }
