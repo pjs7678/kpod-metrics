@@ -162,7 +162,7 @@
       "type": "object",
       "description": "NetworkPolicy configuration",
       "properties": {
-        "enabled": { "type": "boolean", "description": "Enable NetworkPolicy (auto-adds OTLP/Pyroscope egress when those features are enabled)" }
+        "enabled": { "type": "boolean", "default": true, "description": "Enable NetworkPolicy (auto-adds OTLP/Pyroscope egress when those features are enabled)" }
       }
     },
     "grafana": {

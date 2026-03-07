@@ -5,11 +5,7 @@ import com.internal.kpodmetrics.bpf.BpfProgramManager
 import com.internal.kpodmetrics.bpf.CgroupResolver
 import com.internal.kpodmetrics.cgroup.CgroupPathResolver
 import com.internal.kpodmetrics.cgroup.CgroupReader
-import com.internal.kpodmetrics.cgroup.CgroupVersionDetector
 import com.internal.kpodmetrics.collector.*
-import com.internal.kpodmetrics.profiling.KallsymsResolver
-import com.internal.kpodmetrics.profiling.SymbolResolver
-import com.internal.kpodmetrics.profiling.PyroscopePusher
 import com.internal.kpodmetrics.profiling.ProfilingPipeline
 import com.internal.kpodmetrics.discovery.KubeletPodProvider
 import com.internal.kpodmetrics.discovery.PodCgroupMapper
@@ -19,11 +15,6 @@ import com.internal.kpodmetrics.health.CollectionHealthIndicator
 import com.internal.kpodmetrics.health.CollectorConfigHealthIndicator
 import com.internal.kpodmetrics.health.DiagnosticsEndpoint
 import com.internal.kpodmetrics.health.DiscoveryHealthIndicator
-import com.internal.kpodmetrics.analysis.AnomalyEndpoint
-import com.internal.kpodmetrics.analysis.AnomalyService
-import com.internal.kpodmetrics.analysis.PyroscopeClient
-import com.internal.kpodmetrics.analysis.RecommendEndpoint
-import com.internal.kpodmetrics.analysis.RecommendService
 import com.internal.kpodmetrics.k8s.PodWatcher
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientBuilder
@@ -80,9 +71,6 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
             registry.config().meterFilter(MeterFilter.commonTags(tags))
         }
     }
-
-    @Bean
-    fun cgroupResolver(): CgroupResolver = CgroupResolver()
 
     @Bean
     fun kubernetesClient(): KubernetesClient = KubernetesClientBuilder().build()
@@ -209,59 +197,6 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         config: ResolvedConfig
     ) = ExecsnoopCollector(bridge, manager, resolver, registry, config, props.nodeName)
 
-    // --- Profiling ---
-
-    @Bean
-    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
-    fun cpuProfileCollector(
-        bridge: BpfBridge,
-        manager: BpfProgramManager,
-        resolver: CgroupResolver
-    ) = CpuProfileCollector(bridge, manager, resolver, props.profiling.cpu.stackDepth)
-
-    @Bean
-    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
-    fun kallsymsResolver(): KallsymsResolver = KallsymsResolver.fromFile()
-
-    @Bean
-    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
-    fun symbolResolver(kallsyms: KallsymsResolver) = SymbolResolver(kallsyms, props.profiling.symbolCacheMaxEntries)
-
-    @Bean
-    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
-    fun pyroscopePusher() = PyroscopePusher(
-        endpoint = props.profiling.pyroscope.endpoint,
-        tenantId = props.profiling.pyroscope.tenantId,
-        authToken = props.profiling.pyroscope.authToken,
-        sampleRate = props.profiling.cpu.frequency
-    )
-
-    @Bean
-    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
-    fun profilingPipeline(
-        cpuProfileCollector: CpuProfileCollector,
-        symbolResolver: SymbolResolver,
-        pusher: PyroscopePusher
-    ) = ProfilingPipeline(
-        cpuProfileCollector, symbolResolver, pusher, props.nodeName,
-        props.pollInterval * 1_000_000, // convert ms to nanos
-        props.profiling.cpu.frequency
-    )
-
-    // --- Cgroup infrastructure beans ---
-
-    @Bean
-    fun cgroupVersionDetector(): CgroupVersionDetector =
-        CgroupVersionDetector(props.cgroup.root)
-
-    @Bean
-    fun cgroupReader(detector: CgroupVersionDetector): CgroupReader =
-        CgroupReader(detector.detect())
-
-    @Bean
-    fun cgroupPathResolver(detector: CgroupVersionDetector): CgroupPathResolver =
-        CgroupPathResolver(props.cgroup.root, detector.detect())
-
     @Bean
     fun podProvider(podWatcher: PodWatcher): PodProvider {
         if (props.discovery.mode == "kubelet") {
@@ -384,40 +319,6 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         config: ResolvedConfig,
         registry: MeterRegistry
     ) = DiagnosticsEndpoint(service, manager.orElse(null), config, registry)
-
-    // --- Analysis endpoints ---
-
-    @Bean
-    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
-    fun pyroscopeClient() = PyroscopeClient(
-        endpoint = props.profiling.pyroscope.endpoint,
-        tenantId = props.profiling.pyroscope.tenantId,
-        authToken = props.profiling.pyroscope.authToken,
-        renderPath = props.profiling.pyroscope.renderPath
-    )
-
-    @Bean
-    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
-    fun recommendService(
-        pyroscopeClient: PyroscopeClient,
-        kubernetesClient: KubernetesClient,
-        registry: MeterRegistry
-    ) = RecommendService(pyroscopeClient, kubernetesClient, registry)
-
-    @Bean
-    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
-    fun recommendEndpoint(recommendService: RecommendService) =
-        RecommendEndpoint(recommendService)
-
-    @Bean
-    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
-    fun anomalyService(pyroscopeClient: PyroscopeClient) =
-        AnomalyService(pyroscopeClient)
-
-    @Bean
-    @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
-    fun anomalyEndpoint(anomalyService: AnomalyService) =
-        AnomalyEndpoint(anomalyService)
 
     @EventListener(ContextRefreshedEvent::class)
     fun onStartup() {
