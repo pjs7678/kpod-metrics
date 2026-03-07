@@ -34,18 +34,23 @@ securityContext:
     type: RuntimeDefault
 ```
 
+### Why Root Is Required
+
+kpod-metrics runs as `uid 0` because eBPF program loading (`bpf()` syscall) and reading host paths (`/sys/fs/cgroup`, `/proc`) require root even when Linux capabilities are granted. Running as non-root is not supported.
+
 ### What kpod-metrics Accesses
 
 - **Read-only host paths:** `/sys/kernel/btf`, `/sys/fs/cgroup`, `/sys/kernel/tracing`, `/sys/kernel/debug`, `/proc`
+- **Writable paths:** `/tmp` (emptyDir, tmpfs, 64Mi limit) for JVM temporary files
 - **BPF subsystem:** Loads eBPF programs, creates BPF maps, reads BPF map data
 - **Kubernetes API:** List/watch pods on the local node (scoped by RBAC)
-- **No network egress** beyond Kubernetes API (no external calls, no data exfiltration)
+- **Optional network egress:** OTLP collector (4317/4318) and Pyroscope (4040) when enabled
 
 ### Network Policy
 
 Enable `networkPolicy.enabled: true` in Helm values to restrict network access. The policy allows:
 - **Ingress:** Port 9090 (Prometheus scraping)
-- **Egress:** DNS (53) and Kubernetes API (443/6443)
+- **Egress:** DNS (53), Kubernetes API (443/6443), plus OTLP and Pyroscope ports when those features are enabled
 
 ## Supported Versions
 

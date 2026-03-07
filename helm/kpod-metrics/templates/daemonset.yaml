@@ -105,6 +105,8 @@ spec:
               readOnly: true
             - name: config
               mountPath: /app/config
+            - name: tmp
+              mountPath: /tmp
           startupProbe:
             httpGet:
               path: /actuator/health/liveness
@@ -147,6 +149,10 @@ spec:
         - name: config
           configMap:
             name: {{ .Release.Name }}-config
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Mi
       nodeSelector:
         {{- toYaml .Values.nodeSelector | nindent 8 }}
       tolerations:
