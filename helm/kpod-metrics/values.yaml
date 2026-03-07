@@ -1,6 +1,6 @@
 image:
   repository: internal-registry/kpod-metrics
-  tag: "1.8.0"
+  tag: "1.9.0"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -50,6 +50,8 @@ affinity: {}
 
 topologySpreadConstraints: []
 
+# Root is required: eBPF program loading and reading /sys/fs/cgroup + /proc
+# host paths require uid 0 even with capabilities granted.
 podSecurityContext:
   runAsUser: 0
   runAsGroup: 0
