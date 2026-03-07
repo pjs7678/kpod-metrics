@@ -1,0 +1,110 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "title": "TCP Peer Connections (client)",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "bars", "stacking": { "mode": "normal" } },
+          "unit": "short"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (pod, remote_ip, remote_port, remote_pod, remote_service) (rate(kpod_net_tcp_peer_connections_total{namespace=~\"$namespace\", pod=~\"$pod\", direction=\"client\"}[$__rate_interval]))",
+          "legendFormat": "{{pod}} → {{remote_pod}}{{remote_service}}{{remote_ip}}:{{remote_port}}"
+        }
+      ]
+    },
+    {
+      "title": "TCP Peer Connections (server)",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "bars", "stacking": { "mode": "normal" } },
+          "unit": "short"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (pod, remote_ip, remote_port, remote_pod, remote_service) (rate(kpod_net_tcp_peer_connections_total{namespace=~\"$namespace\", pod=~\"$pod\", direction=\"server\"}[$__rate_interval]))",
+          "legendFormat": "{{pod}} ← {{remote_pod}}{{remote_service}}{{remote_ip}}:{{remote_port}}"
+        }
+      ]
+    },
+    {
+      "title": "TCP Peer RTT",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 9 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "drawStyle": "line" }
+        }
+      },
+      "targets": [
+        {
+          "expr": "kpod_net_tcp_peer_rtt_seconds{namespace=~\"$namespace\", pod=~\"$pod\"}",
+          "legendFormat": "{{pod}} → {{remote_ip}}:{{remote_port}}"
+        }
+      ]
+    },
+    {
+      "title": "Top Peers by Connection Count",
+      "type": "bargauge",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 9 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": { "unit": "short" }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient"
+      },
+      "targets": [
+        {
+          "expr": "topk(10, sum by (pod, remote_ip, remote_port, direction) (kpod_net_tcp_peer_connections_total{namespace=~\"$namespace\", pod=~\"$pod\"}))",
+          "legendFormat": "{{pod}} {{direction}} {{remote_ip}}:{{remote_port}}",
+          "instant": true
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["kpod-metrics", "tcp", "peer"],
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "query": "label_values(kpod_net_tcp_peer_connections_total, namespace)",
+        "multi": true,
+        "includeAll": true,
+        "current": { "text": "All", "value": "$__all" }
+      },
+      {
+        "name": "pod",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "query": "label_values(kpod_net_tcp_peer_connections_total{namespace=~\"$namespace\"}, pod)",
+        "multi": true,
+        "includeAll": true,
+        "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "kpod-metrics / TCP Peer Tracking",
+  "uid": "kpod-tcp-peer"
+}

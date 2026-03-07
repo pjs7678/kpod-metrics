@@ -130,6 +130,7 @@ config:
   #   hardirqs: 60000
   #   softirqs: 60000
   #   dns: 30000
+  #   tcpPeer: 30000
   # Per-collector overrides (null = use profile default, true/false = force)
   # collectors:
   #   cpu: true
@@ -146,6 +147,7 @@ config:
   #   filesystem: true
   #   dns: true
   #   dnsPorts: [53]
+  #   tcpPeer: true
 
 profiling:
   enabled: false

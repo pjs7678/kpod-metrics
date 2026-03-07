@@ -219,6 +219,21 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         config: ResolvedConfig
     ) = DnsCollector(bridge, manager, resolver, registry, config, props.nodeName)
 
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun podIpResolver(kubernetesClient: KubernetesClient) = PodIpResolver(kubernetesClient)
+
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun tcpPeerCollector(
+        bridge: BpfBridge,
+        manager: BpfProgramManager,
+        resolver: CgroupResolver,
+        registry: MeterRegistry,
+        config: ResolvedConfig,
+        podIpResolver: PodIpResolver
+    ) = TcpPeerCollector(bridge, manager, resolver, registry, config, props.nodeName, podIpResolver)
+
     // --- Profiling ---
 
     @Bean
@@ -331,6 +346,7 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         softirqsCollector: SoftirqsCollector,
         execsnoopCollector: ExecsnoopCollector,
         dnsCollector: DnsCollector,
+        tcpPeerCollector: TcpPeerCollector,
         diskIOCollector: Optional<DiskIOCollector>,
         ifaceNetCollector: Optional<InterfaceNetworkCollector>,
         fsCollector: Optional<FilesystemCollector>,
@@ -347,7 +363,7 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         val service = MetricsCollectorService(
             cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
-            tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector, dnsCollector,
+            tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector, dnsCollector, tcpPeerCollector,
             diskIOCollector.orElse(null),
             ifaceNetCollector.orElse(null),
             fsCollector.orElse(null),
