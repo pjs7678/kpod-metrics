@@ -32,4 +32,18 @@ spec:
           protocol: TCP
         - port: 6443
           protocol: TCP
+    {{- if .Values.otlp.enabled }}
+    # Allow OTLP metrics push
+    - ports:
+        - port: 4317
+          protocol: TCP
+        - port: 4318
+          protocol: TCP
+    {{- end }}
+    {{- if .Values.profiling.enabled }}
+    # Allow Pyroscope profile push
+    - ports:
+        - port: 4040
+          protocol: TCP
+    {{- end }}
 {{- end }}
