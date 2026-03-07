@@ -96,7 +96,7 @@ COPY kpod-metrics/src/ src/
 RUN gradle -PebpfDslPath=/kotlin-ebpf-dsl -Pkotlin.compiler.execution.strategy=in-process bootJar --no-daemon
 
 # Stage 5: Runtime (noble = Ubuntu 24.04, matches builder GLIBC)
-FROM eclipse-temurin:21-jre-noble
+FROM eclipse-temurin:21-jre-noble AS runtime
 
 COPY --from=bpf-builder /build/bpf/core/ /app/bpf/core/
 COPY --from=bpf-builder /build/bpf/legacy/ /app/bpf/legacy/

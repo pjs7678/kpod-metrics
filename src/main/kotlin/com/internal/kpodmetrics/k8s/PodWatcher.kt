@@ -36,6 +36,7 @@ class PodWatcher(
     private var onPodRemovedCallback: ((podName: String, namespace: String) -> Unit)? = null
     // Gauge stores for container restart counts: key = "namespace/pod/container"
     private val restartGauges = ConcurrentHashMap<String, AtomicLong>()
+    private val containerCgroupCache = ConcurrentHashMap<String, Long>()
 
     override fun getDiscoveredPods(): Map<String, DiscoveredPod> =
         discoveredPods.toMap()
@@ -90,6 +91,10 @@ class PodWatcher(
                                 "Pod deleted: {}/{}", pod.metadata.namespace, pod.metadata.name
                             )
                             pod.metadata?.let { meta ->
+                                // Clear cgroup cache for this pod's containers
+                                pod.status?.containerStatuses?.forEach { cs ->
+                                    cs.containerID?.substringAfterLast("://")?.let { containerCgroupCache.remove(it) }
+                                }
                                 meta.uid?.let { uid ->
                                     discoveredPods.remove(uid)
                                     podCgroupIds.remove(uid)?.forEach { cgroupId ->
@@ -171,6 +176,8 @@ class PodWatcher(
         val containerId = podInfo.containerId
         if (containerId.isBlank()) return null
 
+        containerCgroupCache[containerId]?.let { return it }
+
         // Try /host/proc first (mounted from host in DaemonSet), fall back to /proc
         val procDir = sequenceOf(Path.of("/host/proc"), Path.of("/proc"))
             .firstOrNull { Files.isDirectory(it) }
@@ -206,6 +213,7 @@ class PodWatcher(
                             "Resolved cgroup ID {} for container {} (pod {}/{})",
                             inode, containerId, podInfo.namespace, podInfo.podName
                         )
+                        containerCgroupCache[containerId] = inode
                         return inode
                     }
                 }
