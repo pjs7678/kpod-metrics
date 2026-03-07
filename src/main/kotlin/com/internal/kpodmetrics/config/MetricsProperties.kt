@@ -44,7 +44,7 @@ data class MetricsProperties(
                 ),
                 network = NetworkProperties(tcp = TcpProperties(enabled = true)),
                 syscall = SyscallProperties(enabled = false),
-                extended = ExtendedProperties(tcpdrop = true, execsnoop = true),
+                extended = ExtendedProperties(tcpdrop = true, execsnoop = true, dns = true),
                 cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = true, filesystem = true, memory = true)
             )
             "comprehensive" -> ResolvedConfig(
@@ -59,7 +59,8 @@ data class MetricsProperties(
                 ),
                 extended = ExtendedProperties(
                     biolatency = true, cachestat = true,
-                    tcpdrop = true, hardirqs = true, softirqs = true, execsnoop = true
+                    tcpdrop = true, hardirqs = true, softirqs = true, execsnoop = true,
+                    dns = true
                 ),
                 cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = true, filesystem = true, memory = true)
             )
@@ -149,7 +150,9 @@ data class ExtendedProperties(
     val tcpdrop: Boolean = false,
     val hardirqs: Boolean = false,
     val softirqs: Boolean = false,
-    val execsnoop: Boolean = false
+    val execsnoop: Boolean = false,
+    val dns: Boolean = false,
+    val dnsPorts: List<Int> = listOf(53)
 )
 
 data class CgroupCollectorProperties(
@@ -169,6 +172,7 @@ data class CollectorIntervals(
     val hardirqs: Long? = null,
     val softirqs: Long? = null,
     val execsnoop: Long? = null,
+    val dns: Long? = null,
     val diskIO: Long? = null,
     val ifaceNet: Long? = null,
     val filesystem: Long? = null,
@@ -205,6 +209,7 @@ data class CollectorOverrides(
     val hardirqs: Boolean? = null,
     val softirqs: Boolean? = null,
     val execsnoop: Boolean? = null,
+    val dns: Boolean? = null,
     val diskIO: Boolean? = null,
     val ifaceNet: Boolean? = null,
     val filesystem: Boolean? = null,
