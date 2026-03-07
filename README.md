@@ -378,7 +378,7 @@ Requires JDK 21 and kotlin-ebpf-dsl as a sibling directory:
 
 ```bash
 ./gradlew generateBpf  # Generate BPF C code + Kotlin MapReader classes
-./gradlew build         # Compile + test (201 tests)
+./gradlew build         # Compile + test (293 tests)
 ./gradlew bootJar       # Build executable JAR
 ```
 
@@ -421,7 +421,7 @@ val cgroupId = MemMapReader.CounterKeyLayout.decodeCgroupId(keyBytes)
 ### Unit Tests
 
 ```bash
-./gradlew test  # 140 tests
+./gradlew test  # 293 tests
 ```
 
 ### Integration Test (minikube)
@@ -515,7 +515,7 @@ kpod-metrics/
 │   │       ├── discovery/      # PodProvider, PodCgroupMapper
 │   │       ├── k8s/            # PodWatcher (K8s informer)
 │   │       └── model/          # DTOs
-│   └── test/kotlin/            # 201 unit tests
+│   └── test/kotlin/            # 293 unit tests
 ├── grafana/
 │   └── kpod-metrics-dashboard.json  # Standalone Grafana dashboard (importable via UI)
 ├── helm/kpod-metrics/          # Helm chart (DaemonSet, RBAC, ConfigMap)

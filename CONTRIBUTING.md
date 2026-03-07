@@ -44,8 +44,9 @@ docker build -f kpod-metrics/Dockerfile -t kpod-metrics .
 2. Make your changes with tests
 3. Run `./gradlew test detekt` to verify
 4. Run `helm lint helm/kpod-metrics` if modifying Helm templates
-5. Push and open a PR against `main`
-6. CI must pass (unit tests, detekt, Helm lint)
+5. If adding new Helm values: update `helm/kpod-metrics/values.schema.json` with the property definition and run `helm lint` to validate schema enforcement
+6. Push and open a PR against `main`
+7. CI must pass (unit tests, detekt, Helm lint)
 
 ## Code Style
 
