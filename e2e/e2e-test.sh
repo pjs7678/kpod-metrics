@@ -150,6 +150,7 @@ if ! $SKIP_DEPLOY; then
         --set image.tag="$IMAGE_TAG" \
         --set image.pullPolicy=Never \
         --set securityContext.privileged=true \
+        --set securityContext.allowPrivilegeEscalation=true \
         --set config.profile=comprehensive \
         --set config.pollInterval=10000 \
         --set resources.limits.memory=512Mi \
