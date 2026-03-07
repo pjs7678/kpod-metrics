@@ -218,6 +218,27 @@ JNIEXPORT void JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeMapDele
     (*env)->ReleaseByteArrayElements(env, key, keyBuf, JNI_ABORT);
 }
 
+JNIEXPORT void JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeMapUpdate(
+    JNIEnv *env, jobject obj, jint mapFd, jbyteArray key, jbyteArray value, jlong flags) {
+    (void)obj;
+    jbyte *keyBuf = (*env)->GetByteArrayElements(env, key, NULL);
+    jbyte *valBuf = (*env)->GetByteArrayElements(env, value, NULL);
+    if (!keyBuf || !valBuf) {
+        if (keyBuf) (*env)->ReleaseByteArrayElements(env, key, keyBuf, JNI_ABORT);
+        if (valBuf) (*env)->ReleaseByteArrayElements(env, value, valBuf, JNI_ABORT);
+        throw_map_exception(env, "Failed to get byte array elements");
+        return;
+    }
+    int err = bpf_map_update_elem(mapFd, keyBuf, valBuf, (unsigned long long)flags);
+    (*env)->ReleaseByteArrayElements(env, key, keyBuf, JNI_ABORT);
+    (*env)->ReleaseByteArrayElements(env, value, valBuf, JNI_ABORT);
+    if (err) {
+        char msg[128];
+        snprintf(msg, sizeof(msg), "bpf_map_update_elem failed: %d", err);
+        throw_map_exception(env, msg);
+    }
+}
+
 /*
  * Batch lookup-and-delete: reads up to maxBatch entries from a BPF map,
  * copies keys and values into the caller-provided byte arrays, and deletes
