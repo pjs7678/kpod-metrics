@@ -4,8 +4,7 @@ kind: ServiceMonitor
 metadata:
   name: {{ .Release.Name }}
   labels:
-    app.kubernetes.io/name: kpod-metrics
-    app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- include "kpod-metrics.labels" . | nindent 4 }}
     {{- with .Values.serviceMonitor.labels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -16,8 +15,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: kpod-metrics
-      app.kubernetes.io/instance: {{ .Release.Name }}
+      {{- include "kpod-metrics.selectorLabels" . | nindent 6 }}
   endpoints:
     - port: metrics
       path: /actuator/prometheus
