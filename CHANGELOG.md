@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.0] - 2026-03-07
+
+### Added
+- OTLP Secret support: `otlp.existingSecret` references a K8s Secret for OTLP headers instead of plaintext ConfigMap
+- Pyroscope Secret support: `profiling.pyroscope.existingSecret` references a Secret for auth tokens
+- NetworkPolicy conditional egress: OTLP (4317/4318) and Pyroscope (4040) egress rules auto-added when features are enabled
+- `values.schema.json` for Helm chart validation, IDE autocomplete, and `helm lint` enforcement
+  - Validates profile enum, interval minimums, URI formats, and required fields
+
+### Fixed
+- `config.pollInterval` default mismatch: values.yaml now defaults to 30000ms (was 29000ms)
+
 ## [1.6.0] - 2026-03-01
 
 ### Added

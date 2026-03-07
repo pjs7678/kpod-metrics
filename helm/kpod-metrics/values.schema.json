@@ -1,0 +1,378 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "kpod-metrics Helm Values",
+  "description": "Configuration for the kpod-metrics eBPF pod-level kernel metrics DaemonSet",
+  "type": "object",
+  "properties": {
+    "image": {
+      "type": "object",
+      "description": "Container image configuration",
+      "properties": {
+        "repository": { "type": "string", "description": "Image repository" },
+        "tag": { "type": "string", "description": "Image tag" },
+        "pullPolicy": {
+          "type": "string",
+          "enum": ["Always", "IfNotPresent", "Never"],
+          "description": "Image pull policy"
+        }
+      },
+      "required": ["repository", "tag"]
+    },
+    "imagePullSecrets": {
+      "type": "array",
+      "description": "Image pull secrets for private registries",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" }
+        },
+        "required": ["name"]
+      }
+    },
+    "priorityClassName": {
+      "type": "string",
+      "description": "PriorityClass name (e.g., system-node-critical)"
+    },
+    "resources": {
+      "type": "object",
+      "description": "Container resource requests and limits",
+      "properties": {
+        "requests": {
+          "type": "object",
+          "properties": {
+            "cpu": { "type": "string" },
+            "memory": { "type": "string" }
+          }
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "cpu": { "type": "string" },
+            "memory": { "type": "string" }
+          }
+        }
+      }
+    },
+    "updateStrategy": {
+      "type": "object",
+      "description": "DaemonSet rolling update strategy",
+      "properties": {
+        "maxUnavailable": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Max pods unavailable during rolling update"
+        }
+      }
+    },
+    "extraEnv": {
+      "type": "array",
+      "description": "Additional environment variables (e.g., JAVA_OPTS)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "value": { "type": "string" }
+        },
+        "required": ["name"]
+      }
+    },
+    "probes": {
+      "type": "object",
+      "description": "Health probe configuration",
+      "properties": {
+        "startup": {
+          "type": "object",
+          "properties": {
+            "periodSeconds": { "type": "integer", "minimum": 1 },
+            "failureThreshold": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "liveness": {
+          "type": "object",
+          "properties": {
+            "initialDelaySeconds": { "type": "integer", "minimum": 0 },
+            "periodSeconds": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "readiness": {
+          "type": "object",
+          "properties": {
+            "initialDelaySeconds": { "type": "integer", "minimum": 0 },
+            "periodSeconds": { "type": "integer", "minimum": 1 }
+          }
+        }
+      }
+    },
+    "podAnnotations": {
+      "type": "object",
+      "description": "Annotations added to DaemonSet pods",
+      "additionalProperties": { "type": "string" }
+    },
+    "nodeSelector": {
+      "type": "object",
+      "description": "Node selector for pod scheduling",
+      "additionalProperties": { "type": "string" }
+    },
+    "tolerations": {
+      "type": "array",
+      "description": "Tolerations for pod scheduling",
+      "items": { "type": "object" }
+    },
+    "affinity": {
+      "type": "object",
+      "description": "Affinity rules for pod scheduling"
+    },
+    "topologySpreadConstraints": {
+      "type": "array",
+      "description": "Topology spread constraints",
+      "items": { "type": "object" }
+    },
+    "podSecurityContext": {
+      "type": "object",
+      "description": "Pod-level security context",
+      "properties": {
+        "runAsUser": { "type": "integer" },
+        "runAsGroup": { "type": "integer" },
+        "fsGroup": { "type": "integer" }
+      }
+    },
+    "securityContext": {
+      "type": "object",
+      "description": "Container-level security context",
+      "properties": {
+        "privileged": { "type": "boolean", "description": "Run in privileged mode (use for kind/minikube)" },
+        "allowPrivilegeEscalation": { "type": "boolean" },
+        "seccompProfile": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "enum": ["RuntimeDefault", "Unconfined", "Localhost"] }
+          }
+        }
+      }
+    },
+    "pdb": {
+      "type": "object",
+      "description": "PodDisruptionBudget configuration",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "maxUnavailable": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "networkPolicy": {
+      "type": "object",
+      "description": "NetworkPolicy configuration",
+      "properties": {
+        "enabled": { "type": "boolean", "description": "Enable NetworkPolicy (auto-adds OTLP/Pyroscope egress when those features are enabled)" }
+      }
+    },
+    "grafana": {
+      "type": "object",
+      "description": "Grafana dashboard ConfigMap configuration",
+      "properties": {
+        "dashboard": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "description": "Create Grafana dashboard ConfigMap" },
+            "label": { "type": "string", "description": "Grafana sidecar label value" },
+            "annotations": { "type": "object", "additionalProperties": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "serviceMonitor": {
+      "type": "object",
+      "description": "Prometheus Operator ServiceMonitor",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "interval": { "type": "string", "pattern": "^[0-9]+[smh]$" },
+        "scrapeTimeout": { "type": "string", "pattern": "^[0-9]+[smh]$" },
+        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "prometheusRule": {
+      "type": "object",
+      "description": "Prometheus Operator PrometheusRule",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "otlp": {
+      "type": "object",
+      "description": "OpenTelemetry metrics export configuration",
+      "properties": {
+        "enabled": { "type": "boolean", "description": "Enable OTLP metrics push" },
+        "endpoint": { "type": "string", "format": "uri", "description": "OTLP collector endpoint" },
+        "headers": {
+          "type": "object",
+          "description": "HTTP headers for OTLP push (use existingSecret for sensitive values)",
+          "additionalProperties": { "type": "string" }
+        },
+        "step": { "type": "integer", "minimum": 1000, "description": "Push interval in milliseconds" },
+        "existingSecret": {
+          "type": "string",
+          "description": "Name of existing Secret containing OTLP headers (recommended over plaintext)"
+        }
+      }
+    },
+    "config": {
+      "type": "object",
+      "description": "kpod-metrics application configuration",
+      "properties": {
+        "profile": {
+          "type": "string",
+          "enum": ["minimal", "standard", "comprehensive", "custom"],
+          "description": "Metrics collection profile"
+        },
+        "pollInterval": {
+          "type": "integer",
+          "minimum": 5000,
+          "description": "Collection interval in milliseconds"
+        },
+        "startupJitter": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Random startup delay variance in milliseconds"
+        },
+        "collectionTimeout": {
+          "type": "integer",
+          "minimum": 1000,
+          "description": "Collection cycle timeout in milliseconds"
+        },
+        "clusterName": {
+          "type": "string",
+          "description": "Cluster name label added to all metrics"
+        },
+        "discovery": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": ["informer", "kubelet"],
+              "description": "Pod discovery mode"
+            },
+            "kubeletPollInterval": {
+              "type": "integer",
+              "minimum": 5,
+              "description": "Kubelet polling interval in seconds (kubelet mode only)"
+            }
+          }
+        },
+        "cgroup": {
+          "type": "object",
+          "properties": {
+            "root": { "type": "string", "description": "Cgroup filesystem root path" },
+            "procRoot": { "type": "string", "description": "Proc filesystem root path" }
+          }
+        },
+        "filter": {
+          "type": "object",
+          "description": "Pod filtering configuration",
+          "properties": {
+            "namespaces": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Include only these namespaces (empty = all)"
+            },
+            "excludeNamespaces": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Exclude these namespaces"
+            },
+            "labelSelector": {
+              "type": "string",
+              "description": "Label selector filter (e.g., app=nginx,env!=test)"
+            },
+            "includeLabels": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Pod labels to propagate as metric tags"
+            }
+          }
+        },
+        "collectors": {
+          "type": "object",
+          "description": "Per-collector enable/disable overrides",
+          "properties": {
+            "cpu": { "type": "boolean" },
+            "network": { "type": "boolean" },
+            "syscall": { "type": "boolean" },
+            "biolatency": { "type": "boolean" },
+            "cachestat": { "type": "boolean" },
+            "tcpdrop": { "type": "boolean" },
+            "hardirqs": { "type": "boolean" },
+            "softirqs": { "type": "boolean" },
+            "execsnoop": { "type": "boolean" },
+            "diskIO": { "type": "boolean" },
+            "ifaceNet": { "type": "boolean" },
+            "filesystem": { "type": "boolean" },
+            "memory": { "type": "boolean" }
+          }
+        },
+        "collectorIntervals": {
+          "type": "object",
+          "description": "Per-collector intervals in ms (null = same as pollInterval)",
+          "properties": {
+            "cpu": { "type": "integer", "minimum": 5000 },
+            "network": { "type": "integer", "minimum": 5000 },
+            "syscall": { "type": "integer", "minimum": 5000 },
+            "biolatency": { "type": "integer", "minimum": 5000 },
+            "cachestat": { "type": "integer", "minimum": 5000 },
+            "tcpdrop": { "type": "integer", "minimum": 5000 },
+            "hardirqs": { "type": "integer", "minimum": 5000 },
+            "softirqs": { "type": "integer", "minimum": 5000 },
+            "execsnoop": { "type": "integer", "minimum": 5000 },
+            "diskIO": { "type": "integer", "minimum": 5000 },
+            "ifaceNet": { "type": "integer", "minimum": 5000 },
+            "filesystem": { "type": "integer", "minimum": 5000 },
+            "memory": { "type": "integer", "minimum": 5000 }
+          }
+        }
+      }
+    },
+    "profiling": {
+      "type": "object",
+      "description": "eBPF CPU profiling with Pyroscope export",
+      "properties": {
+        "enabled": { "type": "boolean", "description": "Enable CPU profiling" },
+        "cpu": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "frequency": { "type": "integer", "minimum": 1, "maximum": 1000, "description": "Sampling frequency in Hz" },
+            "stackDepth": { "type": "integer", "minimum": 1, "maximum": 512, "description": "Maximum stack depth" }
+          }
+        },
+        "pyroscope": {
+          "type": "object",
+          "properties": {
+            "endpoint": { "type": "string", "format": "uri", "description": "Pyroscope server endpoint" },
+            "tenantId": { "type": "string", "description": "Multi-tenant ID" },
+            "authToken": { "type": "string", "description": "Auth token (use existingSecret instead)" },
+            "existingSecret": { "type": "string", "description": "Secret name containing auth-token key" }
+          }
+        },
+        "symbolCacheMaxEntries": {
+          "type": "integer",
+          "minimum": 1000,
+          "description": "Maximum entries in the symbol resolution cache"
+        }
+      }
+    },
+    "javaProfiling": {
+      "type": "object",
+      "description": "Reference configuration for Pyroscope Java agent sidecar (not used by kpod-metrics)",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "image": { "type": "string" },
+        "appName": { "type": "string" },
+        "pyroscopeEndpoint": { "type": "string", "format": "uri" },
+        "tenantId": { "type": "string" },
+        "authToken": { "type": "string" },
+        "extraJavaOpts": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,6 +1,6 @@
 image:
   repository: internal-registry/kpod-metrics
-  tag: "1.6.0"
+  tag: "1.7.0"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -94,10 +94,13 @@ otlp:
   headers: {}
   # api-key: "my-api-key"
   step: 60000
+  # Reference an existing Secret for OTLP headers (recommended over plaintext headers)
+  # The Secret should contain keys matching header names (e.g., api-key: <base64-encoded-value>)
+  existingSecret: ""
 
 config:
   profile: standard
-  pollInterval: 29000
+  pollInterval: 30000
   startupJitter: 5000
   collectionTimeout: 20000
   clusterName: ""
@@ -149,6 +152,9 @@ profiling:
     endpoint: "http://pyroscope:4040"
     tenantId: ""
     authToken: ""
+    # Reference an existing Secret for Pyroscope auth token (recommended over plaintext)
+    # The Secret should have a key named "auth-token"
+    existingSecret: ""
   symbolCacheMaxEntries: 50000
 
 # Java profiling via Pyroscope Java agent (sidecar injection for workloads)

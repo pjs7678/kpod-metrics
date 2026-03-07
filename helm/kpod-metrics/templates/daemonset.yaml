@@ -52,8 +52,21 @@ spec:
               value: {{ .Values.config.discovery.mode }}
             - name: SPRING_CONFIG_ADDITIONAL_LOCATION
               value: /app/config/
+            {{- if and .Values.profiling.enabled .Values.profiling.pyroscope.existingSecret }}
+            - name: KPOD_PROFILING_PYROSCOPE_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.profiling.pyroscope.existingSecret }}
+                  key: auth-token
+                  optional: true
+            {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- if and .Values.otlp.enabled .Values.otlp.existingSecret }}
+          envFrom:
+            - secretRef:
+                name: {{ .Values.otlp.existingSecret }}
             {{- end }}
           securityContext:
             privileged: {{ .Values.securityContext.privileged }}

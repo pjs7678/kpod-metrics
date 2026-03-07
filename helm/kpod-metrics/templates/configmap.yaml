@@ -56,7 +56,9 @@ data:
           {{- if .Values.profiling.pyroscope.tenantId }}
           tenant-id: {{ .Values.profiling.pyroscope.tenantId | quote }}
           {{- end }}
-          {{- if .Values.profiling.pyroscope.authToken }}
+          {{- if .Values.profiling.pyroscope.existingSecret }}
+          auth-token: ${KPOD_PROFILING_PYROSCOPE_AUTH_TOKEN:}
+          {{- else if .Values.profiling.pyroscope.authToken }}
           auth-token: {{ .Values.profiling.pyroscope.authToken | quote }}
           {{- end }}
         symbol-cache-max-entries: {{ .Values.profiling.symbolCacheMaxEntries }}
