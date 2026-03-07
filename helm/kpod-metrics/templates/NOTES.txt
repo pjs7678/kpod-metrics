@@ -33,7 +33,7 @@ Prometheus Operator:
 {{- end }}
 {{- if .Values.prometheusRule.enabled }}
 
-  PrometheusRule is enabled (16 alerts + 17 recording rules).
+  PrometheusRule is enabled (18 alerts + 17 recording rules).
   kubectl get prometheusrule {{ .Release.Name }}
 {{- end }}
 {{- if .Values.grafana.dashboard.enabled }}

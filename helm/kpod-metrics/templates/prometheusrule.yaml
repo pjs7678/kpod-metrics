@@ -223,4 +223,24 @@ spec:
           annotations:
             summary: "High skip rate for collector {{`{{ $labels.collector }}`}} on {{`{{ $labels.instance }}`}}"
             description: "Collector {{`{{ $labels.collector }}`}} is being skipped > 10% of cycles for 10 minutes. Consider increasing its interval or the base poll-interval."
+
+        - alert: KpodHighForkRate
+          expr: >-
+            sum by (pod, namespace) (rate(kpod_proc_forks_total[5m])) > 100
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High fork rate on {{`{{ $labels.pod }}`}}"
+            description: "Pod {{`{{ $labels.pod }}`}} in {{`{{ $labels.namespace }}`}} is forking > 100 processes/s for 5 minutes — possible fork bomb."
+
+        - alert: KpodHighExecRate
+          expr: >-
+            sum by (pod, namespace) (rate(kpod_proc_execs_total[5m])) > 50
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High exec rate on {{`{{ $labels.pod }}`}}"
+            description: "Pod {{`{{ $labels.pod }}`}} in {{`{{ $labels.namespace }}`}} is executing > 50 processes/s for 5 minutes — investigate abnormal process spawning."
 {{- end }}
