@@ -209,6 +209,16 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         config: ResolvedConfig
     ) = ExecsnoopCollector(bridge, manager, resolver, registry, config, props.nodeName)
 
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun dnsCollector(
+        bridge: BpfBridge,
+        manager: BpfProgramManager,
+        resolver: CgroupResolver,
+        registry: MeterRegistry,
+        config: ResolvedConfig
+    ) = DnsCollector(bridge, manager, resolver, registry, config, props.nodeName)
+
     // --- Profiling ---
 
     @Bean
@@ -320,6 +330,7 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         hardirqsCollector: HardirqsCollector,
         softirqsCollector: SoftirqsCollector,
         execsnoopCollector: ExecsnoopCollector,
+        dnsCollector: DnsCollector,
         diskIOCollector: Optional<DiskIOCollector>,
         ifaceNetCollector: Optional<InterfaceNetworkCollector>,
         fsCollector: Optional<FilesystemCollector>,
@@ -336,7 +347,7 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         val service = MetricsCollectorService(
             cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
-            tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
+            tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector, dnsCollector,
             diskIOCollector.orElse(null),
             ifaceNetCollector.orElse(null),
             fsCollector.orElse(null),
@@ -452,6 +463,13 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
             try {
                 it.loadAll()
                 log.info("BPF programs loaded successfully")
+
+                // Configure DNS port filter
+                val resolvedCfg = props.resolveProfile()
+                if (resolvedCfg.extended.dns) {
+                    it.configureDnsPorts(resolvedCfg.extended.dnsPorts)
+                }
+
                 if (props.profiling.enabled && props.profiling.cpu.enabled) {
                     try {
                         it.loadCpuProfile(props.profiling.cpu.frequency)

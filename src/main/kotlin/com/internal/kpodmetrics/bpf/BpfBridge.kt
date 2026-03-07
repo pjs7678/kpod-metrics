@@ -39,6 +39,9 @@ class BpfBridge {
 
     private external fun nativeMapDelete(mapFd: Int, key: ByteArray)
 
+    @Throws(BpfMapException::class)
+    private external fun nativeMapUpdate(mapFd: Int, key: ByteArray, value: ByteArray, flags: Long)
+
     private external fun nativeGetNumPossibleCpus(): Int
 
     private external fun nativeMapBatchLookupAndDelete(
@@ -87,6 +90,10 @@ class BpfBridge {
 
     fun mapDelete(mapFd: Int, key: ByteArray) {
         nativeMapDelete(mapFd, key)
+    }
+
+    fun mapUpdate(mapFd: Int, key: ByteArray, value: ByteArray, flags: Long = 0L) {
+        nativeMapUpdate(mapFd, key, value, flags)
     }
 
     fun getNumPossibleCpus(): Int = nativeGetNumPossibleCpus()

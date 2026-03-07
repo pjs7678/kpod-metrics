@@ -115,6 +115,41 @@ spec:
           cpu: 100m
           memory: 32Mi
 ---
+# 2d. DNS worker — generates DNS queries by resolving names in a loop.
+#     Generates kpod_dns_requests, kpod_dns_latency, kpod_dns_top_domains metrics.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: e2e-dns-worker
+  namespace: e2e-test
+  labels:
+    app: e2e-test
+    workload: dns
+spec:
+  restartPolicy: Always
+  terminationGracePeriodSeconds: 1
+  containers:
+    - name: dns
+      image: alpine:latest
+      command:
+        - /bin/sh
+        - -c
+        - |
+          # Resolve various names in a loop to generate DNS traffic
+          while true; do
+            nslookup kubernetes.default.svc.cluster.local > /dev/null 2>&1 || true
+            nslookup e2e-net-server.e2e-test.svc.cluster.local > /dev/null 2>&1 || true
+            nslookup nonexistent.example.com > /dev/null 2>&1 || true
+            sleep 1
+          done
+      resources:
+        requests:
+          cpu: 50m
+          memory: 16Mi
+        limits:
+          cpu: 100m
+          memory: 32Mi
+---
 # 3. Syscall worker — tight loop of read/write/openat/close via cat.
 #    Generates sys_enter/sys_exit events.
 apiVersion: v1
