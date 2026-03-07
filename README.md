@@ -250,7 +250,7 @@ prometheusRule:
   enabled: true
 ```
 
-This provisions 16 alerting rules including: high runqueue latency, TCP retransmits/drops, syscall error rate, filesystem full, BPF map health, container restart rate, crash loop detection, memory pressure, and collector skip rate. Plus 13 recording rules for precomputed p50/p99 aggregations.
+This provisions 16 alerting rules including: high runqueue latency, TCP retransmits/drops, syscall error rate, filesystem full, BPF map health, container restart rate, crash loop detection, memory pressure, and collector skip rate. Plus 17 recording rules for precomputed p50/p90/p99 aggregations.
 
 ### OTLP Export
 

@@ -20,11 +20,17 @@ spec:
         - record: kpod:cpu_runqueue_latency:p50
           expr: histogram_quantile(0.50, sum by (le, pod, namespace, node) (rate(kpod_cpu_runqueue_latency_bucket[5m])))
 
+        - record: kpod:cpu_runqueue_latency:p90
+          expr: histogram_quantile(0.90, sum by (le, pod, namespace, node) (rate(kpod_cpu_runqueue_latency_bucket[5m])))
+
         - record: kpod:cpu_runqueue_latency:p99
           expr: histogram_quantile(0.99, sum by (le, pod, namespace, node) (rate(kpod_cpu_runqueue_latency_bucket[5m])))
 
         - record: kpod:tcp_rtt:p50
           expr: histogram_quantile(0.50, sum by (le, pod, namespace, node) (rate(kpod_net_tcp_rtt_bucket[5m])))
+
+        - record: kpod:tcp_rtt:p90
+          expr: histogram_quantile(0.90, sum by (le, pod, namespace, node) (rate(kpod_net_tcp_rtt_bucket[5m])))
 
         - record: kpod:tcp_rtt:p99
           expr: histogram_quantile(0.99, sum by (le, pod, namespace, node) (rate(kpod_net_tcp_rtt_bucket[5m])))
@@ -32,11 +38,17 @@ spec:
         - record: kpod:syscall_latency:p50
           expr: histogram_quantile(0.50, sum by (le, pod, namespace, node) (rate(kpod_syscall_latency_bucket[5m])))
 
+        - record: kpod:syscall_latency:p90
+          expr: histogram_quantile(0.90, sum by (le, pod, namespace, node) (rate(kpod_syscall_latency_bucket[5m])))
+
         - record: kpod:syscall_latency:p99
           expr: histogram_quantile(0.99, sum by (le, pod, namespace, node) (rate(kpod_syscall_latency_bucket[5m])))
 
         - record: kpod:disk_io_latency:p50
           expr: histogram_quantile(0.50, sum by (le, pod, namespace, node) (rate(kpod_disk_io_latency_bucket[5m])))
+
+        - record: kpod:disk_io_latency:p90
+          expr: histogram_quantile(0.90, sum by (le, pod, namespace, node) (rate(kpod_disk_io_latency_bucket[5m])))
 
         - record: kpod:disk_io_latency:p99
           expr: histogram_quantile(0.99, sum by (le, pod, namespace, node) (rate(kpod_disk_io_latency_bucket[5m])))
