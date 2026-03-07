@@ -3,8 +3,7 @@ kind: Pod
 metadata:
   name: "{{ .Release.Name }}-test-connection"
   labels:
-    app.kubernetes.io/name: kpod-metrics
-    app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- include "kpod-metrics.labels" . | nindent 4 }}
   annotations:
     "helm.sh/hook": test
 spec:

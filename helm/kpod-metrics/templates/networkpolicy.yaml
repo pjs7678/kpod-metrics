@@ -4,13 +4,11 @@ kind: NetworkPolicy
 metadata:
   name: {{ .Release.Name }}
   labels:
-    app.kubernetes.io/name: kpod-metrics
-    app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- include "kpod-metrics.labels" . | nindent 4 }}
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: kpod-metrics
-      app.kubernetes.io/instance: {{ .Release.Name }}
+      {{- include "kpod-metrics.selectorLabels" . | nindent 6 }}
   policyTypes:
     - Ingress
     - Egress
