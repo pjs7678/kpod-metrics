@@ -62,6 +62,7 @@ class BpfProgramManager(
         if (ext.hardirqs) tryLoadProgram("hardirqs")
         if (ext.softirqs) tryLoadProgram("softirqs")
         if (ext.execsnoop) tryLoadProgram("execsnoop")
+        if (ext.dns) tryLoadProgram("dns")
 
         loadedCount.set(loadedPrograms.size)
         failedCount.set(_failedPrograms.size)
@@ -128,4 +129,24 @@ class BpfProgramManager(
     }
 
     fun isProgramLoaded(name: String): Boolean = loadedPrograms.containsKey(name)
+
+    fun configureDnsPorts(ports: List<Int>) {
+        if (!isProgramLoaded("dns")) return
+        val mapFd = getMapFd("dns", "dns_ports")
+        for (port in ports) {
+            val keyBytes = java.nio.ByteBuffer.allocate(8)
+                .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                .putShort(port.toShort())
+                .putShort(0)  // _pad1
+                .putInt(0)    // _pad2
+                .array()
+            val valueBytes = java.nio.ByteBuffer.allocate(8)
+                .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                .put(1.toByte())  // enabled
+                .put(ByteArray(7))  // _pad
+                .array()
+            bridge.mapUpdate(mapFd, keyBytes, valueBytes)
+        }
+        log.info("DNS port filter configured: {}", ports)
+    }
 }
