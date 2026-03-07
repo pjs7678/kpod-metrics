@@ -37,4 +37,33 @@ jobs:
 
       - uses: azure/setup-helm@v4
 
-      - run: helm lint helm/kpod-metrics
+      - name: Strict lint
+        run: helm lint helm/kpod-metrics --strict
+
+      - name: Template — default values
+        run: helm template test helm/kpod-metrics > /dev/null
+
+      - name: Template — OTLP enabled
+        run: |
+          helm template test helm/kpod-metrics \
+            --set otlp.enabled=true \
+            --set otlp.endpoint=http://collector:4318/v1/metrics > /dev/null
+
+      - name: Template — profiling enabled
+        run: |
+          helm template test helm/kpod-metrics \
+            --set profiling.enabled=true \
+            --set profiling.pyroscope.endpoint=http://pyroscope:4040 > /dev/null
+
+      - name: Template — secrets enabled
+        run: |
+          helm template test helm/kpod-metrics \
+            --set otlp.enabled=true \
+            --set otlp.existingSecret=otlp-creds \
+            --set profiling.enabled=true \
+            --set profiling.pyroscope.existingSecret=pyroscope-creds > /dev/null
+
+      - name: Schema validation — reject invalid profile
+        run: |
+          ! helm template test helm/kpod-metrics \
+            --set config.profile=nonexistent 2>/dev/null
