@@ -98,7 +98,7 @@ RUN gradle -PebpfDslPath=/kotlin-ebpf-dsl -Pkotlin.compiler.execution.strategy=i
 # Stage 5: Runtime (noble = Ubuntu 24.04, matches builder GLIBC)
 # Runs as root (uid 0): eBPF program loading via bpf() syscall and reading
 # host paths (/sys/fs/cgroup, /proc) require root even with capabilities.
-FROM eclipse-temurin:21-jre-noble AS runtime
+FROM eclipse-temurin:25-jre-noble AS runtime
 
 COPY --from=bpf-builder /build/bpf/core/ /app/bpf/core/
 COPY --from=bpf-builder /build/bpf/legacy/ /app/bpf/legacy/
