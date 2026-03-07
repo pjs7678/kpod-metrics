@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.0] - 2026-03-07
+
+### Added
+- p90 recording rules for CPU runqueue latency, TCP RTT, syscall latency, and disk I/O latency (recording rules: 13 → 17)
+- `KpodHighForkRate` alert: fork bomb detection (> 100 forks/s for 5m)
+- `KpodHighExecRate` alert: abnormal process spawning (> 50 execs/s for 5m)
+- Schema: `cpuProfile` and `bpfMapStats` collector entries in `values.schema.json`
+
+### Fixed
+- NOTES.txt and README: corrected stale PrometheusRule alert/recording rule counts
+- README: updated image tag reference from 1.6.0 to 1.10.0
+- E2E workflow: fixed label selector `app=kpod-metrics` → `app.kubernetes.io/name=kpod-metrics`
+- E2E workflow: expanded metric validation from 3 to 9 metrics with health status check
+
 ## [1.9.0] - 2026-03-07
 
 ### Added
