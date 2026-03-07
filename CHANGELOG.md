@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.0] - 2026-03-07
+
+### Added
+- Helm test: second container verifies `/actuator/prometheus` returns kpod metrics
+- emptyDir `/tmp` volume (tmpfs, 64Mi) for JVM temporary files, enabling `readOnlyRootFilesystem`
+- SECURITY.md: "Why Root Is Required" section, writable paths, optional network egress documentation
+- Spring context tests: conditional bean verification for BPF, OTLP, and discovery health indicator (5 tests across 2 classes)
+- CI: strict Helm lint, template dry-runs (default/OTLP/profiling/secrets), schema validation
+
+### Changed
+- CI `helm-lint` job upgraded from basic `helm lint` to `--strict` mode with 5 additional validation steps
+
 ## [1.8.0] - 2026-03-07
 
 ### Added
