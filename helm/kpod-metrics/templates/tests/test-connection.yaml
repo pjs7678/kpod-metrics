@@ -9,8 +9,14 @@ metadata:
     "helm.sh/hook": test
 spec:
   containers:
-    - name: wget
+    - name: health-check
       image: busybox:1.36
       command: ['wget']
       args: ['--timeout=5', '-qO-', 'http://{{ .Release.Name }}-kpod-metrics:9090/actuator/health']
+    - name: metrics-check
+      image: busybox:1.36
+      command: ['sh', '-c']
+      args:
+        - |
+          wget --timeout=10 -qO- http://{{ .Release.Name }}-kpod-metrics:9090/actuator/prometheus | grep -q 'kpod_collection_cycle_duration' && echo "PASS: kpod metrics found" || { echo "FAIL: no kpod metrics"; exit 1; }
   restartPolicy: Never
