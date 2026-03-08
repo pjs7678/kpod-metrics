@@ -162,7 +162,7 @@ val netProgram = ebpf("net") {
         ifNonNull(hval) { he ->
             val slot = declareVar(
                 "slot",
-                raw("log2l(rtt_ns) >= MAX_SLOTS ? MAX_SLOTS - 1 : log2l(rtt_ns)", BpfScalar.U32)
+                histSlot(rttNs, 27)
             )
             he[HistValue.slots].at(slot).atomicAdd(literal(1u, BpfScalar.U64))
             he[HistValue.count].atomicAdd(literal(1u, BpfScalar.U64))
@@ -170,7 +170,7 @@ val netProgram = ebpf("net") {
         }.elseThen {
             val slot2 = declareVar(
                 "slot2",
-                raw("log2l(rtt_ns) >= MAX_SLOTS ? MAX_SLOTS - 1 : log2l(rtt_ns)", BpfScalar.U32)
+                histSlot(rttNs, 27)
             )
             val newHval = stackVar(HistValue) {
                 it[HistValue.count] = literal(1u, BpfScalar.U64)

@@ -13,7 +13,9 @@
 static __always_inline __u32 log2l(__u64 v)
 {
     __u32 r = 0;
-    while (v > 1) {
+    #pragma unroll
+    for (int i = 0; i < 64; i++) {
+        if (v <= 1) break;
         v >>= 1;
         r++;
     }
