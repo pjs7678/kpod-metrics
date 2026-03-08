@@ -19,3 +19,6 @@ jni/build/
 # Native
 *.so
 *.dylib
+
+# Worktrees
+.worktrees/

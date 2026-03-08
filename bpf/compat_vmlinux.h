@@ -28,6 +28,75 @@ typedef __u64 u64;
 typedef int __kernel_pid_t;
 typedef __kernel_pid_t pid_t;
 
+/* Signed types */
+typedef int __s32;
+typedef long long int __s64;
+typedef __s32 s32;
+typedef __s64 s64;
+
+/* Size types */
+typedef long unsigned int __kernel_size_t;
+typedef __kernel_size_t size_t;
+
+/* Network byte-order types */
+typedef __u16 __be16;
+typedef __u32 __be32;
+
+/* Forward declaration for cpu_profile.bpf.c (only used as opaque pointer) */
+struct bpf_perf_event_data;
+
+/* --- Socket structs (used by tcp_peer.bpf.c) ---
+ * Layout matches kernel 4.18-5.1 and is stable through 6.x.
+ * Three consecutive unions: addr (8B) + hash (4B) + port (4B). */
+
+struct sock_common {
+    union {
+        struct {
+            __be32 skc_daddr;      /* offset 0 */
+            __be32 skc_rcv_saddr;  /* offset 4 */
+        };
+    };
+    union {
+        __u32 skc_hash;            /* offset 8 */
+    };
+    union {
+        struct {
+            __be16 skc_dport;      /* offset 12 */
+            __u16 skc_num;         /* offset 14 */
+        };
+    };
+};
+
+struct sock {
+    struct sock_common __sk_common;
+};
+
+/* --- I/O vector structs (used by dns.bpf.c) ---
+ * iov_iter layout for kernel 4.18-5.1: int type (4B) + padding (4B) +
+ * iov_offset (8B) + count (8B) + __iov (8B) → __iov at offset 24.
+ * On 6.x kernels, __iov is at offset 16 (CO-RE handles this via BTF). */
+
+struct iovec {
+    void *iov_base;
+    __kernel_size_t iov_len;
+};
+
+struct iov_iter {
+    int type;
+    __kernel_size_t iov_offset;
+    __kernel_size_t count;
+    union {
+        const struct iovec *__iov;
+    };
+};
+
+struct msghdr {
+    void *msg_name;
+    int msg_namelen;
+    int _pad;
+    struct iov_iter msg_iter;
+};
+
 /* Tracepoint common header */
 struct trace_entry {
 	short unsigned int type;
@@ -79,6 +148,7 @@ struct trace_event_raw_inet_sock_set_state {
 
 struct trace_event_raw_tcp_probe {
 	struct trace_entry ent;
+	const void *skaddr;
 	__u8 saddr[28];
 	__u8 daddr[28];
 	__u16 sport;
