@@ -35,6 +35,7 @@ class MetricsCollectorService(
     private val execsnoopCollector: ExecsnoopCollector,
     private val dnsCollector: DnsCollector,
     private val tcpPeerCollector: TcpPeerCollector,
+    private val httpCollector: HttpCollector,
     private val diskIOCollector: DiskIOCollector? = null,
     private val ifaceNetCollector: InterfaceNetworkCollector? = null,
     private val fsCollector: FilesystemCollector? = null,
@@ -80,6 +81,7 @@ class MetricsCollectorService(
         "execsnoop" to collectorIntervals.execsnoop,
         "dns" to collectorIntervals.dns,
         "tcpPeer" to collectorIntervals.tcpPeer,
+        "http" to collectorIntervals.http,
         "diskIO" to collectorIntervals.diskIO,
         "ifaceNet" to collectorIntervals.ifaceNet,
         "filesystem" to collectorIntervals.filesystem,
@@ -98,6 +100,7 @@ class MetricsCollectorService(
         "execsnoop" to collectorOverrides.execsnoop,
         "dns" to collectorOverrides.dns,
         "tcpPeer" to collectorOverrides.tcpPeer,
+        "http" to collectorOverrides.http,
         "diskIO" to collectorOverrides.diskIO,
         "ifaceNet" to collectorOverrides.ifaceNet,
         "filesystem" to collectorOverrides.filesystem,
@@ -178,6 +181,7 @@ class MetricsCollectorService(
             "execsnoop" to execsnoopCollector::collect,
             "dns" to dnsCollector::collect,
             "tcpPeer" to tcpPeerCollector::collect,
+            "http" to httpCollector::collect,
             bpfMapStatsCollector?.let { "bpfMapStats" to it::collect }
         )
         val bpfCollectors = allBpfCollectors.filter { (name, _) ->
@@ -256,7 +260,7 @@ class MetricsCollectorService(
 
     fun getEnabledCollectorCount(): Int {
         val bpfCount = listOf("cpu", "network", "syscall", "biolatency", "cachestat",
-            "tcpdrop", "hardirqs", "softirqs", "execsnoop", "dns", "tcpPeer").count { isCollectorEnabled(it) }
+            "tcpdrop", "hardirqs", "softirqs", "execsnoop", "dns", "tcpPeer", "http").count { isCollectorEnabled(it) }
         val cgroupCount = listOfNotNull(
             diskIOCollector?.let { "diskIO" },
             ifaceNetCollector?.let { "ifaceNet" },

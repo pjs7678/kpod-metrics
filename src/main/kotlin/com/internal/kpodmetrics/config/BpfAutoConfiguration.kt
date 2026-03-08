@@ -234,6 +234,17 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         podIpResolver: PodIpResolver
     ) = TcpPeerCollector(bridge, manager, resolver, registry, config, props.nodeName, podIpResolver)
 
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun httpCollector(
+        bridge: BpfBridge,
+        manager: BpfProgramManager,
+        resolver: CgroupResolver,
+        registry: MeterRegistry,
+        config: ResolvedConfig,
+        podIpResolver: PodIpResolver
+    ) = HttpCollector(bridge, manager, resolver, registry, config, props.nodeName, podIpResolver)
+
     // --- Profiling ---
 
     @Bean
@@ -347,6 +358,7 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         execsnoopCollector: ExecsnoopCollector,
         dnsCollector: DnsCollector,
         tcpPeerCollector: TcpPeerCollector,
+        httpCollector: HttpCollector,
         diskIOCollector: Optional<DiskIOCollector>,
         ifaceNetCollector: Optional<InterfaceNetworkCollector>,
         fsCollector: Optional<FilesystemCollector>,
@@ -363,7 +375,7 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         val service = MetricsCollectorService(
             cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
-            tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector, dnsCollector, tcpPeerCollector,
+            tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector, dnsCollector, tcpPeerCollector, httpCollector,
             diskIOCollector.orElse(null),
             ifaceNetCollector.orElse(null),
             fsCollector.orElse(null),
@@ -484,6 +496,9 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
                 val resolvedCfg = props.resolveProfile()
                 if (resolvedCfg.extended.dns) {
                     it.configureDnsPorts(resolvedCfg.extended.dnsPorts)
+                }
+                if (resolvedCfg.extended.http) {
+                    it.configureHttpPorts(resolvedCfg.extended.httpPorts)
                 }
 
                 if (props.profiling.enabled && props.profiling.cpu.enabled) {
