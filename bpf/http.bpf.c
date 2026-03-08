@@ -4,7 +4,6 @@
 #include <bpf/bpf_tracing.h>
 
 #define MAX_PAYLOAD   128
-#define MAX_PATH_LEN  64
 #define HIST_SLOTS    27
 
 static __always_inline __u32 log2l(__u64 v)
@@ -19,7 +18,7 @@ static __always_inline __u32 log2l(__u64 v)
     return r;
 }
 
-/* ── HTTP method enum ────────────────────────────────────── */
+/* -- HTTP method enum ---------------------------------------- */
 
 #define METHOD_UNKNOWN 0
 #define METHOD_GET     1
@@ -29,12 +28,12 @@ static __always_inline __u32 log2l(__u64 v)
 #define METHOD_PATCH   5
 #define METHOD_HEAD    6
 
-/* ── Direction defines ───────────────────────────────────── */
+/* -- Direction defines --------------------------------------- */
 
 #define DIR_REQUEST_OUT 0   /* client sending request */
 #define DIR_REQUEST_IN  1   /* server receiving request */
 
-/* ── Map key/value structs ───────────────────────────────── */
+/* -- Map key/value structs ----------------------------------- */
 
 struct http_port_key {
     __u16 port;
@@ -73,15 +72,6 @@ struct hist_value {
     __u64 sum_ns;
 };
 
-struct http_path_key {
-    __u64 cgroup_id;
-    __u8  path[MAX_PATH_LEN];
-};
-
-struct counter_value {
-    __u64 count;
-};
-
 struct http_inflight_key {
     __u64 cgroup_id;
     __u64 sock_cookie;
@@ -102,7 +92,7 @@ struct recv_stash {
     __u64 sock_cookie;
 };
 
-/* ── Maps ────────────────────────────────────────────────── */
+/* -- Maps ---------------------------------------------------- */
 
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
@@ -127,13 +117,6 @@ struct {
 
 struct {
     __uint(type, BPF_MAP_TYPE_LRU_HASH);
-    __uint(max_entries, 1024);
-    __type(key, struct http_path_key);
-    __type(value, struct counter_value);
-} http_top_paths SEC(".maps");
-
-struct {
-    __uint(type, BPF_MAP_TYPE_LRU_HASH);
     __uint(max_entries, 8192);
     __type(key, struct http_inflight_key);
     __type(value, struct http_inflight_val);
@@ -146,39 +129,26 @@ struct {
     __type(value, struct recv_stash);
 } http_recv_stash SEC(".maps");
 
-/* ── Helpers ─────────────────────────────────────────────── */
+/* -- Helpers ------------------------------------------------- */
 
-static __always_inline void inc_counter(void *map, void *key)
-{
-    struct counter_value *val = bpf_map_lookup_elem(map, key);
-    if (val) {
-        __sync_fetch_and_add(&val->count, 1);
-    } else {
-        struct counter_value one = { .count = 1 };
-        bpf_map_update_elem(map, key, &one, BPF_NOEXIST);
-    }
-}
-
+/* Insert-then-relookup pattern avoids variable-offset stack access
+   (new_hist.slots[slot] = 1) which generates ptr |= offset. */
 static __always_inline void update_hist(void *map, void *key, __u64 val_ns)
 {
     struct hist_value *hist = bpf_map_lookup_elem(map, key);
-    if (hist) {
-        __u32 slot = log2l(val_ns);
-        if (slot >= HIST_SLOTS)
-            slot = HIST_SLOTS - 1;
-        __sync_fetch_and_add(&hist->slots[slot], 1);
-        __sync_fetch_and_add(&hist->count, 1);
-        __sync_fetch_and_add(&hist->sum_ns, val_ns);
-    } else {
+    if (!hist) {
         struct hist_value new_hist = {};
-        __u32 slot = log2l(val_ns);
-        if (slot >= HIST_SLOTS)
-            slot = HIST_SLOTS - 1;
-        new_hist.slots[slot] = 1;
-        new_hist.count = 1;
-        new_hist.sum_ns = val_ns;
         bpf_map_update_elem(map, key, &new_hist, BPF_NOEXIST);
+        hist = bpf_map_lookup_elem(map, key);
+        if (!hist)
+            return;
     }
+    __u32 slot = log2l(val_ns);
+    if (slot >= HIST_SLOTS)
+        slot = HIST_SLOTS - 1;
+    __sync_fetch_and_add(&hist->slots[slot], 1);
+    __sync_fetch_and_add(&hist->count, 1);
+    __sync_fetch_and_add(&hist->sum_ns, val_ns);
 }
 
 static __always_inline __u8 detect_method(const __u8 *buf, __u32 len)
@@ -217,7 +187,7 @@ static __always_inline __u16 detect_response(const __u8 *buf, __u32 len)
         buf[6] != '.')
         return 0;
 
-    /* "HTTP/1.X SSS" — status code at offset 9..11 */
+    /* "HTTP/1.X SSS" -- status code at offset 9..11 */
     if (buf[8] != ' ')
         return 0;
 
@@ -238,32 +208,32 @@ static __always_inline __u16 detect_response(const __u8 *buf, __u32 len)
     return code;
 }
 
-/* Extracts the path from a request line: "METHOD /path HTTP/1.x" */
-static __always_inline void extract_path(__u8 *dst, const __u8 *buf,
-                                         __u32 len, __u8 method)
+/* Read the first iov from msghdr, handling both ITER_IOVEC and ITER_UBUF.
+   On kernel 6.0+, simple sends use ITER_UBUF where iov_base/iov_len are
+   embedded directly in __ubuf_iovec (shares a union with __iov pointer).
+   Returns 0 on success, -1 on failure. */
+static __always_inline int read_first_iov(struct msghdr *msg, struct iovec *out)
 {
-    __u32 start = 0;
-    switch (method) {
-    case METHOD_GET:    start = 4; break;
-    case METHOD_POST:   start = 5; break;
-    case METHOD_PUT:    start = 4; break;
-    case METHOD_DELETE: start = 7; break;
-    case METHOD_PATCH:  start = 6; break;
-    case METHOD_HEAD:   start = 5; break;
-    default:            return;
+    __u8 iter_type;
+    if (bpf_probe_read(&iter_type, sizeof(iter_type), &msg->msg_iter.iter_type) < 0)
+        return -1;
+
+    if (iter_type == 0 /* ITER_UBUF */) {
+        /* iov_base and iov_len are embedded directly in the union */
+        if (bpf_probe_read(out, sizeof(*out), &msg->msg_iter.__ubuf_iovec) < 0)
+            return -1;
+        return 0;
     }
 
-    __u32 path_len = 0;
-    #pragma unroll
-    for (int i = 0; i < MAX_PATH_LEN; i++) {
-        __u32 off = start + i;
-        if (off >= len)
-            break;
-        if (buf[off] == ' ' || buf[off] == '?' || buf[off] == '\r')
-            break;
-        dst[i] = buf[off];
-        path_len++;
-    }
+    /* ITER_IOVEC: __iov is a pointer to an array of struct iovec */
+    struct iovec *msg_iov;
+    if (bpf_probe_read(&msg_iov, sizeof(msg_iov), &msg->msg_iter.__iov) < 0)
+        return -1;
+    if (!msg_iov)
+        return -1;
+    if (bpf_probe_read(out, sizeof(*out), msg_iov) < 0)
+        return -1;
+    return 0;
 }
 
 static __always_inline void read_sock_addr(struct sock *sk,
@@ -280,13 +250,24 @@ static __always_inline void read_sock_addr(struct sock *sk,
     *sport = sport_be;   /* skc_num is host order */
 }
 
-static __always_inline int is_http_port(__u16 port)
+static __always_inline int check_http_port(struct sock *sk)
 {
-    struct http_port_key pk = { .port = port };
-    return bpf_map_lookup_elem(&http_ports, &pk) != 0;
+    __u16 dport, sport;
+    read_sock_addr(sk, &dport, &sport);
+
+    struct http_port_key pk = { .port = dport };
+    if (bpf_map_lookup_elem(&http_ports, &pk))
+        return 1;
+
+    pk.port = sport;
+    __builtin_memset(&pk._pad1, 0, sizeof(pk._pad1) + sizeof(pk._pad2));
+    if (bpf_map_lookup_elem(&http_ports, &pk))
+        return 1;
+
+    return 0;
 }
 
-/* ── kprobe/tcp_sendmsg ──────────────────────────────────── */
+/* -- kprobe/tcp_sendmsg -------------------------------------- */
 
 SEC("kprobe/tcp_sendmsg")
 int http_send(struct pt_regs *ctx)
@@ -294,22 +275,12 @@ int http_send(struct pt_regs *ctx)
     struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
     struct msghdr *msg = (struct msghdr *)PT_REGS_PARM2(ctx);
 
-    __u16 dport, sport;
-    read_sock_addr(sk, &dport, &sport);
-
-    /* At least one side must be an HTTP port */
-    int dport_http = is_http_port(dport);
-    int sport_http = is_http_port(sport);
-    if (!dport_http && !sport_http)
+    if (!check_http_port(sk))
         return 0;
 
-    /* Read first iov */
-    struct iovec *msg_iov;
-    if (bpf_probe_read(&msg_iov, sizeof(msg_iov), &msg->msg_iter.__iov) < 0)
-        return 0;
-
+    /* Read first iov (handles ITER_UBUF and ITER_IOVEC) */
     struct iovec iov0;
-    if (bpf_probe_read(&iov0, sizeof(iov0), msg_iov) < 0)
+    if (read_first_iov(msg, &iov0) < 0)
         return 0;
 
     if (iov0.iov_len < 8)
@@ -320,11 +291,11 @@ int http_send(struct pt_regs *ctx)
     __u32 to_read = iov0.iov_len;
     if (to_read > MAX_PAYLOAD)
         to_read = MAX_PAYLOAD;
-    if (bpf_probe_read(buf, to_read, iov0.iov_base) < 0)
+    if (bpf_probe_read_user(buf, to_read, iov0.iov_base) < 0)
         return 0;
 
     __u64 cgroup_id = bpf_get_current_cgroup_id();
-    __u64 sock_cookie = bpf_get_socket_cookie(ctx);
+    __u64 sock_cookie = (__u64)sk;
 
     struct http_inflight_key inf_key = {
         .cgroup_id = cgroup_id,
@@ -334,10 +305,8 @@ int http_send(struct pt_regs *ctx)
     /* Try to detect HTTP request */
     __u8 method = detect_method(buf, to_read);
     if (method != METHOD_UNKNOWN) {
-        /* Sending a request = client outbound (DIR_REQUEST_OUT)
-           Sending a request on a server port = not typical, but
-           we use dport to decide: if dport is HTTP, we're the client. */
-        __u8 direction = dport_http ? DIR_REQUEST_OUT : DIR_REQUEST_IN;
+        /* Sending a request = this pod is the client */
+        __u8 direction = DIR_REQUEST_OUT;
 
         /* Record event */
         struct http_event_key ev_key = {
@@ -353,12 +322,6 @@ int http_send(struct pt_regs *ctx)
             struct http_event_val one = { .count = 1 };
             bpf_map_update_elem(&http_events, &ev_key, &one, BPF_NOEXIST);
         }
-
-        /* Extract and record path */
-        struct http_path_key path_key = { .cgroup_id = cgroup_id };
-        __builtin_memset(path_key.path, 0, MAX_PATH_LEN);
-        extract_path(path_key.path, buf, to_read, method);
-        inc_counter(&http_top_paths, &path_key);
 
         /* Create inflight entry for latency tracking */
         struct http_inflight_val inf_val = {
@@ -414,18 +377,14 @@ int http_send(struct pt_regs *ctx)
     return 0;
 }
 
-/* ── kprobe/tcp_recvmsg ──────────────────────────────────── */
+/* -- kprobe/tcp_recvmsg -------------------------------------- */
 
 SEC("kprobe/tcp_recvmsg")
 int http_recv_enter(struct pt_regs *ctx)
 {
     struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
 
-    __u16 dport, sport;
-    read_sock_addr(sk, &dport, &sport);
-
-    /* At least one side must be an HTTP port */
-    if (!is_http_port(dport) && !is_http_port(sport))
+    if (!check_http_port(sk))
         return 0;
 
     __u32 zero = 0;
@@ -436,12 +395,12 @@ int http_recv_enter(struct pt_regs *ctx)
     stash->sock_ptr = (__u64)sk;
     stash->msghdr_ptr = (__u64)PT_REGS_PARM2(ctx);
     stash->cgroup_id = bpf_get_current_cgroup_id();
-    stash->sock_cookie = bpf_get_socket_cookie(ctx);
+    stash->sock_cookie = (__u64)sk;
 
     return 0;
 }
 
-/* ── kretprobe/tcp_recvmsg ───────────────────────────────── */
+/* -- kretprobe/tcp_recvmsg ----------------------------------- */
 
 SEC("kretprobe/tcp_recvmsg")
 int http_recv_exit(struct pt_regs *ctx)
@@ -463,20 +422,19 @@ int http_recv_exit(struct pt_regs *ctx)
     if (!msg || !sk)
         return 0;
 
-    /* Determine ports for direction */
+    /* Determine ports for direction -- explicit if/else avoids
+       pointer OR from ternary on map lookup result */
     __u16 dport, sport;
     read_sock_addr(sk, &dport, &sport);
 
-    int dport_http = is_http_port(dport);
-    int sport_http = is_http_port(sport);
+    struct http_port_key pk = { .port = sport };
+    int sport_http = 0;
+    if (bpf_map_lookup_elem(&http_ports, &pk))
+        sport_http = 1;
 
-    /* Read first iov from msghdr */
-    struct iovec *msg_iov;
-    if (bpf_probe_read(&msg_iov, sizeof(msg_iov), &msg->msg_iter.__iov) < 0)
-        return 0;
-
+    /* Read first iov from msghdr (handles ITER_UBUF and ITER_IOVEC) */
     struct iovec iov0;
-    if (bpf_probe_read(&iov0, sizeof(iov0), msg_iov) < 0)
+    if (read_first_iov(msg, &iov0) < 0)
         return 0;
 
     __u8 buf[MAX_PAYLOAD];
@@ -495,7 +453,9 @@ int http_recv_exit(struct pt_regs *ctx)
     /* Try to detect HTTP request (server receiving = DIR_REQUEST_IN) */
     __u8 method = detect_method(buf, to_read);
     if (method != METHOD_UNKNOWN) {
-        __u8 direction = sport_http ? DIR_REQUEST_IN : DIR_REQUEST_OUT;
+        __u8 direction = DIR_REQUEST_OUT;
+        if (sport_http)
+            direction = DIR_REQUEST_IN;
 
         /* Record event */
         struct http_event_key ev_key = {
@@ -511,12 +471,6 @@ int http_recv_exit(struct pt_regs *ctx)
             struct http_event_val one = { .count = 1 };
             bpf_map_update_elem(&http_events, &ev_key, &one, BPF_NOEXIST);
         }
-
-        /* Extract and record path */
-        struct http_path_key path_key = { .cgroup_id = cgroup_id };
-        __builtin_memset(path_key.path, 0, MAX_PATH_LEN);
-        extract_path(path_key.path, buf, to_read, method);
-        inc_counter(&http_top_paths, &path_key);
 
         /* Create inflight entry for latency tracking */
         struct http_inflight_val inf_val = {
