@@ -8,8 +8,11 @@ set(JNI_INCLUDE_DIRS ${JNI_INCLUDE_DIR} ${JNI_PLATFORM_INCLUDE})
 
 find_path(LIBBPF_INCLUDE bpf/libbpf.h REQUIRED)
 
-# Prefer static libbpf to avoid glibc version mismatch across base images
-find_library(LIBBPF_STATIC libbpf.a PATHS /usr/lib/aarch64-linux-gnu /usr/lib/x86_64-linux-gnu /usr/lib)
+# Prefer static libbpf to avoid runtime dependency, but only if it's usable
+# (Ubuntu x86_64 ships libbpf.a without -fPIC, which can't link into a .so)
+if(NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+    find_library(LIBBPF_STATIC libbpf.a PATHS /usr/lib/aarch64-linux-gnu /usr/lib/x86_64-linux-gnu /usr/lib)
+endif()
 if(LIBBPF_STATIC)
     set(LIBBPF_LIB ${LIBBPF_STATIC})
 else()

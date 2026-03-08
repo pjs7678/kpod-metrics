@@ -84,7 +84,7 @@ int tcp_peer_connect(struct pt_regs *ctx)
     struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
 
     __u32 daddr;
-    if (bpf_probe_read_kernel(&daddr, sizeof(daddr),
+    if (bpf_probe_read(&daddr, sizeof(daddr),
                               &sk->__sk_common.skc_daddr) < 0)
         return 0;
 
@@ -93,7 +93,7 @@ int tcp_peer_connect(struct pt_regs *ctx)
         return 0;
 
     __u16 dport_be;
-    if (bpf_probe_read_kernel(&dport_be, sizeof(dport_be),
+    if (bpf_probe_read(&dport_be, sizeof(dport_be),
                               &sk->__sk_common.skc_dport) < 0)
         return 0;
     __u16 dport = __builtin_bswap16(dport_be);
@@ -121,7 +121,7 @@ int tcp_peer_accept(struct pt_regs *ctx)
         return 0;
 
     __u32 daddr;
-    if (bpf_probe_read_kernel(&daddr, sizeof(daddr),
+    if (bpf_probe_read(&daddr, sizeof(daddr),
                               &sk->__sk_common.skc_daddr) < 0)
         return 0;
 
@@ -130,7 +130,7 @@ int tcp_peer_accept(struct pt_regs *ctx)
         return 0;
 
     __u16 dport_be;
-    if (bpf_probe_read_kernel(&dport_be, sizeof(dport_be),
+    if (bpf_probe_read(&dport_be, sizeof(dport_be),
                               &sk->__sk_common.skc_dport) < 0)
         return 0;
     __u16 dport = __builtin_bswap16(dport_be);
@@ -165,19 +165,12 @@ int tcp_peer_rtt_probe(void *ctx)
 
     __u64 cgroup_id = bpf_get_current_cgroup_id();
 
-    /* Extract remote IP and port from tracepoint fields */
+    /* Extract remote IP and port from tracepoint fields.
+       daddr is a __u8[28] sockaddr storage; for IPv4, first 4 bytes
+       hold the 32-bit address in network byte order. */
     __u16 dport = tp->dport;
-
-    /* daddr is in saddr_v6 / daddr_v6 fields; for IPv4 use skc_daddr
-       from the sock pointer. The tracepoint exposes daddr_v6 but for
-       simplicity we read from the sock directly. */
-    __u64 sock_ptr = (__u64)tp->skaddr;
-    struct sock *sk = (struct sock *)sock_ptr;
-
     __u32 daddr;
-    if (bpf_probe_read_kernel(&daddr, sizeof(daddr),
-                              &sk->__sk_common.skc_daddr) < 0)
-        return 0;
+    bpf_probe_read_kernel(&daddr, sizeof(daddr), tp->daddr);
 
     if (daddr == 0 || daddr == LOOPBACK_IP4)
         return 0;

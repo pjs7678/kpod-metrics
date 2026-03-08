@@ -154,12 +154,12 @@ int dns_send(struct pt_regs *ctx)
 
     /* Read msg_name pointer (sockaddr) */
     void *msg_name;
-    if (bpf_probe_read_user(&msg_name, sizeof(msg_name), &msg->msg_name) < 0)
+    if (bpf_probe_read(&msg_name, sizeof(msg_name), &msg->msg_name) < 0)
         return 0;
 
     /* Read dest port from sockaddr_in.sin_port (offset 2) */
     __u16 dport_be;
-    if (bpf_probe_read_user(&dport_be, sizeof(dport_be),
+    if (bpf_probe_read(&dport_be, sizeof(dport_be),
                             (char *)msg_name + 2) < 0)
         return 0;
     __u16 dport = __builtin_bswap16(dport_be);
@@ -171,12 +171,12 @@ int dns_send(struct pt_regs *ctx)
 
     /* Read msg_iov pointer */
     struct iovec *msg_iov;
-    if (bpf_probe_read_user(&msg_iov, sizeof(msg_iov), &msg->msg_iov) < 0)
+    if (bpf_probe_read(&msg_iov, sizeof(msg_iov), &msg->msg_iter.__iov) < 0)
         return 0;
 
     /* Read first iov entry */
     struct iovec iov0;
-    if (bpf_probe_read_user(&iov0, sizeof(iov0), msg_iov) < 0)
+    if (bpf_probe_read(&iov0, sizeof(iov0), msg_iov) < 0)
         return 0;
 
     if (iov0.iov_len < 17)
@@ -185,7 +185,7 @@ int dns_send(struct pt_regs *ctx)
     /* Read first MAX_DNS_PACKET bytes of DNS packet */
     __u8 pkt[MAX_DNS_PACKET];
     __builtin_memset(pkt, 0, sizeof(pkt));
-    if (bpf_probe_read_user(pkt, sizeof(pkt), iov0.iov_base) < 0)
+    if (bpf_probe_read(pkt, sizeof(pkt), iov0.iov_base) < 0)
         return 0;
 
     /* Parse DNS header: bytes 0-1 = txid, bytes 2-3 = flags */
@@ -302,11 +302,11 @@ int dns_recv_exit(struct pt_regs *ctx)
 
     /* Extract source port from msg_name (sockaddr_in.sin_port) */
     void *msg_name;
-    if (bpf_probe_read_user(&msg_name, sizeof(msg_name), &msg->msg_name) < 0)
+    if (bpf_probe_read(&msg_name, sizeof(msg_name), &msg->msg_name) < 0)
         return 0;
 
     __u16 sport_be;
-    if (bpf_probe_read_user(&sport_be, sizeof(sport_be),
+    if (bpf_probe_read(&sport_be, sizeof(sport_be),
                             (char *)msg_name + 2) < 0)
         return 0;
     __u16 sport = __builtin_bswap16(sport_be);
@@ -318,15 +318,15 @@ int dns_recv_exit(struct pt_regs *ctx)
 
     /* Read first iov to get DNS header */
     struct iovec *msg_iov;
-    if (bpf_probe_read_user(&msg_iov, sizeof(msg_iov), &msg->msg_iov) < 0)
+    if (bpf_probe_read(&msg_iov, sizeof(msg_iov), &msg->msg_iter.__iov) < 0)
         return 0;
 
     struct iovec iov0;
-    if (bpf_probe_read_user(&iov0, sizeof(iov0), msg_iov) < 0)
+    if (bpf_probe_read(&iov0, sizeof(iov0), msg_iov) < 0)
         return 0;
 
     __u8 hdr[12];
-    if (bpf_probe_read_user(hdr, sizeof(hdr), iov0.iov_base) < 0)
+    if (bpf_probe_read(hdr, sizeof(hdr), iov0.iov_base) < 0)
         return 0;
 
     /* Parse DNS header */

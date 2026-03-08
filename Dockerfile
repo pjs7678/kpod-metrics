@@ -59,15 +59,19 @@ RUN BPF_ARCH=$(cat /tmp/bpf_arch) && \
         -I/build/bpf -c "$f" -o "/build/bpf/core/${name}.bpf.o"; \
     done
 
-# Legacy build (kernel 4.18-5.1 without BTF) → /build/bpf/legacy/
-# Uses compat_vmlinux.h as vmlinux.h — no preserve_access_index, no CO-RE relocations
+# Legacy build (fallback when CO-RE verifier rejects BTF func args) → /build/bpf/legacy/
+# Uses compat_vmlinux.h as vmlinux.h — no preserve_access_index, no CO-RE relocations.
+# Compiled with -g for BTF (needed by libbpf to parse __type() map definitions),
+# then .BTF.ext stripped so kernel verifier doesn't reject func arg types.
 RUN BPF_ARCH=$(cat /tmp/bpf_arch) && \
     mkdir -p /build/bpf/legacy /build/bpf/legacy-inc && \
     cp /build/bpf/compat_vmlinux.h /build/bpf/legacy-inc/vmlinux.h && \
     for f in /build/bpf/*.bpf.c; do \
       name=$(basename "$f" .bpf.c); \
-      clang -O2 -target bpf -D__TARGET_ARCH_${BPF_ARCH} \
-        -I/build/bpf/legacy-inc -c "$f" -o "/build/bpf/legacy/${name}.bpf.o"; \
+      clang -O2 -g -target bpf -D__TARGET_ARCH_${BPF_ARCH} \
+        -I/build/bpf/legacy-inc -c "$f" -o "/build/bpf/legacy/${name}.bpf.o" && \
+      llvm-strip --no-strip-all --remove-section=.BTF.ext \
+        "/build/bpf/legacy/${name}.bpf.o" 2>/dev/null || true; \
     done
 
 # Stage 3: Build JNI native library
@@ -84,7 +88,8 @@ RUN mkdir -p /runtime-libs && \
     ARCH=$(dpkg --print-architecture) && \
     GNU_ARCH=$(dpkg-architecture -qDEB_HOST_GNU_TYPE) && \
     cp /usr/lib/$GNU_ARCH/libelf*.so* /runtime-libs/ && \
-    cp /lib/$GNU_ARCH/libz.so* /runtime-libs/
+    cp /lib/$GNU_ARCH/libz.so* /runtime-libs/ && \
+    cp /usr/lib/$GNU_ARCH/libbpf.so* /runtime-libs/ 2>/dev/null || true
 
 # Stage 4: Build Kotlin application
 FROM gradle:8.12-jdk21 AS app-builder

@@ -73,8 +73,23 @@ class BpfProgramManager(
     }
 
     private fun tryLoadProgram(name: String) {
-        try {
-            val path = "$resolvedProgramDir/$name.bpf.o"
+        val path = "$resolvedProgramDir/$name.bpf.o"
+        if (tryLoadFromPath(name, path)) return
+
+        // Fallback: if CO-RE (core/) failed, try legacy objects
+        if (resolvedProgramDir.endsWith("/core")) {
+            val legacyPath = resolvedProgramDir.replace("/core", "/legacy") + "/$name.bpf.o"
+            if (java.io.File(legacyPath).exists()) {
+                log.info("CO-RE load failed for '{}', trying legacy: {}", name, legacyPath)
+                if (tryLoadFromPath(name, legacyPath)) return
+            }
+        }
+
+        _failedPrograms.add(name)
+    }
+
+    private fun tryLoadFromPath(name: String, path: String): Boolean {
+        return try {
             log.info("Loading BPF program: {}", path)
             val sample = registry?.let { Timer.start() }
             val handle = bridge.openObject(path)
@@ -84,9 +99,10 @@ class BpfProgramManager(
             sample?.stop(Timer.builder("kpod.bpf.program.load.duration")
                 .tag("program", name)
                 .register(registry!!))
+            true
         } catch (e: Exception) {
-            log.warn("Failed to load BPF program '{}': {}", name, e.message)
-            _failedPrograms.add(name)
+            log.warn("Failed to load BPF program '{}' from {}: {}", name, path, e.message)
+            false
         }
     }
 
