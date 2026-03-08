@@ -42,6 +42,7 @@ COPY --from=codegen /build/build/generated/bpf/ /build/bpf/
 COPY kpod-metrics/bpf/cpu_profile.bpf.c /build/bpf/cpu_profile.bpf.c
 COPY kpod-metrics/bpf/dns.bpf.c /build/bpf/dns.bpf.c
 COPY kpod-metrics/bpf/tcp_peer.bpf.c /build/bpf/tcp_peer.bpf.c
+COPY kpod-metrics/bpf/http.bpf.c /build/bpf/http.bpf.c
 
 # Map buildx TARGETARCH (amd64) to BPF arch (x86_64); arm64 stays as-is
 RUN if [ "$TARGET_ARCH" = "amd64" ]; then \
