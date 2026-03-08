@@ -13,8 +13,6 @@ import io.micrometer.core.instrument.Timer
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
@@ -35,6 +33,7 @@ class MetricsCollectorService(
     private val execsnoopCollector: ExecsnoopCollector,
     private val dnsCollector: DnsCollector,
     private val tcpPeerCollector: TcpPeerCollector,
+    private val httpCollector: HttpCollector,
     private val diskIOCollector: DiskIOCollector? = null,
     private val ifaceNetCollector: InterfaceNetworkCollector? = null,
     private val fsCollector: FilesystemCollector? = null,
@@ -80,6 +79,7 @@ class MetricsCollectorService(
         "execsnoop" to collectorIntervals.execsnoop,
         "dns" to collectorIntervals.dns,
         "tcpPeer" to collectorIntervals.tcpPeer,
+        "http" to collectorIntervals.http,
         "diskIO" to collectorIntervals.diskIO,
         "ifaceNet" to collectorIntervals.ifaceNet,
         "filesystem" to collectorIntervals.filesystem,
@@ -98,6 +98,7 @@ class MetricsCollectorService(
         "execsnoop" to collectorOverrides.execsnoop,
         "dns" to collectorOverrides.dns,
         "tcpPeer" to collectorOverrides.tcpPeer,
+        "http" to collectorOverrides.http,
         "diskIO" to collectorOverrides.diskIO,
         "ifaceNet" to collectorOverrides.ifaceNet,
         "filesystem" to collectorOverrides.filesystem,
@@ -178,6 +179,7 @@ class MetricsCollectorService(
             "execsnoop" to execsnoopCollector::collect,
             "dns" to dnsCollector::collect,
             "tcpPeer" to tcpPeerCollector::collect,
+            "http" to httpCollector::collect,
             bpfMapStatsCollector?.let { "bpfMapStats" to it::collect }
         )
         val bpfCollectors = allBpfCollectors.filter { (name, _) ->
@@ -256,7 +258,7 @@ class MetricsCollectorService(
 
     fun getEnabledCollectorCount(): Int {
         val bpfCount = listOf("cpu", "network", "syscall", "biolatency", "cachestat",
-            "tcpdrop", "hardirqs", "softirqs", "execsnoop", "dns", "tcpPeer").count { isCollectorEnabled(it) }
+            "tcpdrop", "hardirqs", "softirqs", "execsnoop", "dns", "tcpPeer", "http").count { isCollectorEnabled(it) }
         val cgroupCount = listOfNotNull(
             diskIOCollector?.let { "diskIO" },
             ifaceNetCollector?.let { "ifaceNet" },
@@ -289,108 +291,20 @@ class MetricsCollectorService(
     }
 
     /**
-     * Cleans up BPF map entries for a deleted pod's cgroup ID.
-     * Iterates all relevant BPF maps and deletes entries matching the cgroup ID.
+     * Handles BPF map cleanup when a pod's cgroup is deleted.
+     *
+     * All BPF data maps use LRU_HASH and are fully drained every collection cycle
+     * via batchLookupAndDelete. Explicit per-key deletion is unnecessary because:
+     * 1. Batch lookup-and-delete atomically reads and removes ALL entries each ~29s cycle
+     * 2. LRU eviction automatically reclaims slots under memory pressure
+     * 3. CgroupResolver's grace cache ensures in-flight metrics are still attributed
+     *
+     * Previously this method iterated all 21+ maps performing per-key JNI deletions,
+     * including expensive getNextKey loops for compound-key maps (syscall, dns, tcp_peer).
+     * In high-churn environments this caused significant JNI overhead on every pod deletion.
      */
     fun cleanupCgroupEntries(cgroupId: Long) {
-        if (bridge == null || programManager == null) return
-
-        val maps8ByteKey = listOf(
-            "cpu_sched" to "runq_latency",
-            "cpu_sched" to "ctx_switches",
-            "net" to "tcp_stats_map",
-            "net" to "rtt_hist",
-            // BCC-style tool maps (all keyed by cgroup_key or hist_key = 8 bytes)
-            "biolatency" to "bio_latency",
-            "cachestat" to "cache_stats",
-            "tcpdrop" to "tcp_drops",
-            "hardirqs" to "irq_latency",
-            "hardirqs" to "irq_count",
-            "softirqs" to "softirq_latency",
-            "execsnoop" to "exec_stats",
-            "dns" to "dns_requests",
-            "dns" to "dns_latency",
-            "dns" to "dns_errors"
-        )
-
-        val key8 = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(cgroupId).array()
-
-        for ((program, mapName) in maps8ByteKey) {
-            if (!programManager.isProgramLoaded(program)) continue
-            try {
-                val fd = programManager.getMapFd(program, mapName)
-                bridge.mapDelete(fd, key8)
-            } catch (_: Exception) {
-                // Map entry may not exist; ignore
-            }
-        }
-
-        // syscall_stats_map has 16-byte keys (cgroup_id + syscall_nr + padding)
-        // We cannot efficiently delete all syscall entries for a cgroup without iterating
-        if (programManager.isProgramLoaded("syscall")) {
-            try {
-                val fd = programManager.getMapFd("syscall", "syscall_stats_map")
-                val keysToDelete = mutableListOf<ByteArray>()
-                var prevKey: ByteArray? = null
-                while (true) {
-                    val nextKey = bridge.mapGetNextKey(fd, prevKey, 16) ?: break
-                    val keyCgroupId = ByteBuffer.wrap(nextKey).order(ByteOrder.LITTLE_ENDIAN).long
-                    if (keyCgroupId == cgroupId) {
-                        keysToDelete.add(nextKey)
-                    }
-                    prevKey = nextKey
-                }
-                for (k in keysToDelete) {
-                    bridge.mapDelete(fd, k)
-                }
-            } catch (_: Exception) {
-                // Ignore errors
-            }
-        }
-
-        // dns_domains has 40-byte keys, dns_inflight has 16-byte keys
-        if (programManager.isProgramLoaded("dns")) {
-            for ((mapName, keySize) in listOf("dns_domains" to 40, "dns_inflight" to 16)) {
-                try {
-                    val fd = programManager.getMapFd("dns", mapName)
-                    val keysToDelete = mutableListOf<ByteArray>()
-                    var prevKey: ByteArray? = null
-                    while (true) {
-                        val nextKey = bridge.mapGetNextKey(fd, prevKey, keySize) ?: break
-                        val keyCgroupId = ByteBuffer.wrap(nextKey).order(ByteOrder.LITTLE_ENDIAN).long
-                        if (keyCgroupId == cgroupId) {
-                            keysToDelete.add(nextKey)
-                        }
-                        prevKey = nextKey
-                    }
-                    for (k in keysToDelete) {
-                        bridge.mapDelete(fd, k)
-                    }
-                } catch (_: Exception) {}
-            }
-        }
-
-        // tcp_peer maps: tcp_peer_conns has 20-byte keys, tcp_peer_rtt has 16-byte keys
-        if (programManager.isProgramLoaded("tcp_peer")) {
-            for ((mapName, keySize) in listOf("tcp_peer_conns" to 20, "tcp_peer_rtt" to 16)) {
-                try {
-                    val fd = programManager.getMapFd("tcp_peer", mapName)
-                    val keysToDelete = mutableListOf<ByteArray>()
-                    var prevKey: ByteArray? = null
-                    while (true) {
-                        val nextKey = bridge.mapGetNextKey(fd, prevKey, keySize) ?: break
-                        val keyCgroupId = ByteBuffer.wrap(nextKey).order(ByteOrder.LITTLE_ENDIAN).long
-                        if (keyCgroupId == cgroupId) {
-                            keysToDelete.add(nextKey)
-                        }
-                        prevKey = nextKey
-                    }
-                    for (k in keysToDelete) {
-                        bridge.mapDelete(fd, k)
-                    }
-                } catch (_: Exception) {}
-            }
-        }
+        log.debug("Pod cgroup {} deleted; stale BPF entries will drain on next collection cycle", cgroupId)
     }
 
     fun close() {

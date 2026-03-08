@@ -64,6 +64,7 @@ class BpfProgramManager(
         if (ext.execsnoop) tryLoadProgram("execsnoop")
         if (ext.dns) tryLoadProgram("dns")
         if (ext.tcpPeer) tryLoadProgram("tcp_peer")
+        if (ext.http) tryLoadProgram("http")
 
         loadedCount.set(loadedPrograms.size)
         failedCount.set(_failedPrograms.size)
@@ -165,5 +166,25 @@ class BpfProgramManager(
             bridge.mapUpdate(mapFd, keyBytes, valueBytes)
         }
         log.info("DNS port filter configured: {}", ports)
+    }
+
+    fun configureHttpPorts(ports: List<Int>) {
+        if (!isProgramLoaded("http")) return
+        val mapFd = getMapFd("http", "http_ports")
+        for (port in ports) {
+            val keyBytes = java.nio.ByteBuffer.allocate(8)
+                .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                .putShort(port.toShort())
+                .putShort(0)  // _pad1
+                .putInt(0)    // _pad2
+                .array()
+            val valueBytes = java.nio.ByteBuffer.allocate(8)
+                .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                .put(1.toByte())  // enabled
+                .put(ByteArray(7))  // _pad
+                .array()
+            bridge.mapUpdate(mapFd, keyBytes, valueBytes)
+        }
+        log.info("HTTP port filter configured: {}", ports)
     }
 }
