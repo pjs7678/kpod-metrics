@@ -45,6 +45,71 @@ typedef __u32 __be32;
 /* Forward declaration for cpu_profile.bpf.c (only used as opaque pointer) */
 struct bpf_perf_event_data;
 
+/* --- Raw tracepoint args (used by syscall.bpf.c: raw_tp/sys_enter, raw_tp/sys_exit) --- */
+struct bpf_raw_tracepoint_args {
+    __u64 args[0];
+};
+
+/* --- pt_regs (used by all kprobe programs) ---
+ * Architecture-specific register layout. The __TARGET_ARCH_* define is passed
+ * by clang via -D in the Dockerfile. Field names use kernel-style short names
+ * (di, si, dx, etc.) because __VMLINUX_H__ is defined, which makes
+ * bpf_tracing.h select the short-name PT_REGS_PARM* macros. */
+
+#if defined(__TARGET_ARCH_arm64)
+
+struct user_pt_regs {
+    __u64 regs[31];
+    __u64 sp;
+    __u64 pc;
+    __u64 pstate;
+};
+
+struct pt_regs {
+    union {
+        struct user_pt_regs user_regs;
+        struct {
+            __u64 regs[31];
+            __u64 sp;
+            __u64 pc;
+            __u64 pstate;
+        };
+    };
+    __u64 orig_x0;
+    __s32 syscallno;
+    __u32 unused2;
+};
+
+#elif defined(__TARGET_ARCH_x86)
+
+struct pt_regs {
+    unsigned long r15;
+    unsigned long r14;
+    unsigned long r13;
+    unsigned long r12;
+    unsigned long bp;
+    unsigned long bx;
+    unsigned long r11;
+    unsigned long r10;
+    unsigned long r9;
+    unsigned long r8;
+    unsigned long ax;
+    unsigned long cx;
+    unsigned long dx;
+    unsigned long si;
+    unsigned long di;
+    unsigned long orig_ax;
+    unsigned long ip;
+    unsigned long cs;
+    unsigned long flags;
+    unsigned long sp;
+    unsigned long ss;
+};
+
+#else
+#error "Unsupported architecture: define __TARGET_ARCH_arm64 or __TARGET_ARCH_x86"
+#endif
+
 /* --- Socket structs (used by tcp_peer.bpf.c) ---
  * Layout matches kernel 4.18-5.1 and is stable through 6.x.
  * Three consecutive unions: addr (8B) + hash (4B) + port (4B). */
