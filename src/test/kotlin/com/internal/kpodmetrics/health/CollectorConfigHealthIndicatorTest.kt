@@ -21,6 +21,8 @@ class CollectorConfigHealthIndicatorTest {
             hardirqsCollector = mockk(relaxed = true),
             softirqsCollector = mockk(relaxed = true),
             execsnoopCollector = mockk(relaxed = true),
+            dnsCollector = mockk(relaxed = true),
+            tcpPeerCollector = mockk(relaxed = true),
             registry = SimpleMeterRegistry(),
             collectorOverrides = overrides
         )
@@ -32,7 +34,7 @@ class CollectorConfigHealthIndicatorTest {
         val indicator = CollectorConfigHealthIndicator(service)
         val health = indicator.health()
         assertEquals(Status.UP, health.status)
-        assertEquals(9, health.details["enabledCollectors"])
+        assertEquals(11, health.details["enabledCollectors"])
         service.close()
     }
 
@@ -41,7 +43,8 @@ class CollectorConfigHealthIndicatorTest {
         val overrides = CollectorOverrides(
             cpu = false, network = false, syscall = false,
             biolatency = false, cachestat = false, tcpdrop = false,
-            hardirqs = false, softirqs = false, execsnoop = false
+            hardirqs = false, softirqs = false, execsnoop = false,
+            dns = false, tcpPeer = false
         )
         val service = buildService(overrides)
         val indicator = CollectorConfigHealthIndicator(service)

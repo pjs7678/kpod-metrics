@@ -3,7 +3,6 @@ plugins {
     alias(libs.plugins.spring.dependency.management)
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.spring)
-    alias(libs.plugins.detekt)
 }
 
 group = "com.internal"
@@ -61,11 +60,6 @@ dependencies {
     // bpfGenerator source set
     "bpfGeneratorImplementation"("dev.ebpf:kotlin-ebpf-dsl")
     "bpfGeneratorImplementation"("org.jetbrains.kotlin:kotlin-stdlib")
-}
-
-detekt {
-    buildUponDefaultConfig = true
-    config.setFrom("config/detekt/detekt.yml")
 }
 
 kotlin {
