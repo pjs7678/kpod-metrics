@@ -44,7 +44,7 @@ data class MetricsProperties(
                 ),
                 network = NetworkProperties(tcp = TcpProperties(enabled = true)),
                 syscall = SyscallProperties(enabled = false),
-                extended = ExtendedProperties(tcpdrop = true, execsnoop = true, dns = true, tcpPeer = true),
+                extended = ExtendedProperties(tcpdrop = true, execsnoop = true, dns = true, tcpPeer = true, http = true),
                 cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = true, filesystem = true, memory = true)
             )
             "comprehensive" -> ResolvedConfig(
@@ -60,7 +60,7 @@ data class MetricsProperties(
                 extended = ExtendedProperties(
                     biolatency = true, cachestat = true,
                     tcpdrop = true, hardirqs = true, softirqs = true, execsnoop = true,
-                    dns = true, tcpPeer = true
+                    dns = true, tcpPeer = true, http = true
                 ),
                 cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = true, filesystem = true, memory = true)
             )
@@ -153,7 +153,9 @@ data class ExtendedProperties(
     val execsnoop: Boolean = false,
     val dns: Boolean = false,
     val dnsPorts: List<Int> = listOf(53),
-    val tcpPeer: Boolean = false
+    val tcpPeer: Boolean = false,
+    val http: Boolean = false,
+    val httpPorts: List<Int> = listOf(80, 8080, 8443)
 )
 
 data class CgroupCollectorProperties(
@@ -175,6 +177,7 @@ data class CollectorIntervals(
     val execsnoop: Long? = null,
     val dns: Long? = null,
     val tcpPeer: Long? = null,
+    val http: Long? = null,
     val diskIO: Long? = null,
     val ifaceNet: Long? = null,
     val filesystem: Long? = null,
@@ -213,6 +216,7 @@ data class CollectorOverrides(
     val execsnoop: Boolean? = null,
     val dns: Boolean? = null,
     val tcpPeer: Boolean? = null,
+    val http: Boolean? = null,
     val diskIO: Boolean? = null,
     val ifaceNet: Boolean? = null,
     val filesystem: Boolean? = null,
