@@ -4,6 +4,8 @@ import io.fabric8.kubernetes.api.model.*
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.dsl.MixedOperation
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation
+import io.fabric8.kubernetes.client.dsl.PodResource
+import io.fabric8.kubernetes.client.dsl.ServiceResource
 import io.mockk.*
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
@@ -47,14 +49,14 @@ class PodIpResolverTest {
             items = listOf(svc)
         }
 
-        val podOp = mockk<MixedOperation<Pod, PodList, *, *>>(relaxed = true)
-        val podNsOp = mockk<NonNamespaceOperation<Pod, PodList, *>>(relaxed = true)
+        val podOp = mockk<MixedOperation<Pod, PodList, PodResource>>(relaxed = true)
+        val podNsOp = mockk<NonNamespaceOperation<Pod, PodList, PodResource>>(relaxed = true)
         every { client.pods() } returns podOp
         every { podOp.inAnyNamespace() } returns podNsOp
         every { podNsOp.list() } returns podList
 
-        val svcOp = mockk<MixedOperation<Service, ServiceList, *, *>>(relaxed = true)
-        val svcNsOp = mockk<NonNamespaceOperation<Service, ServiceList, *>>(relaxed = true)
+        val svcOp = mockk<MixedOperation<Service, ServiceList, ServiceResource<Service>>>(relaxed = true)
+        val svcNsOp = mockk<NonNamespaceOperation<Service, ServiceList, ServiceResource<Service>>>(relaxed = true)
         every { client.services() } returns svcOp
         every { svcOp.inAnyNamespace() } returns svcNsOp
         every { svcNsOp.list() } returns svcList

@@ -23,6 +23,8 @@ class MetricsCollectorServiceTest {
     private lateinit var hardirqsCollector: HardirqsCollector
     private lateinit var softirqsCollector: SoftirqsCollector
     private lateinit var execsnoopCollector: ExecsnoopCollector
+    private lateinit var dnsCollector: DnsCollector
+    private lateinit var tcpPeerCollector: TcpPeerCollector
     private lateinit var registry: SimpleMeterRegistry
     private lateinit var service: MetricsCollectorService
 
@@ -37,11 +39,14 @@ class MetricsCollectorServiceTest {
         hardirqsCollector = mockk(relaxed = true)
         softirqsCollector = mockk(relaxed = true)
         execsnoopCollector = mockk(relaxed = true)
+        dnsCollector = mockk(relaxed = true)
+        tcpPeerCollector = mockk(relaxed = true)
         registry = SimpleMeterRegistry()
         service = MetricsCollectorService(
             cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
+            dnsCollector, tcpPeerCollector,
             registry = registry
         )
     }
@@ -58,6 +63,8 @@ class MetricsCollectorServiceTest {
         verify { hardirqsCollector.collect() }
         verify { softirqsCollector.collect() }
         verify { execsnoopCollector.collect() }
+        verify { dnsCollector.collect() }
+        verify { tcpPeerCollector.collect() }
     }
 
     @Test
@@ -81,6 +88,7 @@ class MetricsCollectorServiceTest {
             cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
+            dnsCollector, tcpPeerCollector,
             diskIOCollector, ifaceNetCollector, fsCollector, null, mapper
         )
         serviceWithCgroup.collect()
@@ -130,6 +138,7 @@ class MetricsCollectorServiceTest {
             cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
+            dnsCollector, tcpPeerCollector,
             registry = registry,
             collectorOverrides = overrides
         )
@@ -157,6 +166,7 @@ class MetricsCollectorServiceTest {
             cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
+            dnsCollector, tcpPeerCollector,
             diskIOCollector, ifaceNetCollector, fsCollector, null, mapper,
             registry = registry,
             collectorOverrides = overrides
@@ -178,6 +188,7 @@ class MetricsCollectorServiceTest {
             cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
+            dnsCollector, tcpPeerCollector,
             registry = registry,
             collectionTimeoutMs = 100
         )
@@ -205,6 +216,7 @@ class MetricsCollectorServiceTest {
             cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
+            dnsCollector, tcpPeerCollector,
             registry = registry
         )
     }
@@ -219,6 +231,7 @@ class MetricsCollectorServiceTest {
             cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
+            dnsCollector, tcpPeerCollector,
             registry = registry,
             collectorIntervals = intervals,
             basePollIntervalMs = 30000
@@ -241,6 +254,7 @@ class MetricsCollectorServiceTest {
             cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
+            dnsCollector, tcpPeerCollector,
             registry = registry,
             collectorIntervals = intervals,
             basePollIntervalMs = 30000
@@ -270,6 +284,7 @@ class MetricsCollectorServiceTest {
             cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
+            dnsCollector, tcpPeerCollector,
             registry = registry,
             collectorIntervals = intervals,
             basePollIntervalMs = 30000
@@ -283,8 +298,8 @@ class MetricsCollectorServiceTest {
 
     @Test
     fun `getEnabledCollectorCount returns count of enabled collectors`() {
-        // Default: all 9 BPF collectors enabled, no cgroup collectors wired
-        kotlin.test.assertEquals(9, service.getEnabledCollectorCount())
+        // Default: all 11 BPF collectors enabled, no cgroup collectors wired
+        kotlin.test.assertEquals(11, service.getEnabledCollectorCount())
     }
 
     @Test
@@ -294,10 +309,11 @@ class MetricsCollectorServiceTest {
             cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
+            dnsCollector, tcpPeerCollector,
             registry = registry,
             collectorOverrides = overrides
         )
-        kotlin.test.assertEquals(7, filteredService.getEnabledCollectorCount())
+        kotlin.test.assertEquals(9, filteredService.getEnabledCollectorCount())
         filteredService.close()
     }
 
