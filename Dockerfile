@@ -66,13 +66,16 @@ RUN BPF_ARCH=$(cat /tmp/bpf_arch) && \
 RUN BPF_ARCH=$(cat /tmp/bpf_arch) && \
     mkdir -p /build/bpf/legacy /build/bpf/legacy-inc && \
     cp /build/bpf/compat_vmlinux.h /build/bpf/legacy-inc/vmlinux.h && \
+    FAILED="" && \
     for f in /build/bpf/*.bpf.c; do \
       name=$(basename "$f" .bpf.c); \
       clang -O2 -g -target bpf -D__TARGET_ARCH_${BPF_ARCH} \
         -I/build/bpf/legacy-inc -c "$f" -o "/build/bpf/legacy/${name}.bpf.o" && \
       llvm-strip --no-strip-all --remove-section=.BTF.ext \
-        "/build/bpf/legacy/${name}.bpf.o" 2>/dev/null || true; \
-    done
+        "/build/bpf/legacy/${name}.bpf.o" 2>/dev/null || \
+      FAILED="${FAILED} ${name}"; \
+    done && \
+    if [ -n "$FAILED" ]; then echo "WARNING: legacy build failed for:${FAILED}"; fi
 
 # Stage 3: Build JNI native library
 FROM ubuntu:24.04 AS jni-builder
