@@ -123,7 +123,7 @@ val syscallProgram = ebpf("syscall") {
                     // Compute histogram slot and atomically update
                     val slot = declareVar(
                         "slot",
-                        raw("log2l(delta_ns) >= MAX_SLOTS ? MAX_SLOTS - 1 : log2l(delta_ns)", BpfScalar.U32)
+                        histSlot(deltaNs, 27)
                     )
                     se[SyscallStats.latencySlots].at(slot).atomicAdd(literal(1u, BpfScalar.U64))
                 }.elseThen {
@@ -137,7 +137,7 @@ val syscallProgram = ebpf("syscall") {
                     // Compute slot and set latency_slots[slot] = 1
                     val slot2 = declareVar(
                         "slot2",
-                        raw("log2l(delta_ns) >= MAX_SLOTS ? MAX_SLOTS - 1 : log2l(delta_ns)", BpfScalar.U32)
+                        histSlot(deltaNs, 27)
                     )
                     val newStatsName = (newStats.expr as BpfExpr.VarRef).variable.name
                     declareVar(
