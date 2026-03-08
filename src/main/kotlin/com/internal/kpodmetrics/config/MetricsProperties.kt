@@ -118,7 +118,8 @@ data class FilterProperties(
     val namespaces: List<String> = emptyList(),
     val excludeNamespaces: List<String> = listOf("kube-system", "kube-public"),
     val labelSelector: String = "",
-    val includeLabels: List<String> = listOf("app", "app.kubernetes.io/name", "app.kubernetes.io/component")
+    val includeLabels: List<String> = listOf("app", "app.kubernetes.io/name", "app.kubernetes.io/component"),
+    val scrubLabelValues: List<String> = listOf(".*password.*", ".*secret.*", ".*token.*", ".*credential.*", ".*api.key.*")
 )
 
 data class BpfProperties(

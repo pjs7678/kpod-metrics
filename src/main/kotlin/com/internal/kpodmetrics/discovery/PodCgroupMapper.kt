@@ -8,9 +8,14 @@ class PodCgroupMapper(
     private val podProvider: PodProvider,
     private val pathResolver: CgroupPathResolver,
     private val nodeName: String,
-    private val includeLabels: List<String> = emptyList()
+    private val includeLabels: List<String> = emptyList(),
+    private val scrubLabelValues: List<Regex> = emptyList()
 ) {
     private val log = LoggerFactory.getLogger(PodCgroupMapper::class.java)
+
+    companion object {
+        private const val REDACTED = "REDACTED"
+    }
 
     fun resolve(): List<PodCgroupTarget> {
         val targets = mutableListOf<PodCgroupTarget>()
@@ -19,6 +24,7 @@ class PodCgroupMapper(
             val containerCgroups = pathResolver.listContainerPaths(podPath)
             val filteredLabels = if (includeLabels.isEmpty()) emptyMap()
                 else pod.labels.filterKeys { it in includeLabels }
+            val scrubbedLabels = scrubLabels(filteredLabels)
             for (container in pod.containers) {
                 val matchedCgroup = containerCgroups.find { cg ->
                     cg.containerId == container.containerId ||
@@ -29,7 +35,7 @@ class PodCgroupMapper(
                     targets.add(PodCgroupTarget(
                         podName = pod.name, namespace = pod.namespace,
                         containerName = container.name, cgroupPath = matchedCgroup.path,
-                        nodeName = nodeName, labels = filteredLabels
+                        nodeName = nodeName, labels = scrubbedLabels
                     ))
                 } else {
                     log.debug("No cgroup match for container {} in pod {}", container.name, pod.name)
@@ -37,5 +43,16 @@ class PodCgroupMapper(
             }
         }
         return targets
+    }
+
+    private fun scrubLabels(labels: Map<String, String>): Map<String, String> {
+        if (scrubLabelValues.isEmpty()) return labels
+        return labels.mapValues { (key, value) ->
+            if (scrubLabelValues.any { it.containsMatchIn(key) }) {
+                REDACTED
+            } else {
+                value
+            }
+        }
     }
 }

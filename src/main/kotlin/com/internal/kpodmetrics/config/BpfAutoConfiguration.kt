@@ -314,7 +314,10 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
 
     @Bean
     fun podCgroupMapper(podProvider: PodProvider, resolver: CgroupPathResolver): PodCgroupMapper =
-        PodCgroupMapper(podProvider, resolver, props.nodeName, props.filter.includeLabels)
+        PodCgroupMapper(
+            podProvider, resolver, props.nodeName, props.filter.includeLabels,
+            props.filter.scrubLabelValues.map { it.toRegex(RegexOption.IGNORE_CASE) }
+        )
 
     // --- Cgroup-based collectors (conditionally created) ---
 
