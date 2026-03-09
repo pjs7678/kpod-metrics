@@ -24,21 +24,16 @@ class HttpCollector(
 
     companion object {
         private const val MAX_ENTRIES = 10240
-        private const val MAX_PATH_ENTRIES = 1024
 
         // Struct sizes matching http.bpf.c
-        // http_event_key: u64 + u32 + u16 + u8 + u8 + u16 + u16 + u32 = 24
-        private const val EVENT_KEY_SIZE = 24
-        // http_event_val: u64 * 4 = 32
-        private const val EVENT_VALUE_SIZE = 32
-        // http_latency_key: u64 + u8 + u8[7] = 16
+        // http_event_key: u64(cgroup_id) + u8(method) + u8(direction) + u16(status_code) + u32(_pad) = 16
+        private const val EVENT_KEY_SIZE = 16
+        // http_event_val: u64(count) = 8
+        private const val EVENT_VALUE_SIZE = 8
+        // http_latency_key: u64(cgroup_id) + u8(method) + u8(direction) + u16(_pad1) + u32(_pad2) = 16
         private const val LATENCY_KEY_SIZE = 16
-        // hist_value: u64[27] + u64 + u64 = 232
+        // hist_value: u64[27](slots) + u64(count) + u64(sum_ns) = 232
         private const val HIST_VALUE_SIZE = 232
-        // http_path_key: u64 + u8 + u8[3] + u8[64] = 76
-        private const val PATH_KEY_SIZE = 76
-        // counter_value: u64 = 8
-        private const val COUNTER_VALUE_SIZE = 8
 
         private val METHOD_NAMES = arrayOf(
             "UNKNOWN", "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"
@@ -60,29 +55,43 @@ class HttpCollector(
         podIpResolver.refresh()
         collectEvents()
         collectLatency()
-        collectTopPaths()
+    }
+
+    /** Iterate+lookup+delete: workaround for LRU_HASH batch ops returning 0 on some kernels */
+    private fun mapIterateAndDelete(mapFd: Int, keySize: Int, valueSize: Int): List<Pair<ByteArray, ByteArray>> {
+        val keys = mutableListOf<ByteArray>()
+        var prevKey: ByteArray? = null
+        while (true) {
+            val nextKey = bridge.mapGetNextKey(mapFd, prevKey, keySize) ?: break
+            keys.add(nextKey)
+            prevKey = nextKey
+        }
+        val results = mutableListOf<Pair<ByteArray, ByteArray>>()
+        for (k in keys) {
+            val value = bridge.mapLookup(mapFd, k, valueSize)
+            if (value != null) {
+                results.add(k to value)
+            }
+            bridge.mapDelete(mapFd, k)
+        }
+        return results
     }
 
     private fun collectEvents() {
         val mapFd = programManager.getMapFd("http", "http_events")
-        val entries = bridge.mapBatchLookupAndDelete(mapFd, EVENT_KEY_SIZE, EVENT_VALUE_SIZE, MAX_ENTRIES)
+        val entries = mapIterateAndDelete(mapFd, EVENT_KEY_SIZE, EVENT_VALUE_SIZE)
         for ((keyBytes, valueBytes) in entries) {
             val buf = ByteBuffer.wrap(keyBytes).order(ByteOrder.LITTLE_ENDIAN)
-            val cgroupId = buf.long
-            val remoteIp4 = buf.int
-            val remotePort = buf.short.toInt() and 0xFFFF
-            val method = buf.get().toInt() and 0xFF
-            val direction = buf.get().toInt() and 0xFF
-            val statusCode = buf.short.toInt() and 0xFFFF
+            val cgroupId = buf.long           // offset 0: u64
+            val method = buf.get().toInt() and 0xFF    // offset 8: u8
+            val direction = buf.get().toInt() and 0xFF // offset 9: u8
+            val statusCode = buf.short.toInt() and 0xFFFF // offset 10: u16
+            // offset 12: u32 _pad (skip)
 
             val podInfo = cgroupResolver.resolve(cgroupId) ?: continue
 
             val valBuf = ByteBuffer.wrap(valueBytes).order(ByteOrder.LITTLE_ENDIAN)
-            val count = valBuf.long
-            val latencySumNs = valBuf.long
-
-            val remoteIpStr = TcpPeerCollector.ipToString(remoteIp4)
-            val peerInfo = podIpResolver.resolve(remoteIpStr)
+            val count = valBuf.long            // u64 count
 
             val tags = Tags.of(
                 "namespace", podInfo.namespace,
@@ -91,11 +100,7 @@ class HttpCollector(
                 "node", nodeName,
                 "method", methodName(method),
                 "status_code", statusCode.toString(),
-                "remote_ip", remoteIpStr,
-                "remote_port", remotePort.toString(),
-                "direction", directionLabel(direction),
-                "remote_pod", peerInfo?.podName ?: "",
-                "remote_service", peerInfo?.serviceName ?: ""
+                "direction", directionLabel(direction)
             )
             registry.counter("kpod.http.requests", tags).increment(count.toDouble())
         }
@@ -103,11 +108,13 @@ class HttpCollector(
 
     private fun collectLatency() {
         val mapFd = programManager.getMapFd("http", "http_latency")
-        val entries = bridge.mapBatchLookupAndDelete(mapFd, LATENCY_KEY_SIZE, HIST_VALUE_SIZE, MAX_ENTRIES)
+        val entries = mapIterateAndDelete(mapFd, LATENCY_KEY_SIZE, HIST_VALUE_SIZE)
         for ((keyBytes, valueBytes) in entries) {
             val buf = ByteBuffer.wrap(keyBytes).order(ByteOrder.LITTLE_ENDIAN)
-            val cgroupId = buf.long
-            val method = buf.get().toInt() and 0xFF
+            val cgroupId = buf.long            // offset 0: u64
+            val method = buf.get().toInt() and 0xFF    // offset 8: u8
+            val direction = buf.get().toInt() and 0xFF // offset 9: u8
+            // offset 10: u16 _pad1, offset 12: u32 _pad2 (skip)
 
             val podInfo = cgroupResolver.resolve(cgroupId) ?: continue
 
@@ -123,7 +130,8 @@ class HttpCollector(
                 "pod", podInfo.podName,
                 "container", podInfo.containerName,
                 "node", nodeName,
-                "method", methodName(method)
+                "method", methodName(method),
+                "direction", directionLabel(direction)
             )
             val avgLatencySeconds = (sumNs.toDouble() / count.toDouble()) / 1_000_000_000.0
             DistributionSummary.builder("kpod.http.request.duration")
@@ -131,40 +139,6 @@ class HttpCollector(
                 .baseUnit("seconds")
                 .register(registry)
                 .record(avgLatencySeconds)
-        }
-    }
-
-    private fun collectTopPaths() {
-        val mapFd = programManager.getMapFd("http", "http_top_paths")
-        val entries = bridge.mapBatchLookupAndDelete(mapFd, PATH_KEY_SIZE, COUNTER_VALUE_SIZE, MAX_PATH_ENTRIES)
-        for ((keyBytes, valueBytes) in entries) {
-            val buf = ByteBuffer.wrap(keyBytes).order(ByteOrder.LITTLE_ENDIAN)
-            val cgroupId = buf.long
-            val method = buf.get().toInt() and 0xFF
-            buf.position(buf.position() + 3) // skip _pad[3]
-            val pathBytes = ByteArray(64)
-            buf.get(pathBytes)
-
-            val podInfo = cgroupResolver.resolve(cgroupId) ?: continue
-            val nullIdx = pathBytes.indexOf(0.toByte())
-            val path = if (nullIdx > 0) {
-                String(pathBytes, 0, nullIdx, Charsets.UTF_8)
-            } else if (nullIdx == 0) {
-                "/"
-            } else {
-                String(pathBytes, Charsets.UTF_8)
-            }
-            val count = ByteBuffer.wrap(valueBytes).order(ByteOrder.LITTLE_ENDIAN).long
-
-            val tags = Tags.of(
-                "namespace", podInfo.namespace,
-                "pod", podInfo.podName,
-                "container", podInfo.containerName,
-                "node", nodeName,
-                "method", methodName(method),
-                "path", path
-            )
-            registry.counter("kpod.http.top.paths", tags).increment(count.toDouble())
         }
     }
 }
