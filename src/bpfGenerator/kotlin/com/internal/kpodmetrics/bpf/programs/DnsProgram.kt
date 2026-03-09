@@ -55,6 +55,8 @@ object DnsRecvStash : BpfStruct("dns_recv_stash") {
 // ── DNS preamble ─────────────────────────────────────────────────────
 
 private val DNS_PREAMBLE = """
+#include <bpf/bpf_endian.h>
+
 #define MAX_DNS_PACKET 44
 #define MAX_DOMAIN_LEN 32
 #define MAX_LABELS 16
@@ -70,6 +72,18 @@ DEFINE_STATS_MAP(dns_domains)
 DEFINE_STATS_MAP(dns_inflight)
 DEFINE_STATS_MAP(dns_recv_stash)
 
+static __always_inline int read_ptr(void **dst, void *src) {
+    return bpf_probe_read_kernel(dst, sizeof(void *), src);
+}
+
+static __always_inline int read_u16(void *dst, void *src) {
+    return bpf_probe_read_kernel(dst, sizeof(__u16), src);
+}
+""".trimIndent()
+
+// Helper functions that reference struct types must go in the postamble
+// (emitted after struct/map definitions, before programs).
+private val DNS_POSTAMBLE = """
 static __always_inline void inc_counter(void *map, void *key)
 {
     struct counter_value *val = bpf_map_lookup_elem(map, key);
@@ -79,14 +93,6 @@ static __always_inline void inc_counter(void *map, void *key)
         struct counter_value one = { .count = 1 };
         bpf_map_update_elem(map, key, &one, BPF_NOEXIST);
     }
-}
-
-static __always_inline int read_ptr(void **dst, void *src) {
-    return bpf_probe_read_kernel(dst, sizeof(void *), src);
-}
-
-static __always_inline int read_u16(void *dst, void *src) {
-    return bpf_probe_read_kernel(dst, sizeof(__u16), src);
 }
 """.trimIndent()
 
@@ -98,6 +104,7 @@ val dnsProgram = ebpf("dns") {
     targetKernel("5.5")
 
     preamble(DNS_PREAMBLE)
+    postamble(DNS_POSTAMBLE)
 
     // ── Maps ─────────────────────────────────────────────────────────
     val dnsPorts by hashMap(DnsPortKey, DnsPortVal, maxEntries = 8)
@@ -112,7 +119,7 @@ val dnsProgram = ebpf("dns") {
     kprobe("udp_sendmsg") {
         // Read msg_name → dest port → check port filter → read iov → read DNS packet
         // Heavy pointer chasing requires raw C for correct types
-        val msg = declareVar("msg", kprobeParam(2, "struct msghdr *"))
+        val msg = declareVar("msg", raw("(__u64)PT_REGS_PARM2(ctx)", BpfScalar.U64))
 
         // Read dest port via pointer chasing
         declareVar("msg_name", raw("""({
@@ -226,7 +233,7 @@ val dnsProgram = ebpf("dns") {
         val zero = declareVar("zero", literal(0, BpfScalar.U32))
         val stash = dnsRecvStash.lookup(zero)
         ifNonNull(stash) { s ->
-            val msg = declareVar("msg", raw("(struct msghdr *)entry_0->msghdr_ptr", BpfScalar.U64))
+            val msg = declareVar("msg", raw("entry_0->msghdr_ptr", BpfScalar.U64))
             val cgroupId = declareVar("cgroup_id", raw("entry_0->cgroup_id", BpfScalar.U64))
 
             // Read source port

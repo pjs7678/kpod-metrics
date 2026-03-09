@@ -82,22 +82,6 @@ DEFINE_STATS_MAP(http_recv_stash)
 #define DIR_REQUEST_OUT 0
 #define DIR_REQUEST_IN  1
 
-static __always_inline void update_hist(void *map, void *key, __u64 val_ns)
-{
-    struct hist_value *hist = bpf_map_lookup_elem(map, key);
-    if (!hist) {
-        struct hist_value new_hist = {};
-        bpf_map_update_elem(map, key, &new_hist, BPF_NOEXIST);
-        hist = bpf_map_lookup_elem(map, key);
-        if (!hist) return;
-    }
-    __u32 slot = log2l(val_ns);
-    if (slot >= MAX_SLOTS) slot = MAX_SLOTS - 1;
-    __sync_fetch_and_add(&hist->slots[slot], 1);
-    __sync_fetch_and_add(&hist->count, 1);
-    __sync_fetch_and_add(&hist->sum_ns, val_ns);
-}
-
 static __always_inline __u8 detect_method(const __u8 *buf, __u32 len)
 {
     if (len >= 4 && buf[0] == 'G' && buf[1] == 'E' && buf[2] == 'T' && buf[3] == ' ')
@@ -157,6 +141,25 @@ static __always_inline void read_sock_addr(struct sock *sk, __u16 *dport, __u16 
     *sport = sport_be;
 }
 
+""".trimIndent()
+
+private val HTTP_POSTAMBLE = """
+static __always_inline void update_hist(void *map, void *key, __u64 val_ns)
+{
+    struct hist_value *hist = bpf_map_lookup_elem(map, key);
+    if (!hist) {
+        struct hist_value new_hist = {};
+        bpf_map_update_elem(map, key, &new_hist, BPF_NOEXIST);
+        hist = bpf_map_lookup_elem(map, key);
+        if (!hist) return;
+    }
+    __u32 slot = log2l(val_ns);
+    if (slot >= MAX_SLOTS) slot = MAX_SLOTS - 1;
+    __sync_fetch_and_add(&hist->slots[slot], 1);
+    __sync_fetch_and_add(&hist->count, 1);
+    __sync_fetch_and_add(&hist->sum_ns, val_ns);
+}
+
 static __always_inline int check_http_port(struct sock *sk)
 {
     __u16 dport, sport;
@@ -189,6 +192,7 @@ val httpProgram = ebpf("http") {
     targetKernel("5.5")
 
     preamble(HTTP_PREAMBLE)
+    postamble(HTTP_POSTAMBLE)
 
     // ── Maps ─────────────────────────────────────────────────────────
     val httpPorts by hashMap(HttpPortKey, HttpPortVal, maxEntries = 8)
