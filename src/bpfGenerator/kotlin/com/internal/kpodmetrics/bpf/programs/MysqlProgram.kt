@@ -23,7 +23,8 @@ object MysqlEventKey : BpfStruct("mysql_event_key") {
     val command by u8()    // COM_QUERY=0x03, COM_STMT_PREPARE=0x16, etc.
     val stmtType by u8()  // STMT_SELECT=1, STMT_INSERT=2, etc.
     val direction by u8()  // DIR_CLIENT=0, DIR_SERVER=1
-    val pad by u8()
+    val pad1 by u8()
+    val pad2 by u32()
 }
 
 object MysqlLatKey : BpfStruct("mysql_latency_key") {
