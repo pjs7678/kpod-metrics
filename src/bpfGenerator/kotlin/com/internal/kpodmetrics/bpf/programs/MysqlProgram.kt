@@ -56,7 +56,7 @@ object MysqlErrKey : BpfStruct("mysql_err_key") {
     val pad2 by u32()
 }
 
-object MysqlRecvStash : BpfStruct("mysql_recv_stash") {
+object MysqlRecvStash : BpfStruct("mysql_rcv_stash") {
     val sockPtr by u64()
     val msghdrPtr by u64()
     val cgroupId by u64()
@@ -75,7 +75,7 @@ DEFINE_STATS_MAP(mysql_events)
 DEFINE_STATS_MAP(mysql_latency)
 DEFINE_STATS_MAP(mysql_inflight)
 DEFINE_STATS_MAP(mysql_errors)
-DEFINE_STATS_MAP(mysql_recv_stash)
+DEFINE_STATS_MAP(mysql_rcv_stash)
 
 /* MySQL command types (from mysql_com.h) */
 #define COM_QUERY          0x03
@@ -286,7 +286,7 @@ val mysqlProgram = ebpf("mysql") {
     val mysqlLatency by lruHashMap(MysqlLatKey, HistValue, maxEntries = 10240)
     val mysqlInflight by lruHashMap(MysqlInflightKey, MysqlInflightVal, maxEntries = 8192)
     val mysqlErrors by lruHashMap(MysqlErrKey, CounterValue, maxEntries = 10240)
-    val mysqlRecvStash by percpuArray(MysqlRecvStash, maxEntries = 1)
+    val mysqlRcvStash by percpuArray(MysqlRecvStash, maxEntries = 1)
 
     // ── kprobe/tcp_sendmsg ───────────────────────────────────────────
     kprobe("tcp_sendmsg") {
@@ -377,7 +377,7 @@ val mysqlProgram = ebpf("mysql") {
     if (!check_mysql_port(sk)) return 0;
 
     __u32 zero = 0;
-    struct mysql_recv_stash *stash = bpf_map_lookup_elem(&mysql_recv_stash, &zero);
+    struct mysql_rcv_stash *stash = bpf_map_lookup_elem(&mysql_rcv_stash, &zero);
     if (!stash) return 0;
 
     stash->sock_ptr = (__u64)sk;
@@ -396,7 +396,7 @@ val mysqlProgram = ebpf("mysql") {
     if (ret < 5) return 0;
 
     __u32 zero = 0;
-    struct mysql_recv_stash *stash = bpf_map_lookup_elem(&mysql_recv_stash, &zero);
+    struct mysql_rcv_stash *stash = bpf_map_lookup_elem(&mysql_rcv_stash, &zero);
     if (!stash) return 0;
 
     struct msghdr *msg = (struct msghdr *)stash->msghdr_ptr;

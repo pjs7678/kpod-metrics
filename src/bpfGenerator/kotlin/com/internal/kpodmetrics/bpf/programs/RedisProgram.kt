@@ -53,7 +53,7 @@ object RedisErrKey : BpfStruct("redis_err_key") {
     val pad by array(BpfScalar.U8, 7)
 }
 
-object RedisRecvStash : BpfStruct("redis_recv_stash") {
+object RedisRecvStash : BpfStruct("redis_rcv_stash") {
     val sockPtr by u64()
     val msghdrPtr by u64()
     val cgroupId by u64()
@@ -72,7 +72,7 @@ DEFINE_STATS_MAP(redis_events)
 DEFINE_STATS_MAP(redis_latency)
 DEFINE_STATS_MAP(redis_inflight)
 DEFINE_STATS_MAP(redis_errors)
-DEFINE_STATS_MAP(redis_recv_stash)
+DEFINE_STATS_MAP(redis_rcv_stash)
 
 /* Redis commands we track individually */
 #define CMD_UNKNOWN  0
@@ -300,7 +300,7 @@ val redisProgram = ebpf("redis") {
     val redisLatency by lruHashMap(RedisLatKey, HistValue, maxEntries = 10240)
     val redisInflight by lruHashMap(RedisInflightKey, RedisInflightVal, maxEntries = 8192)
     val redisErrors by lruHashMap(RedisErrKey, CounterValue, maxEntries = 10240)
-    val redisRecvStash by percpuArray(RedisRecvStash, maxEntries = 1)
+    val redisRcvStash by percpuArray(RedisRecvStash, maxEntries = 1)
 
     // ── kprobe/tcp_sendmsg ───────────────────────────────────────────
     kprobe("tcp_sendmsg") {
@@ -385,7 +385,7 @@ val redisProgram = ebpf("redis") {
     if (!check_redis_port(sk)) return 0;
 
     __u32 zero = 0;
-    struct redis_recv_stash *stash = bpf_map_lookup_elem(&redis_recv_stash, &zero);
+    struct redis_rcv_stash *stash = bpf_map_lookup_elem(&redis_rcv_stash, &zero);
     if (!stash) return 0;
 
     stash->sock_ptr = (__u64)sk;
@@ -404,7 +404,7 @@ val redisProgram = ebpf("redis") {
     if (ret < 3) return 0;
 
     __u32 zero = 0;
-    struct redis_recv_stash *stash = bpf_map_lookup_elem(&redis_recv_stash, &zero);
+    struct redis_rcv_stash *stash = bpf_map_lookup_elem(&redis_rcv_stash, &zero);
     if (!stash) return 0;
 
     struct msghdr *msg = (struct msghdr *)stash->msghdr_ptr;
