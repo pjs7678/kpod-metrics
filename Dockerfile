@@ -13,6 +13,7 @@
 # Stage 1: Generate BPF C code from DSL
 FROM gradle:8.12-jdk21 AS codegen
 WORKDIR /build
+ENV GRADLE_OPTS="-Xmx1536m -Xms256m"
 # Copy kotlin-ebpf-dsl (composite build dependency)
 COPY kotlin-ebpf-dsl/ /kotlin-ebpf-dsl/
 # Copy project build files first for dependency caching
@@ -65,7 +66,7 @@ RUN BPF_ARCH=$(cat /tmp/bpf_arch) && \
     FAILED="" && \
     for f in /build/bpf/*.bpf.c; do \
       name=$(basename "$f" .bpf.c); \
-      clang -O2 -g -target bpf -D__TARGET_ARCH_${BPF_ARCH} \
+      clang -O2 -g -target bpf -D__TARGET_ARCH_${BPF_ARCH} -DLEGACY_IOVEC \
         -I/build/bpf/legacy-inc -c "$f" -o "/build/bpf/legacy/${name}.bpf.o" && \
       llvm-strip --no-strip-all --remove-section=.BTF.ext \
         "/build/bpf/legacy/${name}.bpf.o" 2>/dev/null || \
@@ -93,6 +94,7 @@ RUN mkdir -p /runtime-libs && \
 # Stage 4: Build Kotlin application
 FROM gradle:8.12-jdk21 AS app-builder
 WORKDIR /build
+ENV GRADLE_OPTS="-Xmx1536m -Xms256m"
 # Copy kotlin-ebpf-dsl (composite build dependency)
 COPY kotlin-ebpf-dsl/ /kotlin-ebpf-dsl/
 COPY kpod-metrics/build.gradle.kts kpod-metrics/settings.gradle.kts kpod-metrics/gradle.properties ./

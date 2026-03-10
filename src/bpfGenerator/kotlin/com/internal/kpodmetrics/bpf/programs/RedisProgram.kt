@@ -183,6 +183,17 @@ static __always_inline int is_redis_response(const __u8 *buf, __u32 len)
 
 static __always_inline int read_first_iov(struct msghdr *msg, struct iovec *out)
 {
+#ifdef LEGACY_IOVEC
+    /* 4.18: iov_iter.type is ITER_IOVEC=0, __iov is always a pointer */
+    struct iovec *msg_iov;
+    if (bpf_probe_read(&msg_iov, sizeof(msg_iov), &msg->msg_iter.__iov) < 0)
+        return -1;
+    if (!msg_iov) return -1;
+    if (bpf_probe_read(out, sizeof(*out), msg_iov) < 0)
+        return -1;
+    return 0;
+#else
+    /* 6.x: iter_type (u8); ITER_UBUF=0 stores iovec inline, ITER_IOVEC=1 uses pointer */
     __u8 iter_type;
     if (bpf_probe_read(&iter_type, sizeof(iter_type), &msg->msg_iter.iter_type) < 0)
         return -1;
@@ -198,6 +209,7 @@ static __always_inline int read_first_iov(struct msghdr *msg, struct iovec *out)
     if (bpf_probe_read(out, sizeof(*out), msg_iov) < 0)
         return -1;
     return 0;
+#endif
 }
 
 static __always_inline void read_sock_addr(struct sock *sk, __u16 *dport, __u16 *sport)
