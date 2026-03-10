@@ -93,6 +93,9 @@ class MysqlCollector(
     private fun collectEvents() {
         val mapFd = programManager.getMapFd("mysql", "mysql_events")
         val entries = mapIterateAndDelete(mapFd, EVENT_KEY_SIZE, EVENT_VALUE_SIZE)
+        if (entries.isNotEmpty()) {
+            log.info("MySQL events map has {} entries", entries.size)
+        }
         for ((keyBytes, valueBytes) in entries) {
             val buf = ByteBuffer.wrap(keyBytes).order(ByteOrder.LITTLE_ENDIAN)
             val cgroupId = buf.long                        // offset 0: u64
@@ -101,7 +104,26 @@ class MysqlCollector(
             val direction = buf.get().toInt() and 0xFF     // offset 10: u8
             // offset 11: u8 pad1, offset 12: u32 pad2 (skip)
 
-            val podInfo = cgroupResolver.resolve(cgroupId) ?: continue
+            val podInfo = cgroupResolver.resolve(cgroupId)
+            if (podInfo == null) {
+                // Debug: emit metric even without pod resolution to verify BPF capture
+                val valBuf2 = ByteBuffer.wrap(valueBytes).order(ByteOrder.LITTLE_ENDIAN)
+                val cnt = valBuf2.long
+                log.info("MySQL event: cgroup={} cmd={} stmt={} dir={} count={}",
+                    cgroupId, commandName(command), stmtTypeName(stmtType),
+                    directionLabel(direction), cnt)
+                val tags = Tags.of(
+                    "namespace", "_unresolved",
+                    "pod", "_unresolved",
+                    "container", "_unresolved",
+                    "node", nodeName,
+                    "command", commandName(command),
+                    "stmt_type", stmtTypeName(stmtType),
+                    "direction", directionLabel(direction)
+                )
+                registry.counter("kpod.mysql.requests", tags).increment(cnt.toDouble())
+                continue
+            }
 
             val valBuf = ByteBuffer.wrap(valueBytes).order(ByteOrder.LITTLE_ENDIAN)
             val count = valBuf.long

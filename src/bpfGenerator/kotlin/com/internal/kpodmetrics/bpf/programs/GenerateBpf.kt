@@ -11,7 +11,8 @@ fun main() {
     val programs = listOf(
         // Custom programs
         cpuSchedProgram, netProgram, syscallProgram, dnsProgram, httpProgram,
-        cpuProfileProgram, tcpPeerProgram, redisProgram, mysqlProgram,
+        // TODO: cpuProfileProgram, tcpPeerProgram need DSL features (perfEvent, stackVar) not yet available
+        redisProgram, mysqlProgram,
         // BCC-style tools from kotlin-ebpf-dsl
         biolatency(), cachestat(), tcpdrop(),
         hardirqs(), softirqs(), execsnoop()

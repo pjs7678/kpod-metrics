@@ -109,75 +109,51 @@ DEFINE_STATS_MAP(redis_rcv_stash)
 /*
  * Parse RESP array to extract command name.
  * RESP request format: *<count>\r\n$<len>\r\n<COMMAND>\r\n...
- * We look for the command starting after the second \n.
+ *
+ * Use fixed offsets for the common case (single-digit array count and
+ * command length) to avoid variable-offset loops that explode verifier state.
+ * Common case: command at offset 8 (single-digit array count + cmd length)
+ * Less common: command at offset 9 (2-digit count or length)
  */
+static __always_inline __u8 match_redis_cmd(const __u8 *buf, __u32 off, __u32 len)
+{
+    if (off + 3 > len) return CMD_UNKNOWN;
+    __u8 c0 = buf[off] | 0x20;
+    __u8 c1 = buf[off + 1] | 0x20;
+    __u8 c2 = buf[off + 2] | 0x20;
+    __u8 c3 = (off + 3 < len) ? (buf[off + 3] | 0x20) : 0;
+
+    if (c0 == 'g' && c1 == 'e' && c2 == 't') return CMD_GET;
+    if (c0 == 's' && c1 == 'e' && c2 == 't') return CMD_SET;
+    if (c0 == 'd' && c1 == 'e' && c2 == 'l') return CMD_DEL;
+    if (c0 == 'h' && c1 == 'g' && c2 == 'e' && c3 == 't') return CMD_HGET;
+    if (c0 == 'h' && c1 == 's' && c2 == 'e' && c3 == 't') return CMD_HSET;
+    if (c0 == 'l' && c1 == 'p' && c2 == 'u') return CMD_LPUSH;
+    if (c0 == 'r' && c1 == 'p' && c2 == 'u') return CMD_RPUSH;
+    if (c0 == 's' && c1 == 'a' && c2 == 'd') return CMD_SADD;
+    if (c0 == 'z' && c1 == 'a' && c2 == 'd') return CMD_ZADD;
+    if (c0 == 'e' && c1 == 'x' && c2 == 'p') return CMD_EXPIRE;
+    if (c0 == 'i' && c1 == 'n' && c2 == 'c') return CMD_INCR;
+    return CMD_OTHER;
+}
+
 static __always_inline __u8 detect_redis_command(const __u8 *buf, __u32 len)
 {
     if (len < 8 || buf[0] != '*') return CMD_UNKNOWN;
 
-    /* Find the command: skip *<N>\r\n$<N>\r\n to get to the command bytes */
-    __u32 off = 1;
-    /* Skip array count digits + \r\n */
-    #pragma unroll
-    for (int i = 0; i < 4; i++) {
-        if (off >= len) return CMD_UNKNOWN;
-        if (buf[off] == '\r') { off += 2; break; }
-        off++;
+    /* Most common: *N\r\n then bulk string header \r\n -> cmd at 8 */
+    if (buf[2] == '\r' && buf[4] == '${'$'}' && buf[6] == '\r') {
+        return match_redis_cmd(buf, 8, len);
     }
-    /* Expect '$' for bulk string length */
-    if (off >= len || buf[off] != '$') return CMD_UNKNOWN;
-    off++;
-    /* Skip length digits + \r\n */
-    #pragma unroll
-    for (int i = 0; i < 4; i++) {
-        if (off >= len) return CMD_UNKNOWN;
-        if (buf[off] == '\r') { off += 2; break; }
-        off++;
+    /* 2-digit cmd length: cmd at 9 */
+    if (buf[2] == '\r' && buf[4] == '${'$'}' && buf[7] == '\r') {
+        return match_redis_cmd(buf, 9, len);
     }
-    /* Now at command bytes — match common commands (case-insensitive first char) */
-    if (off + 3 > len) return CMD_UNKNOWN;
-
-    __u8 c0 = buf[off] | 0x20;  /* tolower */
-    __u8 c1 = (off + 1 < len) ? (buf[off + 1] | 0x20) : 0;
-    __u8 c2 = (off + 2 < len) ? (buf[off + 2] | 0x20) : 0;
-    __u8 c3 = (off + 3 < len) ? (buf[off + 3] | 0x20) : 0;
-    __u8 c4 = (off + 4 < len) ? (buf[off + 4] | 0x20) : 0;
-
-    /* GET */
-    if (c0 == 'g' && c1 == 'e' && c2 == 't' && (off + 3 >= len || buf[off + 3] == '\r'))
-        return CMD_GET;
-    /* SET */
-    if (c0 == 's' && c1 == 'e' && c2 == 't' && (off + 3 >= len || buf[off + 3] == '\r'))
-        return CMD_SET;
-    /* DEL */
-    if (c0 == 'd' && c1 == 'e' && c2 == 'l' && (off + 3 >= len || buf[off + 3] == '\r'))
-        return CMD_DEL;
-    /* HGET */
-    if (c0 == 'h' && c1 == 'g' && c2 == 'e' && c3 == 't')
-        return CMD_HGET;
-    /* HSET */
-    if (c0 == 'h' && c1 == 's' && c2 == 'e' && c3 == 't')
-        return CMD_HSET;
-    /* LPUSH */
-    if (c0 == 'l' && c1 == 'p' && c2 == 'u' && c3 == 's')
-        return CMD_LPUSH;
-    /* RPUSH */
-    if (c0 == 'r' && c1 == 'p' && c2 == 'u' && c3 == 's')
-        return CMD_RPUSH;
-    /* SADD */
-    if (c0 == 's' && c1 == 'a' && c2 == 'd' && c3 == 'd')
-        return CMD_SADD;
-    /* ZADD */
-    if (c0 == 'z' && c1 == 'a' && c2 == 'd' && c3 == 'd')
-        return CMD_ZADD;
-    /* EXPIRE */
-    if (c0 == 'e' && c1 == 'x' && c2 == 'p')
-        return CMD_EXPIRE;
-    /* INCR */
-    if (c0 == 'i' && c1 == 'n' && c2 == 'c' && c3 == 'r')
-        return CMD_INCR;
-
-    return CMD_OTHER;
+    /* 2-digit array count: cmd at 9 */
+    if (buf[3] == '\r' && buf[5] == '${'$'}' && buf[7] == '\r') {
+        return match_redis_cmd(buf, 9, len);
+    }
+    return CMD_UNKNOWN;
 }
 
 /*
