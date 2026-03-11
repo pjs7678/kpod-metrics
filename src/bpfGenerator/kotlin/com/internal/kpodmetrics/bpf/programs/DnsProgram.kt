@@ -59,7 +59,6 @@ private val DNS_PREAMBLE = """
 
 #define MAX_DNS_PACKET 44
 #define MAX_DOMAIN_LEN 32
-#define MAX_LABELS 16
 #define MAX_LABEL_LEN 63
 
 $COMMON_PREAMBLE
@@ -166,29 +165,30 @@ val dnsProgram = ebpf("dns") {
         val cgroupId = declareVar("cgroup_id", getCurrentCgroupId())
 
         // QNAME decoding + domain tracking + qtype extraction
+        // Uses a single flat loop over packet bytes (max 32) instead of nested
+        // label*char loops (16*63=1008) to stay within BPF verifier complexity limits.
+        // Writes directly into dns_domain_key.domain to save 32 bytes of stack.
         declareVar("qtype", raw("""({
-    __u8 domain[MAX_DOMAIN_LEN];
-    __builtin_memset(domain, 0, sizeof(domain));
-    __u32 pkt_off = 12, dom_off = 0;
+    struct dns_domain_key dk = { .cgroup_id = cgroup_id };
+    __u32 pkt_off = 12, dom_off = 0, remain = 0;
     #pragma unroll
-    for (int label = 0; label < MAX_LABELS; label++) {
+    for (int i = 0; i < MAX_DNS_PACKET - 12; i++) {
         if (pkt_off >= MAX_DNS_PACKET) break;
-        __u8 ll = ((__u8)__buf_0[pkt_off]);
-        if (ll == 0 || ll > MAX_LABEL_LEN) break;
-        if (dom_off > 0 && dom_off < MAX_DOMAIN_LEN) domain[dom_off++] = '.';
-        pkt_off++;
-        #pragma unroll
-        for (int c = 0; c < MAX_LABEL_LEN; c++) {
-            if (c >= ll || pkt_off >= MAX_DNS_PACKET || dom_off >= MAX_DOMAIN_LEN) break;
-            domain[dom_off++] = ((__u8)__buf_0[pkt_off++]);
+        __u8 b = (__u8)__buf_0[pkt_off];
+        if (remain == 0) {
+            if (b == 0) { pkt_off++; break; }
+            if (b > MAX_LABEL_LEN) break;
+            remain = b;
+            if (dom_off > 0 && dom_off < MAX_DOMAIN_LEN) dk.domain[dom_off++] = '.';
+        } else {
+            if (dom_off < MAX_DOMAIN_LEN) dk.domain[dom_off++] = b;
+            remain--;
         }
+        pkt_off++;
     }
     __u16 _qt = 0;
-    __u32 qo = pkt_off + 1;
-    if (qo + 1 < MAX_DNS_PACKET)
-        _qt = ((__u16)((__u8)__buf_0[qo]) << 8) | ((__u8)__buf_0[qo + 1]);
-    struct dns_domain_key dk = { .cgroup_id = cgroup_id };
-    __builtin_memcpy(dk.domain, domain, MAX_DOMAIN_LEN);
+    if (pkt_off + 1 < MAX_DNS_PACKET)
+        _qt = ((__u16)((__u8)__buf_0[pkt_off]) << 8) | ((__u8)__buf_0[pkt_off + 1]);
     inc_counter(&dns_domains, &dk);
     _qt;
 })""", BpfScalar.U16))

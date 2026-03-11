@@ -306,6 +306,7 @@ val redisProgram = ebpf("redis") {
     __builtin_memset(buf, 0, sizeof(buf));
     __u32 to_read = iov0.iov_len;
     if (to_read > MAX_PAYLOAD) to_read = MAX_PAYLOAD;
+    to_read &= (MAX_PAYLOAD - 1);  /* provable bound for older verifiers */
     if (bpf_probe_read_user(buf, to_read, iov0.iov_base) < 0) return 0;
 
     __u64 cgroup_id = bpf_get_current_cgroup_id();
@@ -408,6 +409,7 @@ val redisProgram = ebpf("redis") {
     __builtin_memset(buf, 0, sizeof(buf));
     __u32 to_read = (__u32)ret;
     if (to_read > MAX_PAYLOAD) to_read = MAX_PAYLOAD;
+    to_read &= (MAX_PAYLOAD - 1);  /* provable bound for older verifiers */
     if (bpf_probe_read_user(buf, to_read, iov0.iov_base) < 0) return 0;
 
     struct redis_inflight_key inf_key = {
