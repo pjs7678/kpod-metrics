@@ -41,6 +41,27 @@ typedef __kernel_size_t size_t;
 /* Network byte-order types */
 typedef __u16 __be16;
 typedef __u32 __be32;
+typedef __u32 __wsum;
+
+/* BPF map types (subset used by kpod-metrics) */
+enum bpf_map_type {
+    BPF_MAP_TYPE_UNSPEC = 0,
+    BPF_MAP_TYPE_HASH = 1,
+    BPF_MAP_TYPE_ARRAY = 2,
+    BPF_MAP_TYPE_PROG_ARRAY = 3,
+    BPF_MAP_TYPE_PERF_EVENT_ARRAY = 4,
+    BPF_MAP_TYPE_PERCPU_HASH = 5,
+    BPF_MAP_TYPE_PERCPU_ARRAY = 6,
+    BPF_MAP_TYPE_STACK_TRACE = 7,
+    BPF_MAP_TYPE_LRU_HASH = 9,
+};
+
+/* BPF map update flags */
+enum {
+    BPF_ANY = 0,
+    BPF_NOEXIST = 1,
+    BPF_EXIST = 2,
+};
 
 /* Forward declaration for cpu_profile.bpf.c (only used as opaque pointer) */
 struct bpf_perf_event_data;

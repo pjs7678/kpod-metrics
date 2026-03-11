@@ -245,6 +245,26 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         podIpResolver: PodIpResolver
     ) = HttpCollector(bridge, manager, resolver, registry, config, props.nodeName, podIpResolver)
 
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun redisCollector(
+        bridge: BpfBridge,
+        manager: BpfProgramManager,
+        resolver: CgroupResolver,
+        registry: MeterRegistry,
+        config: ResolvedConfig
+    ) = RedisCollector(bridge, manager, resolver, registry, config, props.nodeName)
+
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun mysqlCollector(
+        bridge: BpfBridge,
+        manager: BpfProgramManager,
+        resolver: CgroupResolver,
+        registry: MeterRegistry,
+        config: ResolvedConfig
+    ) = MysqlCollector(bridge, manager, resolver, registry, config, props.nodeName)
+
     // --- Profiling ---
 
     @Bean
@@ -362,6 +382,8 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         dnsCollector: DnsCollector,
         tcpPeerCollector: TcpPeerCollector,
         httpCollector: HttpCollector,
+        redisCollector: RedisCollector,
+        mysqlCollector: MysqlCollector,
         diskIOCollector: Optional<DiskIOCollector>,
         ifaceNetCollector: Optional<InterfaceNetworkCollector>,
         fsCollector: Optional<FilesystemCollector>,
@@ -378,7 +400,7 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         val service = MetricsCollectorService(
             cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
-            tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector, dnsCollector, tcpPeerCollector, httpCollector,
+            tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector, dnsCollector, tcpPeerCollector, httpCollector, redisCollector, mysqlCollector,
             diskIOCollector.orElse(null),
             ifaceNetCollector.orElse(null),
             fsCollector.orElse(null),
@@ -502,6 +524,12 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
                 }
                 if (resolvedCfg.extended.http) {
                     it.configureHttpPorts(resolvedCfg.extended.httpPorts)
+                }
+                if (resolvedCfg.extended.redis) {
+                    it.configureRedisPorts(resolvedCfg.extended.redisPorts)
+                }
+                if (resolvedCfg.extended.mysql) {
+                    it.configureMysqlPorts(resolvedCfg.extended.mysqlPorts)
                 }
 
                 if (props.profiling.enabled && props.profiling.cpu.enabled) {

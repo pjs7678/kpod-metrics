@@ -65,6 +65,8 @@ class BpfProgramManager(
         if (ext.dns) tryLoadProgram("dns")
         if (ext.tcpPeer) tryLoadProgram("tcp_peer")
         if (ext.http) tryLoadProgram("http")
+        if (ext.redis) tryLoadProgram("redis")
+        if (ext.mysql) tryLoadProgram("mysql")
 
         loadedCount.set(loadedPrograms.size)
         failedCount.set(_failedPrograms.size)
@@ -186,5 +188,45 @@ class BpfProgramManager(
             bridge.mapUpdate(mapFd, keyBytes, valueBytes)
         }
         log.info("HTTP port filter configured: {}", ports)
+    }
+
+    fun configureRedisPorts(ports: List<Int>) {
+        if (!isProgramLoaded("redis")) return
+        val mapFd = getMapFd("redis", "redis_ports")
+        for (port in ports) {
+            val keyBytes = java.nio.ByteBuffer.allocate(8)
+                .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                .putShort(port.toShort())
+                .putShort(0)  // _pad1
+                .putInt(0)    // _pad2
+                .array()
+            val valueBytes = java.nio.ByteBuffer.allocate(8)
+                .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                .put(1.toByte())  // enabled
+                .put(ByteArray(7))  // _pad
+                .array()
+            bridge.mapUpdate(mapFd, keyBytes, valueBytes)
+        }
+        log.info("Redis port filter configured: {}", ports)
+    }
+
+    fun configureMysqlPorts(ports: List<Int>) {
+        if (!isProgramLoaded("mysql")) return
+        val mapFd = getMapFd("mysql", "mysql_ports")
+        for (port in ports) {
+            val keyBytes = java.nio.ByteBuffer.allocate(8)
+                .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                .putShort(port.toShort())
+                .putShort(0)  // _pad1
+                .putInt(0)    // _pad2
+                .array()
+            val valueBytes = java.nio.ByteBuffer.allocate(8)
+                .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                .put(1.toByte())  // enabled
+                .put(ByteArray(7))  // _pad
+                .array()
+            bridge.mapUpdate(mapFd, keyBytes, valueBytes)
+        }
+        log.info("MySQL port filter configured: {}", ports)
     }
 }
