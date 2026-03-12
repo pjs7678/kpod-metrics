@@ -31,6 +31,10 @@ JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeMapBatc
     jint keySize, jint valueSize, jint maxBatch);
 JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativePerfEventAttach(
     JNIEnv *env, jobject self, jlong objPtr, jstring progName, jint sampleFreq);
+JNIEXPORT jlongArray JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeGetProgStats(
+    JNIEnv *env, jobject self, jlong objPtr);
+JNIEXPORT void JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeMapUpdate(
+    JNIEnv *env, jobject self, jint mapFd, jbyteArray key, jbyteArray value, jlong flags);
 
 #ifdef __cplusplus
 }

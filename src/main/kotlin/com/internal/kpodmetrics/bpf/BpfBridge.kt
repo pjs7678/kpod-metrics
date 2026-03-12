@@ -52,6 +52,8 @@ class BpfBridge {
     @Throws(BpfLoadException::class)
     private external fun nativePerfEventAttach(objPtr: Long, progName: String, sampleFreq: Int): Int
 
+    private external fun nativeGetProgStats(objPtr: Long): LongArray?
+
     // --- Public API wrapping JNI with handle safety ---
 
     fun openObject(path: String): Long {
@@ -159,6 +161,15 @@ class BpfBridge {
             mapDelete(mapFd, k)
         }
         return results
+    }
+
+    /**
+     * Returns [run_time_ns, run_cnt] aggregated across all programs in the object.
+     * Requires kernel 5.1+ with bpf_stats_enabled=1 for non-zero values.
+     */
+    fun getProgStats(handle: Long): LongArray? {
+        val ptr = handleRegistry.resolve(handle)
+        return nativeGetProgStats(ptr)
     }
 
     fun perfEventAttach(handle: Long, progName: String, sampleFreq: Int): Int {

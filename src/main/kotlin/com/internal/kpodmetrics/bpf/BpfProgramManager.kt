@@ -43,6 +43,7 @@ class BpfProgramManager(
     }
 
     fun loadAll() {
+        enableBpfStats()
         if (config.cpu.scheduling.enabled || config.cpu.throttling.enabled) {
             tryLoadProgram("cpu_sched")
         }
@@ -149,6 +150,22 @@ class BpfProgramManager(
     }
 
     fun isProgramLoaded(name: String): Boolean = loadedPrograms.containsKey(name)
+
+    fun getLoadedProgramNames(): Set<String> = loadedPrograms.keys.toSet()
+
+    fun getHandle(programName: String): Long? = loadedPrograms[programName]
+
+    private fun enableBpfStats() {
+        try {
+            val statsFile = java.io.File("/proc/sys/kernel/bpf_stats_enabled")
+            if (statsFile.exists() && statsFile.readText().trim() != "1") {
+                statsFile.writeText("1")
+                log.info("Enabled BPF program stats (/proc/sys/kernel/bpf_stats_enabled=1)")
+            }
+        } catch (e: Exception) {
+            log.debug("Could not enable BPF stats (kernel 5.1+ required): {}", e.message)
+        }
+    }
 
     fun configureDnsPorts(ports: List<Int>) {
         if (!isProgramLoaded("dns")) return
