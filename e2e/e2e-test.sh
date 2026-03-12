@@ -442,7 +442,7 @@ if [ -n "$BPF_RUN_TIME" ]; then
     MAX_CPU_NS=0
     MAX_CPU_PROG=""
     while IFS= read -r line; do
-        prog=$(echo "$line" | grep -oP 'program="[^"]*"' | cut -d'"' -f2)
+        prog=$(echo "$line" | sed -n 's/.*program="\([^"]*\)".*/\1/p')
         val=$(echo "$line" | awk '{print $NF}')
         val_int=${val%%.*}
         if [ "${val_int:-0}" -gt "$MAX_CPU_NS" ]; then

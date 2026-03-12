@@ -65,9 +65,9 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     # Show which BPF files changed
     info "BPF-related files changed:"
     for pattern in $BPF_PATTERNS; do
-        echo "$changed_files" | grep "^${pattern}" | while read -r f; do
+        echo "$changed_files" | grep "^${pattern}" 2>/dev/null | while read -r f; do
             echo "  $f"
-        done
+        done || true
     done
 
     # Check minikube is running
