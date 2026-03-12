@@ -16,6 +16,13 @@ All eBPF programs MUST be implemented using kotlin-ebpf-dsl (`src/bpfGenerator/`
 - `docker build -f kpod-metrics/Dockerfile -t kpod-metrics .` from parent dir
 - Local: `JAVA_HOME=$(/usr/libexec/java_home -v 21) ./gradlew -PebpfDslPath=<path-to-kotlin-ebpf-dsl> test`
 
+## Git Hooks
+
+- Hooks live in `.githooks/` (set via `git config core.hooksPath .githooks`)
+- **pre-push**: Auto-runs `e2e/e2e-test.sh` on minikube when BPF files change (`src/bpfGenerator/`, `bpf/`, `jni/`)
+- Skip with `git push --no-verify` in emergencies
+- New clones need: `git config core.hooksPath .githooks`
+
 ## Workflow
 
 - Always use feature branches + PRs for changes (never push directly to main)
