@@ -1,6 +1,7 @@
 #include "bpf_bridge.h"
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
+#include <linux/bpf.h>
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
@@ -343,4 +344,42 @@ JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativePerfEve
         }
     }
     return attached;
+}
+
+/*
+ * Get aggregated BPF program stats (run_time_ns, run_cnt) for all programs
+ * in an object. Returns a long array: [total_run_time_ns, total_run_cnt].
+ * Requires kernel 5.1+ with bpf_stats_enabled for meaningful values.
+ */
+JNIEXPORT jlongArray JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeGetProgStats(
+    JNIEnv *env, jobject self, jlong ptr) {
+    (void)self;
+    if (ptr == 0) {
+        throw_load_exception(env, "Null BPF object pointer");
+        return NULL;
+    }
+    struct bpf_obj_wrapper *wrapper = (struct bpf_obj_wrapper *)(uintptr_t)ptr;
+
+    __u64 total_run_time = 0;
+    __u64 total_run_cnt = 0;
+
+    struct bpf_program *prog;
+    bpf_object__for_each_program(prog, wrapper->obj) {
+        int fd = bpf_program__fd(prog);
+        if (fd < 0) continue;
+
+        struct bpf_prog_info info = {};
+        __u32 info_len = sizeof(info);
+        if (bpf_obj_get_info_by_fd(fd, &info, &info_len) == 0) {
+            total_run_time += info.run_time_ns;
+            total_run_cnt += info.run_cnt;
+        }
+    }
+
+    jlongArray result = (*env)->NewLongArray(env, 2);
+    if (result) {
+        jlong vals[2] = { (jlong)total_run_time, (jlong)total_run_cnt };
+        (*env)->SetLongArrayRegion(env, result, 0, 2, vals);
+    }
+    return result;
 }

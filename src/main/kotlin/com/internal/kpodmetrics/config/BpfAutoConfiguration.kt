@@ -139,6 +139,14 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
 
     @Bean
     @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun bpfOverheadCollector(
+        bridge: BpfBridge,
+        manager: BpfProgramManager,
+        registry: MeterRegistry
+    ) = BpfOverheadCollector(bridge, manager, registry)
+
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
     fun syscallCollector(
         bridge: BpfBridge,
         manager: BpfProgramManager,
@@ -393,6 +401,7 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         manager: BpfProgramManager,
         cgroupResolver: CgroupResolver,
         bpfMapStatsCollector: BpfMapStatsCollector,
+        bpfOverheadCollector: BpfOverheadCollector,
         registry: MeterRegistry,
         profilingPipeline: Optional<ProfilingPipeline>
     ): MetricsCollectorService {
@@ -410,6 +419,7 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
             manager,
             cgroupResolver,
             bpfMapStatsCollector,
+            bpfOverheadCollector,
             registry,
             props.collectionTimeout,
             props.collectors,

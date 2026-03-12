@@ -45,6 +45,7 @@ class MetricsCollectorService(
     private val programManager: BpfProgramManager? = null,
     private val cgroupResolver: CgroupResolver? = null,
     private val bpfMapStatsCollector: BpfMapStatsCollector? = null,
+    private val bpfOverheadCollector: BpfOverheadCollector? = null,
     private val registry: MeterRegistry? = null,
     private val collectionTimeoutMs: Long = 20000,
     private val collectorOverrides: CollectorOverrides = CollectorOverrides(),
@@ -188,7 +189,8 @@ class MetricsCollectorService(
             "http" to httpCollector::collect,
             "redis" to redisCollector::collect,
             "mysql" to mysqlCollector::collect,
-            bpfMapStatsCollector?.let { "bpfMapStats" to it::collect }
+            bpfMapStatsCollector?.let { "bpfMapStats" to it::collect },
+            bpfOverheadCollector?.let { "bpfOverhead" to it::collect }
         )
         val bpfCollectors = allBpfCollectors.filter { (name, _) ->
             val run = shouldRunCollector(name)
