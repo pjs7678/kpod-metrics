@@ -426,7 +426,77 @@ assert_metric_gt_zero_regex \
     "fail"
 
 # ============================================================
-# Step 5: Report + cleanup
+# Step 5: BPF overhead validation
+# ============================================================
+info "=== Step 5: BPF overhead validation ==="
+
+# Check that overhead metrics exist for all loaded programs
+BPF_RUN_TIME=$(echo "$PROM_RESPONSE" | grep -v '^#' | grep 'kpod_bpf_program_run_time_ns_total' || true)
+BPF_RUN_COUNT=$(echo "$PROM_RESPONSE" | grep -v '^#' | grep 'kpod_bpf_program_run_count_total' || true)
+
+if [ -n "$BPF_RUN_TIME" ]; then
+    check_pass "kpod_bpf_program_run_time_ns_total metrics present"
+
+    # Extract per-program CPU time and check thresholds
+    # Each program's cumulative CPU time should be < 1 second over the test window
+    MAX_CPU_NS=0
+    MAX_CPU_PROG=""
+    while IFS= read -r line; do
+        prog=$(echo "$line" | grep -oP 'program="[^"]*"' | cut -d'"' -f2)
+        val=$(echo "$line" | awk '{print $NF}')
+        val_int=${val%%.*}
+        if [ "${val_int:-0}" -gt "$MAX_CPU_NS" ]; then
+            MAX_CPU_NS="$val_int"
+            MAX_CPU_PROG="$prog"
+        fi
+    done <<< "$BPF_RUN_TIME"
+
+    MAX_CPU_MS=$((MAX_CPU_NS / 1000000))
+    info "  Highest BPF CPU time: ${MAX_CPU_PROG}=${MAX_CPU_MS}ms"
+
+    # Threshold: no single program should use >5s of CPU in the test window
+    if [ "$MAX_CPU_NS" -gt 5000000000 ]; then
+        check_fail "BPF program '${MAX_CPU_PROG}' CPU time exceeds 5s threshold (${MAX_CPU_MS}ms)"
+    else
+        check_pass "All BPF programs CPU time within limits (max: ${MAX_CPU_PROG}=${MAX_CPU_MS}ms)"
+    fi
+else
+    check_warn "kpod_bpf_program_run_time_ns_total — not found (kernel may not support bpf_stats)"
+fi
+
+if [ -n "$BPF_RUN_COUNT" ]; then
+    PROG_COUNT=$(echo "$BPF_RUN_COUNT" | wc -l | tr -d ' ')
+    check_pass "kpod_bpf_program_run_count_total present for ${PROG_COUNT} programs"
+else
+    check_warn "kpod_bpf_program_run_count_total — not found"
+fi
+
+# Check that loaded program count matches expected (should be >= 9 for standard profile)
+BPF_LOADED=$(echo "$PROM_RESPONSE" | grep -v '^#' | grep 'kpod_bpf_programs_loaded ' | awk '{print $NF}' || true)
+if [ -n "$BPF_LOADED" ]; then
+    BPF_LOADED_INT=${BPF_LOADED%%.*}
+    if [ "${BPF_LOADED_INT:-0}" -ge 9 ]; then
+        check_pass "BPF programs loaded: ${BPF_LOADED_INT} (>= 9 expected for comprehensive profile)"
+    elif [ "${BPF_LOADED_INT:-0}" -gt 0 ]; then
+        check_warn "BPF programs loaded: ${BPF_LOADED_INT} (expected >= 9)"
+    else
+        check_warn "BPF programs loaded: 0 (eBPF may not be supported on this kernel)"
+    fi
+fi
+
+# Check collection cycle duration is reasonable (< 5s per cycle)
+CYCLE_MAX=$(echo "$PROM_RESPONSE" | grep -v '^#' | grep 'kpod_collection_cycle_duration_seconds_max' | awk '{print $NF}' || true)
+if [ -n "$CYCLE_MAX" ]; then
+    CYCLE_MAX_MS=$(awk "BEGIN {printf \"%d\", $CYCLE_MAX * 1000}" 2>/dev/null || echo "0")
+    if [ "${CYCLE_MAX_MS:-0}" -gt 5000 ]; then
+        check_fail "Collection cycle max duration exceeds 5s (${CYCLE_MAX_MS}ms)"
+    else
+        check_pass "Collection cycle duration within limits (max: ${CYCLE_MAX_MS}ms)"
+    fi
+fi
+
+# ============================================================
+# Step 6: Report + cleanup
 # ============================================================
 info ""
 info "=========================================="
