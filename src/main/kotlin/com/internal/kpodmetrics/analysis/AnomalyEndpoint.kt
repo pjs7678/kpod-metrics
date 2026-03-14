@@ -18,17 +18,25 @@ class AnomalyEndpoint(
         @Nullable sensitivity: String?,
         @Nullable namespace: String?
     ): AnomalyReport {
-        val now = Instant.now().epochSecond
-        val fromEpoch = RecommendEndpoint.parseTimeExpr(from ?: "now-1h", now)
-        val untilEpoch = RecommendEndpoint.parseTimeExpr(until ?: "now", now)
-        val sens = validateSensitivity(sensitivity ?: "medium")
-        val ns = RecommendEndpoint.validateLabel(namespace ?: "default")
-        val validApp = RecommendEndpoint.validateLabel(app)
+        if (!rateLimiter.tryAcquire()) {
+            throw IllegalStateException("Too many concurrent anomaly detection requests. Try again later.")
+        }
+        try {
+            val now = Instant.now().epochSecond
+            val fromEpoch = RecommendEndpoint.parseTimeExpr(from ?: "now-1h", now)
+            val untilEpoch = RecommendEndpoint.parseTimeExpr(until ?: "now", now)
+            val sens = validateSensitivity(sensitivity ?: "medium")
+            val ns = RecommendEndpoint.validateLabel(namespace ?: "default")
+            val validApp = RecommendEndpoint.validateLabel(app)
 
-        return anomalyService.detect(validApp, ns, fromEpoch, untilEpoch, sens)
+            return anomalyService.detect(validApp, ns, fromEpoch, untilEpoch, sens)
+        } finally {
+            rateLimiter.release()
+        }
     }
 
     companion object {
+        private val rateLimiter = java.util.concurrent.Semaphore(3) // max 3 concurrent requests
         private val VALID_SENSITIVITIES = setOf("low", "medium", "high")
 
         internal fun validateSensitivity(value: String): String {

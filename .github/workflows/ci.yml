@@ -67,3 +67,16 @@ jobs:
         run: |
           ! helm template test helm/kpod-metrics \
             --set config.profile=nonexistent 2>/dev/null
+
+  dependency-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run Trivy vulnerability scanner (repo mode)
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: 1
