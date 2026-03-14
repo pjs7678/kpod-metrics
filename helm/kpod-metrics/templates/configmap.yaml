@@ -73,6 +73,19 @@ data:
           {{- toYaml .Values.otlp.headers | nindent 10 }}
         {{- end }}
       {{- end }}
+      tracing:
+        enabled: {{ .Values.tracing.enabled }}
+        otlp-endpoint: {{ .Values.tracing.otlpEndpoint | quote }}
+        ring-buffer-size-kb: {{ .Values.tracing.ringBufferSizeKb }}
+        http:
+          enabled: {{ .Values.tracing.http.enabled }}
+          threshold-ms: {{ .Values.tracing.http.thresholdMs }}
+        redis:
+          enabled: {{ .Values.tracing.redis.enabled }}
+          threshold-ms: {{ .Values.tracing.redis.thresholdMs }}
+        mysql:
+          enabled: {{ .Values.tracing.mysql.enabled }}
+          threshold-ms: {{ .Values.tracing.mysql.thresholdMs }}
     spring:
       threads:
         virtual:
@@ -86,7 +99,7 @@ data:
       endpoints:
         web:
           exposure:
-            include: health, prometheus, info, kpodDiagnostics
+            include: health, prometheus, info, kpodDiagnostics, kpodTracing
       metrics:
         export:
           prometheus:

@@ -238,6 +238,10 @@ static __always_inline void read_sock_addr(struct sock *sk, __u16 *dport, __u16 
     bpf_probe_read(&sport_be, sizeof(sport_be), &sk->__sk_common.skc_num);
     *sport = sport_be;
 }
+
+#define PROTO_HTTP  1
+#define PROTO_REDIS 2
+#define PROTO_MYSQL 3
 """.trimIndent()
 
 private val MYSQL_POSTAMBLE = """
@@ -279,6 +283,37 @@ static __always_inline void inc_mysql_event(void *map, void *key)
         bpf_map_update_elem(map, key, &one, BPF_NOEXIST);
     }
 }
+
+static __always_inline void maybe_emit_span(
+    void *rb, void *cfg_map,
+    __u64 start_ts, __u64 latency_ns, __u64 cgroup_id,
+    __u32 dst_ip, __u16 dst_port, __u16 src_port,
+    __u8 protocol, __u8 method, __u16 status_code, __u8 direction,
+    const __u8 *buf, __u32 buf_len)
+{
+    __u32 zero = 0;
+    struct tracing_config *cfg = bpf_map_lookup_elem(cfg_map, &zero);
+    if (!cfg || !cfg->enabled || latency_ns <= cfg->threshold_ns)
+        return;
+
+    struct span_event *evt = bpf_ringbuf_reserve(rb, sizeof(*evt), 0);
+    if (!evt)
+        return;
+
+    __builtin_memset(evt, 0, sizeof(*evt));
+    evt->ts_ns = start_ts;
+    evt->latency_ns = latency_ns;
+    evt->cgroup_id = cgroup_id;
+    evt->dst_ip = dst_ip;
+    evt->dst_port = dst_port;
+    evt->src_port = src_port;
+    evt->protocol = protocol;
+    evt->method = method;
+    evt->status_code = status_code;
+    evt->direction = direction;
+
+    bpf_ringbuf_submit(evt, 0);
+}
 """.trimIndent()
 
 // ── MySQL program ────────────────────────────────────────────────────
@@ -286,7 +321,7 @@ static __always_inline void inc_mysql_event(void *map, void *key)
 @Suppress("DEPRECATION")
 val mysqlProgram = ebpf("mysql") {
     license("GPL")
-    targetKernel("5.5")
+    targetKernel("5.8")
 
     preamble(MYSQL_PREAMBLE)
     postamble(MYSQL_POSTAMBLE)
@@ -298,6 +333,8 @@ val mysqlProgram = ebpf("mysql") {
     val mysqlInflight by lruHashMap(MysqlInflightKey, MysqlInflightVal, maxEntries = 8192)
     val mysqlErrors by lruHashMap(MysqlErrKey, CounterValue, maxEntries = 10240)
     val mysqlRcvStash by percpuArray(MysqlRecvStash, maxEntries = 1)
+    val tracingConfig by array(TracingConfig, maxEntries = 1)
+    val spanEvents by ringBuf(maxEntries = 262144) // 256KB
 
     // ── kprobe/tcp_sendmsg ───────────────────────────────────────────
     kprobe("tcp_sendmsg") {
@@ -369,10 +406,22 @@ val mysqlProgram = ebpf("mysql") {
         };
         update_hist(&mysql_latency, &lat_key, latency_ns);
 
+        __u16 err_code = 0;
         if (resp == MYSQL_ERR) {
-            __u16 err_code = extract_mysql_error_code(buf, to_read);
+            err_code = extract_mysql_error_code(buf, to_read);
             struct mysql_err_key ek = { .cgroup_id = cgroup_id, .err_code = err_code };
             inc_mysql_event(&mysql_errors, &ek);
+        }
+        {
+            __u32 dst_ip = 0;
+            bpf_probe_read(&dst_ip, sizeof(dst_ip), &sk->__sk_common.skc_daddr);
+            __u16 dport, sport;
+            read_sock_addr(sk, &dport, &sport);
+            maybe_emit_span(&span_events, &tracing_config,
+                inf->ts, latency_ns, cgroup_id,
+                dst_ip, dport, sport,
+                PROTO_MYSQL, req_stmt, err_code, req_dir,
+                NULL, 0);
         }
 
         bpf_map_delete_elem(&mysql_inflight, &inf_key);
@@ -475,10 +524,22 @@ val mysqlProgram = ebpf("mysql") {
         };
         update_hist(&mysql_latency, &lat_key, latency_ns);
 
+        __u16 err_code = 0;
         if (resp == MYSQL_ERR) {
-            __u16 err_code = extract_mysql_error_code(buf, to_read);
+            err_code = extract_mysql_error_code(buf, to_read);
             struct mysql_err_key ek = { .cgroup_id = cgroup_id, .err_code = err_code };
             inc_mysql_event(&mysql_errors, &ek);
+        }
+        {
+            __u32 dst_ip = 0;
+            bpf_probe_read(&dst_ip, sizeof(dst_ip), &sk->__sk_common.skc_daddr);
+            __u16 dport, sport;
+            read_sock_addr(sk, &dport, &sport);
+            maybe_emit_span(&span_events, &tracing_config,
+                inf->ts, latency_ns, cgroup_id,
+                dst_ip, dport, sport,
+                PROTO_MYSQL, req_stmt, err_code, req_dir,
+                NULL, 0);
         }
 
         bpf_map_delete_elem(&mysql_inflight, &inf_key);

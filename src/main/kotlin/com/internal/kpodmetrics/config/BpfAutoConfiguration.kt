@@ -24,6 +24,9 @@ import com.internal.kpodmetrics.analysis.AnomalyService
 import com.internal.kpodmetrics.analysis.PyroscopeClient
 import com.internal.kpodmetrics.analysis.RecommendEndpoint
 import com.internal.kpodmetrics.analysis.RecommendService
+import com.internal.kpodmetrics.tracing.TracingConfigManager
+import com.internal.kpodmetrics.tracing.SpanCollector
+import com.internal.kpodmetrics.tracing.TracingEndpoint
 import com.internal.kpodmetrics.k8s.PodWatcher
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientBuilder
@@ -492,6 +495,36 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
     @ConditionalOnProperty("kpod.profiling.enabled", havingValue = "true")
     fun anomalyEndpoint(anomalyService: AnomalyService) =
         AnomalyEndpoint(anomalyService)
+
+    // --- Tracing ---
+
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun tracingConfigManager(bridge: BpfBridge, manager: BpfProgramManager): TracingConfigManager =
+        TracingConfigManager(bridge, manager, props)
+
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun spanCollector(
+        bridge: BpfBridge,
+        manager: BpfProgramManager,
+        cgroupResolver: CgroupResolver,
+        tracingConfigManager: TracingConfigManager
+    ): SpanCollector {
+        val otlpEndpoint = if (props.tracing.otlpEndpoint.isNotBlank()) {
+            props.tracing.otlpEndpoint
+        } else if (props.otlp.endpoint.isNotBlank()) {
+            props.otlp.endpoint.replace("/v1/metrics", "")
+        } else {
+            ""
+        }
+        return SpanCollector(bridge, manager, cgroupResolver, tracingConfigManager, props, otlpEndpoint)
+    }
+
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun tracingEndpoint(tracingConfigManager: TracingConfigManager, spanCollector: SpanCollector): TracingEndpoint =
+        TracingEndpoint(tracingConfigManager, spanCollector)
 
     @EventListener(ContextRefreshedEvent::class)
     fun onStartup() {

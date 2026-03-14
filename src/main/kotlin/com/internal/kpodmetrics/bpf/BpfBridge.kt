@@ -54,6 +54,10 @@ class BpfBridge {
 
     private external fun nativeGetProgStats(objPtr: Long): LongArray?
 
+    private external fun nativeRingBufNew(mapFd: Int): Long
+    private external fun nativeRingBufPoll(rbPtr: Long, maxEvents: Int, eventSize: Int): ByteArray?
+    private external fun nativeRingBufFree(rbPtr: Long)
+
     // --- Public API wrapping JNI with handle safety ---
 
     fun openObject(path: String): Long {
@@ -176,6 +180,13 @@ class BpfBridge {
         val ptr = handleRegistry.resolve(handle)
         return nativePerfEventAttach(ptr, progName, sampleFreq)
     }
+
+    fun ringBufNew(mapFd: Int): Long = nativeRingBufNew(mapFd)
+
+    fun ringBufPoll(rbPtr: Long, maxEvents: Int, eventSize: Int): ByteArray? =
+        nativeRingBufPoll(rbPtr, maxEvents, eventSize)
+
+    fun ringBufFree(rbPtr: Long) = nativeRingBufFree(rbPtr)
 
     fun <T> withBpfObject(path: String, block: (Long) -> T): T {
         val handle = openObject(path)
