@@ -151,6 +151,33 @@ static __always_inline void read_sock_addr(struct sock *sk, __u16 *dport, __u16 
     *sport = sport_be;
 }
 
+#define PROTO_HTTP  1
+#define PROTO_REDIS 2
+#define PROTO_MYSQL 3
+
+static __always_inline void parse_url_path(const __u8 *buf, __u32 buf_len, __u8 *out, __u32 out_len)
+{
+    __u32 i = 0;
+    // Skip method (find first space)
+    #pragma unroll
+    for (i = 0; i < 10 && i < buf_len; i++) {
+        if (buf[i] == ' ') { i++; break; }
+    }
+    if (i >= buf_len) return;
+    __u32 start = i;
+    __u32 path_len = 0;
+    #pragma unroll
+    for (; i < buf_len && i < 128 && path_len < out_len; i++) {
+        if (buf[i] == ' ' || buf[i] == '\r' || buf[i] == '?') break;
+        path_len++;
+    }
+    if (path_len > 0) {
+        if (path_len > out_len) path_len = out_len;
+        path_len &= (out_len - 1);
+        bpf_probe_read_kernel(out, path_len, &buf[start]);
+    }
+}
+
 """.trimIndent()
 
 private val HTTP_POSTAMBLE = """
@@ -192,6 +219,41 @@ static __always_inline void inc_http_event(void *map, void *key)
         bpf_map_update_elem(map, key, &one, BPF_NOEXIST);
     }
 }
+
+static __always_inline void maybe_emit_span(
+    void *rb, void *cfg_map,
+    __u64 start_ts, __u64 latency_ns, __u64 cgroup_id,
+    __u32 dst_ip, __u16 dst_port, __u16 src_port,
+    __u8 protocol, __u8 method, __u16 status_code, __u8 direction,
+    const __u8 *buf, __u32 buf_len)
+{
+    __u32 zero = 0;
+    struct tracing_config *cfg = bpf_map_lookup_elem(cfg_map, &zero);
+    if (!cfg || !cfg->enabled || latency_ns <= cfg->threshold_ns)
+        return;
+
+    struct span_event *evt = bpf_ringbuf_reserve(rb, sizeof(*evt), 0);
+    if (!evt)
+        return;
+
+    __builtin_memset(evt, 0, sizeof(*evt));
+    evt->ts_ns = start_ts;
+    evt->latency_ns = latency_ns;
+    evt->cgroup_id = cgroup_id;
+    evt->dst_ip = dst_ip;
+    evt->dst_port = dst_port;
+    evt->src_port = src_port;
+    evt->protocol = protocol;
+    evt->method = method;
+    evt->status_code = status_code;
+    evt->direction = direction;
+
+    if (protocol == PROTO_HTTP && buf && buf_len > 0) {
+        parse_url_path(buf, buf_len, evt->url_path, sizeof(evt->url_path));
+    }
+
+    bpf_ringbuf_submit(evt, 0);
+}
 """.trimIndent()
 
 // ── HTTP program ─────────────────────────────────────────────────────
@@ -199,7 +261,7 @@ static __always_inline void inc_http_event(void *map, void *key)
 @Suppress("DEPRECATION")
 val httpProgram = ebpf("http") {
     license("GPL")
-    targetKernel("5.5")
+    targetKernel("5.8")
 
     preamble(HTTP_PREAMBLE)
     postamble(HTTP_POSTAMBLE)
@@ -210,6 +272,8 @@ val httpProgram = ebpf("http") {
     val httpLatency by lruHashMap(HttpLatKey, HistValue, maxEntries = 10240)
     val httpInflight by lruHashMap(HttpInflightKey, HttpInflightVal, maxEntries = 8192)
     val httpRecvStash by percpuArray(HttpRecvStash, maxEntries = 1)
+    val tracingConfig by array(TracingConfig, maxEntries = 1)
+    val spanEvents by ringBuf(maxEntries = 262144) // 256KB
 
     // ── kprobe/tcp_sendmsg ───────────────────────────────────────────
     kprobe("tcp_sendmsg") {
@@ -283,6 +347,17 @@ val httpProgram = ebpf("http") {
         .direction = req_dir,
     };
     update_hist(&http_latency, &lat_key, latency_ns);
+    {
+        __u32 dst_ip = 0;
+        bpf_probe_read(&dst_ip, sizeof(dst_ip), &sk->__sk_common.skc_daddr);
+        __u16 dport, sport;
+        read_sock_addr(sk, &dport, &sport);
+        maybe_emit_span(&span_events, &tracing_config,
+            inf->ts, latency_ns, cgroup_id,
+            dst_ip, dport, sport,
+            PROTO_HTTP, req_method, status, req_dir,
+            buf, to_read);
+    }
     bpf_map_delete_elem(&http_inflight, &inf_key);
     (__s32)0;
 })""", BpfScalar.S32))
@@ -389,6 +464,15 @@ val httpProgram = ebpf("http") {
         .direction = req_dir,
     };
     update_hist(&http_latency, &lat_key, latency_ns);
+    {
+        __u32 dst_ip = 0;
+        bpf_probe_read(&dst_ip, sizeof(dst_ip), &sk->__sk_common.skc_daddr);
+        maybe_emit_span(&span_events, &tracing_config,
+            inf->ts, latency_ns, cgroup_id,
+            dst_ip, dport, sport,
+            PROTO_HTTP, req_method, status, req_dir,
+            buf, to_read);
+    }
     bpf_map_delete_elem(&http_inflight, &inf_key);
     (__s32)0;
 })""", BpfScalar.S32))
