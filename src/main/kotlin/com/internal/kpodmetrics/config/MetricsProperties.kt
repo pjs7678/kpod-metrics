@@ -23,7 +23,8 @@ data class MetricsProperties(
     val discovery: DiscoveryProperties = DiscoveryProperties(),
     val cgroup: CgroupProperties = CgroupProperties(),
     val otlp: OtlpProperties = OtlpProperties(),
-    val profiling: ProfilingProperties = ProfilingProperties()
+    val profiling: ProfilingProperties = ProfilingProperties(),
+    val tracing: TracingProperties = TracingProperties()
 ) {
     fun resolveProfile(override: String? = null): ResolvedConfig {
         return when (override ?: profile) {
@@ -144,6 +145,20 @@ data class OtlpProperties(
     val endpoint: String = "http://localhost:4318/v1/metrics",
     val headers: Map<String, String> = emptyMap(),
     val step: Long = 60000
+)
+
+data class ProtocolTracingConfig(
+    val enabled: Boolean = true,
+    val thresholdMs: Long = 100
+)
+
+data class TracingProperties(
+    val enabled: Boolean = false,
+    val http: ProtocolTracingConfig = ProtocolTracingConfig(thresholdMs = 200),
+    val redis: ProtocolTracingConfig = ProtocolTracingConfig(thresholdMs = 10),
+    val mysql: ProtocolTracingConfig = ProtocolTracingConfig(thresholdMs = 200),
+    val otlpEndpoint: String = "",
+    val ringBufferSizeKb: Int = 256
 )
 
 data class ExtendedProperties(

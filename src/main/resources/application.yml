@@ -41,3 +41,16 @@ kpod:
     exclude-namespaces:
       - kube-system
       - kube-public
+  tracing:
+    enabled: false
+    otlp-endpoint: ""
+    ring-buffer-size-kb: 256
+    http:
+      enabled: true
+      threshold-ms: 200
+    redis:
+      enabled: true
+      threshold-ms: 10
+    mysql:
+      enabled: true
+      threshold-ms: 200
