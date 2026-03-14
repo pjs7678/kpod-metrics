@@ -14,6 +14,14 @@
 
 #define MAX_BPF_LINKS 32
 
+struct rb_wrapper {
+    struct ring_buffer *rb;
+    uint8_t *buf;
+    int event_size;
+    int max_events;
+    int count;
+};
+
 struct bpf_obj_wrapper {
     struct bpf_object *obj;
     struct bpf_link *links[MAX_BPF_LINKS];
@@ -382,4 +390,83 @@ JNIEXPORT jlongArray JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeG
         (*env)->SetLongArrayRegion(env, result, 0, 2, vals);
     }
     return result;
+}
+
+static int rb_callback(void *ctx_ptr, void *data, size_t data_sz) {
+    struct rb_wrapper *w = (struct rb_wrapper *)ctx_ptr;
+    if (w->count >= w->max_events)
+        return 1; /* stop */
+    if ((int)data_sz > w->event_size)
+        data_sz = w->event_size;
+    memcpy(w->buf + (w->count * w->event_size), data, data_sz);
+    w->count++;
+    return 0;
+}
+
+JNIEXPORT jlong JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeRingBufNew(
+    JNIEnv *env, jobject self, jint mapFd) {
+    (void)self;
+    struct rb_wrapper *w = calloc(1, sizeof(*w));
+    if (!w) {
+        throw_map_exception(env, "Failed to allocate ring buffer wrapper");
+        return 0;
+    }
+    w->rb = ring_buffer__new(mapFd, rb_callback, w, NULL);
+    if (!w->rb) {
+        char errmsg[256];
+        snprintf(errmsg, sizeof(errmsg), "ring_buffer__new failed: %s (errno=%d)",
+                 strerror(errno), errno);
+        free(w);
+        throw_map_exception(env, errmsg);
+        return 0;
+    }
+    return (jlong)(uintptr_t)w;
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeRingBufPoll(
+    JNIEnv *env, jobject self, jlong rbPtr, jint maxEvents, jint eventSize) {
+    (void)self;
+    if (rbPtr == 0) {
+        throw_map_exception(env, "Null ring buffer pointer");
+        return NULL;
+    }
+    struct rb_wrapper *w = (struct rb_wrapper *)(uintptr_t)rbPtr;
+
+    uint8_t *buf = malloc((size_t)maxEvents * eventSize);
+    if (!buf) {
+        throw_map_exception(env, "Failed to allocate poll buffer");
+        return NULL;
+    }
+    memset(buf, 0, (size_t)maxEvents * eventSize);
+
+    w->buf = buf;
+    w->event_size = eventSize;
+    w->max_events = maxEvents;
+    w->count = 0;
+
+    ring_buffer__poll(w->rb, 0); /* non-blocking */
+
+    int count = w->count;
+    w->buf = NULL;
+
+    if (count == 0) {
+        free(buf);
+        return NULL;
+    }
+
+    jbyteArray result = (*env)->NewByteArray(env, count * eventSize);
+    if (result) {
+        (*env)->SetByteArrayRegion(env, result, 0, count * eventSize, (jbyte *)buf);
+    }
+    free(buf);
+    return result;
+}
+
+JNIEXPORT void JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeRingBufFree(
+    JNIEnv *env, jobject self, jlong rbPtr) {
+    (void)env; (void)self;
+    if (rbPtr == 0) return;
+    struct rb_wrapper *w = (struct rb_wrapper *)(uintptr_t)rbPtr;
+    ring_buffer__free(w->rb);
+    free(w);
 }

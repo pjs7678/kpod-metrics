@@ -35,6 +35,12 @@ JNIEXPORT jlongArray JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeG
     JNIEnv *env, jobject self, jlong objPtr);
 JNIEXPORT void JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeMapUpdate(
     JNIEnv *env, jobject self, jint mapFd, jbyteArray key, jbyteArray value, jlong flags);
+JNIEXPORT jlong JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeRingBufNew(
+    JNIEnv *env, jobject self, jint mapFd);
+JNIEXPORT jbyteArray JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeRingBufPoll(
+    JNIEnv *env, jobject self, jlong rbPtr, jint maxEvents, jint eventSize);
+JNIEXPORT void JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeRingBufFree(
+    JNIEnv *env, jobject self, jlong rbPtr);
 
 #ifdef __cplusplus
 }
