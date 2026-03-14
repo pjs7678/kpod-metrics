@@ -100,6 +100,24 @@ otlp:
   # The Secret should contain keys matching header names (e.g., api-key: <base64-encoded-value>)
   existingSecret: ""
 
+# --- Tracing (OTel Spans) ---
+# Runtime-toggleable span export for slow L7 requests.
+# Disabled by default. Enable via API: POST /actuator/kpodTracing {"enabled": true}
+# Or set enabled: true here for persistent default.
+tracing:
+  enabled: false
+  otlpEndpoint: ""           # empty = derive from otlp.endpoint
+  ringBufferSizeKb: 256
+  http:
+    enabled: true
+    thresholdMs: 200
+  redis:
+    enabled: true
+    thresholdMs: 10
+  mysql:
+    enabled: true
+    thresholdMs: 200
+
 config:
   profile: standard
   pollInterval: 30000
