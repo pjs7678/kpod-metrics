@@ -18,6 +18,12 @@ repositories {
     mavenCentral()
 }
 
+dependencyManagement {
+    imports {
+        mavenBom("io.opentelemetry:opentelemetry-bom:${libs.versions.opentelemetry.get()}")
+    }
+}
+
 sourceSets {
     create("bpfGenerator")
 }
