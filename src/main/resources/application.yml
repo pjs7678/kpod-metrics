@@ -16,7 +16,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health, prometheus, info, kpodDiagnostics, kpodRecommend, kpodAnomaly, kpodTracing
+        include: health, prometheus, info, kpodDiagnostics, kpodRecommend, kpodAnomaly, kpodTracing, kpodTopology
   metrics:
     export:
       prometheus:
@@ -54,3 +54,7 @@ kpod:
     mysql:
       enabled: true
       threshold-ms: 200
+  topology:
+    enabled: true
+    window-size: 10
+    max-external-nodes: 20
