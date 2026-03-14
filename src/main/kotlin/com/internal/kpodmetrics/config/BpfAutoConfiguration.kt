@@ -24,6 +24,8 @@ import com.internal.kpodmetrics.analysis.AnomalyService
 import com.internal.kpodmetrics.analysis.PyroscopeClient
 import com.internal.kpodmetrics.analysis.RecommendEndpoint
 import com.internal.kpodmetrics.analysis.RecommendService
+import com.internal.kpodmetrics.topology.TopologyAggregator
+import com.internal.kpodmetrics.topology.TopologyEndpoint
 import com.internal.kpodmetrics.tracing.TracingConfigManager
 import com.internal.kpodmetrics.tracing.SpanCollector
 import com.internal.kpodmetrics.tracing.TracingEndpoint
@@ -242,8 +244,9 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         resolver: CgroupResolver,
         registry: MeterRegistry,
         config: ResolvedConfig,
-        podIpResolver: PodIpResolver
-    ) = TcpPeerCollector(bridge, manager, resolver, registry, config, props.nodeName, podIpResolver)
+        podIpResolver: PodIpResolver,
+        topologyAggregator: Optional<TopologyAggregator>
+    ) = TcpPeerCollector(bridge, manager, resolver, registry, config, props.nodeName, podIpResolver, topologyAggregator.orElse(null))
 
     @Bean
     @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
@@ -525,6 +528,24 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
     @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
     fun tracingEndpoint(tracingConfigManager: TracingConfigManager, spanCollector: SpanCollector): TracingEndpoint =
         TracingEndpoint(tracingConfigManager, spanCollector)
+
+    // --- Service Topology ---
+
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun topologyAggregator(): TopologyAggregator? {
+        if (!props.topology.enabled) return null
+        return TopologyAggregator(
+            windowSize = props.topology.windowSize,
+            maxExternalNodes = props.topology.maxExternalNodes
+        )
+    }
+
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun topologyEndpoint(topologyAggregator: Optional<TopologyAggregator>): TopologyEndpoint? {
+        return topologyAggregator.map { TopologyEndpoint(it) }.orElse(null)
+    }
 
     @EventListener(ContextRefreshedEvent::class)
     fun onStartup() {
