@@ -543,7 +543,28 @@ else
 fi
 
 # ============================================================
-# Step 7: Report + cleanup
+# Step 7: Topology endpoint test
+# ============================================================
+info "=== Step 7: Topology endpoint test ==="
+
+TOPOLOGY_RESPONSE=$(curl -sf "http://localhost:${LOCAL_PORT}/actuator/kpodTopology" 2>/dev/null || true)
+if [ -n "$TOPOLOGY_RESPONSE" ]; then
+    NODE_COUNT=$(echo "$TOPOLOGY_RESPONSE" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('nodes', [])))" 2>/dev/null || echo "0")
+    EDGE_COUNT=$(echo "$TOPOLOGY_RESPONSE" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('edges', [])))" 2>/dev/null || echo "0")
+
+    check_pass "Topology endpoint responsive (${NODE_COUNT} nodes, ${EDGE_COUNT} edges)"
+
+    if [ "${NODE_COUNT:-0}" -gt 0 ]; then
+        check_pass "Topology has service nodes"
+    else
+        check_warn "Topology empty (TCP peer data may not be available on minikube)"
+    fi
+else
+    check_warn "kpodTopology endpoint not available"
+fi
+
+# ============================================================
+# Step 8: Report + cleanup
 # ============================================================
 info ""
 info "=========================================="
