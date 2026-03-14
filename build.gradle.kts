@@ -37,6 +37,11 @@ dependencies {
     // OTLP metrics export (optional at runtime)
     implementation(libs.micrometer.registry.otlp)
 
+    // OpenTelemetry SDK (tracing / span export)
+    implementation(libs.opentelemetry.api)
+    implementation(libs.opentelemetry.sdk)
+    implementation(libs.opentelemetry.exporter.otlp)
+
     // JSON parsing
     implementation(libs.jackson.module.kotlin)
 
