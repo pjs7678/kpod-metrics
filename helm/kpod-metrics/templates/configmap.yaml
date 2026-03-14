@@ -86,6 +86,10 @@ data:
         mysql:
           enabled: {{ .Values.tracing.mysql.enabled }}
           threshold-ms: {{ .Values.tracing.mysql.thresholdMs }}
+      topology:
+        enabled: {{ .Values.topology.enabled }}
+        window-size: {{ .Values.topology.windowSize }}
+        max-external-nodes: {{ .Values.topology.maxExternalNodes }}
     spring:
       threads:
         virtual:
@@ -99,7 +103,7 @@ data:
       endpoints:
         web:
           exposure:
-            include: health, prometheus, info, kpodDiagnostics, kpodTracing
+            include: health, prometheus, info, kpodDiagnostics, kpodTracing, kpodTopology
       metrics:
         export:
           prometheus:

@@ -118,6 +118,12 @@ tracing:
     enabled: true
     thresholdMs: 200
 
+# --- Topology (Service dependency map) ---
+topology:
+  enabled: true
+  windowSize: 10
+  maxExternalNodes: 20
+
 config:
   profile: standard
   pollInterval: 30000
