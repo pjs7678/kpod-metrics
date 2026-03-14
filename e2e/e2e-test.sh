@@ -496,7 +496,54 @@ if [ -n "$CYCLE_MAX" ]; then
 fi
 
 # ============================================================
-# Step 6: Report + cleanup
+# Step 6: Tracing toggle test
+# ============================================================
+info "=== Step 6: Tracing toggle test ==="
+
+TRACING_STATE=$(curl -sf "http://localhost:${LOCAL_PORT}/actuator/kpodTracing" 2>/dev/null || true)
+if [ -n "$TRACING_STATE" ]; then
+    TRACING_ENABLED=$(echo "$TRACING_STATE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('enabled', 'N/A'))" 2>/dev/null || echo "N/A")
+    if [ "$TRACING_ENABLED" = "False" ] || [ "$TRACING_ENABLED" = "false" ]; then
+        check_pass "Tracing disabled by default"
+    else
+        check_warn "Tracing initial state unexpected: ${TRACING_ENABLED}"
+    fi
+
+    # Enable tracing via API
+    ENABLE_RESULT=$(curl -sf -X POST "http://localhost:${LOCAL_PORT}/actuator/kpodTracing" \
+        -H "Content-Type: application/json" \
+        -d '{"enabled":true}' 2>/dev/null || true)
+    if [ -n "$ENABLE_RESULT" ]; then
+        ENABLED_NOW=$(echo "$ENABLE_RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('enabled', False))" 2>/dev/null || echo "false")
+        SOURCE=$(echo "$ENABLE_RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('source', 'unknown'))" 2>/dev/null || echo "unknown")
+        if [ "$ENABLED_NOW" = "True" ] || [ "$ENABLED_NOW" = "true" ]; then
+            check_pass "Tracing enabled via API (source=${SOURCE})"
+        else
+            check_warn "Tracing enable response unexpected"
+        fi
+    else
+        check_warn "Tracing API not responding to POST"
+    fi
+
+    # Disable tracing
+    curl -sf -X POST "http://localhost:${LOCAL_PORT}/actuator/kpodTracing" \
+        -H "Content-Type: application/json" \
+        -d '{"enabled":false}' >/dev/null 2>&1 || true
+
+    # Verify disabled
+    FINAL_STATE=$(curl -sf "http://localhost:${LOCAL_PORT}/actuator/kpodTracing" 2>/dev/null || true)
+    FINAL_ENABLED=$(echo "$FINAL_STATE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('enabled', 'N/A'))" 2>/dev/null || echo "N/A")
+    if [ "$FINAL_ENABLED" = "False" ] || [ "$FINAL_ENABLED" = "false" ]; then
+        check_pass "Tracing disabled via API"
+    else
+        check_warn "Tracing disable unexpected: ${FINAL_ENABLED}"
+    fi
+else
+    check_warn "kpodTracing endpoint not available"
+fi
+
+# ============================================================
+# Step 7: Report + cleanup
 # ============================================================
 info ""
 info "=========================================="
