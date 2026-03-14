@@ -11,7 +11,7 @@
 #   Stage 5 (runtime):      final image
 
 # Stage 1: Generate BPF C code from DSL
-FROM gradle:8.12-jdk21 AS codegen
+FROM gradle:9.4-jdk21 AS codegen
 WORKDIR /build
 ENV GRADLE_OPTS="-Xmx1536m -Xms256m"
 # Copy kotlin-ebpf-dsl (composite build dependency)
@@ -92,7 +92,7 @@ RUN mkdir -p /runtime-libs && \
     cp /usr/lib/$GNU_ARCH/libbpf.so* /runtime-libs/ 2>/dev/null || true
 
 # Stage 4: Build Kotlin application
-FROM gradle:8.12-jdk21 AS app-builder
+FROM gradle:9.4-jdk21 AS app-builder
 WORKDIR /build
 ENV GRADLE_OPTS="-Xmx1536m -Xms256m"
 # Copy kotlin-ebpf-dsl (composite build dependency)
