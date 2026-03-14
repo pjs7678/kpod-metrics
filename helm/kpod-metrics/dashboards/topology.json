@@ -1,0 +1,74 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "description": "Service topology map built from eBPF-observed TCP connections. Requires the Infinity data source plugin (yesoreyeram-infinity-datasource) configured with uid \"infinity\" and pointing to http://kpod-metrics:9090/actuator/kpodTopology",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "type": "nodeGraph",
+      "title": "Service Topology",
+      "gridPos": {
+        "h": 18,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity"
+      },
+      "targets": [
+        {
+          "refId": "nodes",
+          "type": "json",
+          "source": "url",
+          "url": "http://kpod-metrics:9090/actuator/kpodTopology",
+          "root_selector": "nodes",
+          "columns": [
+            { "selector": "id", "text": "id", "type": "string" },
+            { "selector": "title", "text": "title", "type": "string" },
+            { "selector": "subTitle", "text": "subTitle", "type": "string" },
+            { "selector": "mainStat", "text": "mainStat", "type": "string" }
+          ]
+        },
+        {
+          "refId": "edges",
+          "type": "json",
+          "source": "url",
+          "url": "http://kpod-metrics:9090/actuator/kpodTopology",
+          "root_selector": "edges",
+          "columns": [
+            { "selector": "id", "text": "id", "type": "string" },
+            { "selector": "source", "text": "source", "type": "string" },
+            { "selector": "target", "text": "target", "type": "string" },
+            { "selector": "mainStat", "text": "mainStat", "type": "string" },
+            { "selector": "secondaryStat", "text": "secondaryStat", "type": "string" }
+          ]
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": [
+    "kpod-metrics",
+    "topology"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "kpod-metrics Service Topology",
+  "uid": "kpod-topology",
+  "version": 1
+}
