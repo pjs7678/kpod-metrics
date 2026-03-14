@@ -4,6 +4,8 @@ import com.internal.kpodmetrics.bpf.BpfBridge
 import com.internal.kpodmetrics.bpf.BpfProgramManager
 import com.internal.kpodmetrics.bpf.CgroupResolver
 import com.internal.kpodmetrics.config.ResolvedConfig
+import com.internal.kpodmetrics.topology.ConnectionRecord
+import com.internal.kpodmetrics.topology.TopologyAggregator
 import io.micrometer.core.instrument.DistributionSummary
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
@@ -18,7 +20,8 @@ class TcpPeerCollector(
     private val registry: MeterRegistry,
     private val config: ResolvedConfig,
     private val nodeName: String,
-    private val podIpResolver: PodIpResolver
+    private val podIpResolver: PodIpResolver,
+    private val topologyAggregator: TopologyAggregator? = null
 ) {
     private val log = LoggerFactory.getLogger(TcpPeerCollector::class.java)
 
@@ -46,11 +49,13 @@ class TcpPeerCollector(
         podIpResolver.refresh()
         collectConnections()
         collectRtt()
+        topologyAggregator?.advanceWindow()
     }
 
     private fun collectConnections() {
         val mapFd = programManager.getMapFd("tcp_peer", "tcp_peer_conns")
         val entries = bridge.mapBatchLookupAndDelete(mapFd, CONN_KEY_SIZE, CONN_VALUE_SIZE, MAX_ENTRIES)
+        val records = mutableListOf<ConnectionRecord>()
         for ((keyBytes, valueBytes) in entries) {
             val buf = ByteBuffer.wrap(keyBytes).order(ByteOrder.LITTLE_ENDIAN)
             val cgroupId = buf.long
@@ -76,7 +81,55 @@ class TcpPeerCollector(
                 "remote_service", peerInfo?.serviceName ?: ""
             )
             registry.counter("kpod.net.tcp.peer.connections", tags).increment(count.toDouble())
+
+            if (topologyAggregator != null) {
+                val srcService = deriveServiceName(podInfo.podName)
+                val dstId: String
+                val dstName: String
+                val dstNamespace: String?
+                val dstType: String
+
+                if (peerInfo?.serviceName != null) {
+                    dstId = "${peerInfo.namespace}/${peerInfo.serviceName}"
+                    dstName = peerInfo.serviceName
+                    dstNamespace = peerInfo.namespace
+                    dstType = "service"
+                } else if (peerInfo?.podName != null) {
+                    val derivedService = deriveServiceName(peerInfo.podName)
+                    dstId = "${peerInfo.namespace}/$derivedService"
+                    dstName = derivedService
+                    dstNamespace = peerInfo.namespace
+                    dstType = "service"
+                } else {
+                    dstId = "external:${remoteIpStr}:${remotePort}"
+                    dstName = "external:${remoteIpStr}:${remotePort}"
+                    dstNamespace = null
+                    dstType = "external"
+                }
+
+                records.add(ConnectionRecord(
+                    srcNamespace = podInfo.namespace,
+                    srcPod = podInfo.podName,
+                    srcService = srcService,
+                    dstId = dstId,
+                    dstName = dstName,
+                    dstNamespace = dstNamespace,
+                    dstType = dstType,
+                    requestCount = count,
+                    rttSumUs = 0,
+                    rttCount = 0,
+                    direction = directionLabel(direction),
+                    remotePort = remotePort
+                ))
+            }
         }
+        topologyAggregator?.ingest(records)
+    }
+
+    private fun deriveServiceName(podName: String): String {
+        return podName
+            .replace(Regex("-[a-f0-9]{5,10}-[a-z0-9]{5}$"), "")  // deployment-hash-hash
+            .replace(Regex("-[0-9]+$"), "")                         // statefulset-N
     }
 
     private fun collectRtt() {

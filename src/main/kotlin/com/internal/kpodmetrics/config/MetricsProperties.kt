@@ -24,7 +24,8 @@ data class MetricsProperties(
     val cgroup: CgroupProperties = CgroupProperties(),
     val otlp: OtlpProperties = OtlpProperties(),
     val profiling: ProfilingProperties = ProfilingProperties(),
-    val tracing: TracingProperties = TracingProperties()
+    val tracing: TracingProperties = TracingProperties(),
+    val topology: TopologyProperties = TopologyProperties()
 ) {
     fun resolveProfile(override: String? = null): ResolvedConfig {
         return when (override ?: profile) {
@@ -150,6 +151,12 @@ data class OtlpProperties(
 data class ProtocolTracingConfig(
     val enabled: Boolean = true,
     val thresholdMs: Long = 100
+)
+
+data class TopologyProperties(
+    val enabled: Boolean = true,
+    val windowSize: Int = 10,
+    val maxExternalNodes: Int = 20
 )
 
 data class TracingProperties(
