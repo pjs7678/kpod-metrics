@@ -75,6 +75,27 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
                 tags = tags.and("cluster", props.clusterName)
             }
             registry.config().meterFilter(MeterFilter.commonTags(tags))
+
+            // Self-monitoring: track total meter count for cardinality observability
+            registry.gauge("kpod.registry.meters.total", registry) { it.meters.size.toDouble() }
+
+            // Safety cap: deny new meters beyond threshold to prevent OOM from
+            // unbounded cardinality growth (Kepler #2085, Coroot #195/#175)
+            registry.config().meterFilter(object : MeterFilter {
+                private val maxMeters = 50_000
+                private var warned = false
+                override fun accept(id: io.micrometer.core.instrument.Meter.Id): io.micrometer.core.instrument.config.MeterFilterReply {
+                    if (registry.meters.size >= maxMeters) {
+                        if (!warned) {
+                            log.warn("Meter registry reached safety cap ({} meters). New meters will be denied. " +
+                                "Consider reducing cardinality or switching to a less verbose profile.", maxMeters)
+                            warned = true
+                        }
+                        return io.micrometer.core.instrument.config.MeterFilterReply.DENY
+                    }
+                    return io.micrometer.core.instrument.config.MeterFilterReply.NEUTRAL
+                }
+            })
         }
     }
 
