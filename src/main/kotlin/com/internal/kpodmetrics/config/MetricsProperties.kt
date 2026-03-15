@@ -156,7 +156,8 @@ data class ProtocolTracingConfig(
 data class TopologyProperties(
     val enabled: Boolean = true,
     val windowSize: Int = 10,
-    val maxExternalNodes: Int = 20
+    val maxExternalNodes: Int = 20,
+    val demoData: Boolean = false
 )
 
 data class TracingProperties(

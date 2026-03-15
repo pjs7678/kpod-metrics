@@ -436,10 +436,15 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
     @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
     fun topologyAggregator(): TopologyAggregator? {
         if (!props.topology.enabled) return null
-        return TopologyAggregator(
+        val aggregator = TopologyAggregator(
             windowSize = props.topology.windowSize,
             maxExternalNodes = props.topology.maxExternalNodes
         )
+        if (props.topology.demoData) {
+            log.info("Loading topology demo data")
+            aggregator.loadDemoData()
+        }
+        return aggregator
     }
 
     @Bean

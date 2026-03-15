@@ -216,6 +216,23 @@ class TopologyAggregator(
         currentCycle = mutableMapOf()
     }
 
+    fun loadDemoData() {
+        val demoConnections = listOf(
+            ConnectionRecord("default", "frontend-abc12-x9k2z", "frontend", "default/api-server", "api-server", "default", "service", 142, 1704000, 142, "client", 8080),
+            ConnectionRecord("default", "frontend-abc12-x9k2z", "frontend", "default/auth-service", "auth-service", "default", "service", 38, 760000, 38, "client", 8080),
+            ConnectionRecord("default", "api-server-def34-m3n7q", "api-server", "default/user-db", "user-db", "default", "service", 95, 285000, 95, "client", 3306),
+            ConnectionRecord("default", "api-server-def34-m3n7q", "api-server", "default/cache", "cache", "default", "service", 210, 420000, 210, "client", 6379),
+            ConnectionRecord("default", "api-server-def34-m3n7q", "api-server", "default/order-service", "order-service", "default", "service", 67, 1005000, 67, "client", 8080),
+            ConnectionRecord("default", "order-service-ghi56-p2r8w", "order-service", "default/payment-gateway", "payment-gateway", "default", "service", 23, 2070000, 23, "client", 443),
+            ConnectionRecord("default", "order-service-ghi56-p2r8w", "order-service", "default/user-db", "user-db", "default", "service", 45, 135000, 45, "client", 3306),
+            ConnectionRecord("default", "auth-service-jkl78-s4t6v", "auth-service", "default/cache", "cache", "default", "service", 120, 180000, 120, "client", 6379),
+            ConnectionRecord("default", "payment-gateway-mno90-u5v1y", "payment-gateway", "external:35.201.97.12:443", "35.201.97.12:443", null, "external", 23, 4600000, 23, "client", 443),
+            ConnectionRecord("default", "frontend-abc12-x9k2z", "frontend", "external:142.250.80.46:443", "142.250.80.46:443", null, "external", 15, 450000, 15, "client", 443)
+        )
+        ingest(demoConnections)
+        advanceWindow()
+    }
+
     companion object {
         fun inferProtocol(port: Int): String = when (port) {
             80, 443, 8080, 8443 -> "http"

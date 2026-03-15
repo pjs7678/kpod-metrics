@@ -123,6 +123,7 @@ topology:
   enabled: true
   windowSize: 10
   maxExternalNodes: 20
+  demoData: false
 
 config:
   profile: standard
