@@ -20,10 +20,13 @@ class DnsCollector(
     private val nodeName: String
 ) {
     private val log = LoggerFactory.getLogger(DnsCollector::class.java)
+    // Track unique domains to prevent cardinality explosion (Beyla #2219, Kepler #2366)
+    private val knownDomains = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     companion object {
         private const val MAX_ENTRIES = 10240
         private const val MAX_DOMAIN_ENTRIES = 1024
+        private const val MAX_UNIQUE_DOMAINS = 200
 
         // Struct sizes matching dns.bpf.c
         private const val DNS_REQ_KEY_SIZE = 16       // u64 + u16 + u16 + u32
@@ -155,12 +158,20 @@ class DnsCollector(
             }
             val count = ByteBuffer.wrap(valueBytes).order(ByteOrder.LITTLE_ENDIAN).long
 
+            // Cap unique domains to prevent cardinality explosion
+            val cappedDomain = if (knownDomains.contains(domain) || knownDomains.size < MAX_UNIQUE_DOMAINS) {
+                knownDomains.add(domain)
+                domain
+            } else {
+                "other"
+            }
+
             val tags = Tags.of(
                 "namespace", podInfo.namespace,
                 "pod", podInfo.podName,
                 "container", podInfo.containerName,
                 "node", nodeName,
-                "domain", domain
+                "domain", cappedDomain
             )
             registry.counter("kpod.dns.top.domains", tags).increment(count.toDouble())
         }
