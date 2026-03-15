@@ -176,6 +176,11 @@ class SpanCollector(
                             processSpanEvent(rawData, offset)
                         }
                         totalEvents += eventCount
+                        // Log when buffer is consistently full — may indicate dropped events
+                        // (Coroot #135, Tracee #4817: ring buffer overflow causes silent data loss)
+                        if (eventCount >= MAX_EVENTS_PER_POLL) {
+                            log.debug("Ring buffer '{}' returned max events ({}), possible overflow", programName, eventCount)
+                        }
                     } catch (e: Exception) {
                         log.debug("Error polling ring buffer for '{}': {}", programName, e.message)
                     }
