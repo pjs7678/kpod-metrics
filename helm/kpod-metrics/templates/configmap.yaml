@@ -90,6 +90,7 @@ data:
         enabled: {{ .Values.topology.enabled }}
         window-size: {{ .Values.topology.windowSize }}
         max-external-nodes: {{ .Values.topology.maxExternalNodes }}
+        demo-data: {{ .Values.topology.demoData | default false }}
     spring:
       threads:
         virtual:
