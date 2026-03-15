@@ -35,6 +35,8 @@ Returns a [Grafana Node Graph](https://grafana.com/docs/grafana/latest/panels-vi
 
 ## Grafana Dashboard
 
+![Grafana Node Graph](grafana-topology.png)
+
 A Node Graph dashboard is included at `helm/kpod-metrics/dashboards/topology.json`. It requires the [Infinity data source plugin](https://grafana.com/grafana/plugins/yesoreyeram-infinity-datasource/).
 
 ## Configuration

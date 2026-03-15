@@ -229,8 +229,11 @@ class TopologyAggregator(
             ConnectionRecord("default", "payment-gateway-mno90-u5v1y", "payment-gateway", "external:35.201.97.12:443", "35.201.97.12:443", null, "external", 23, 4600000, 23, "client", 443),
             ConnectionRecord("default", "frontend-abc12-x9k2z", "frontend", "external:142.250.80.46:443", "142.250.80.46:443", null, "external", 15, 450000, 15, "client", 443)
         )
-        ingest(demoConnections)
-        advanceWindow()
+        // Fill entire window so demo data survives collection cycle evictions
+        repeat(windowSize) {
+            ingest(demoConnections)
+            advanceWindow()
+        }
     }
 
     companion object {
