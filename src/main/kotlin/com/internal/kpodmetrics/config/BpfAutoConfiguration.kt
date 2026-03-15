@@ -48,6 +48,7 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
     private var metricsCollectorServiceInstance: MetricsCollectorService? = null
     private var kubeletPodProviderInstance: KubeletPodProvider? = null
     private var registryInstance: MeterRegistry? = null
+    @Volatile private var bpfCleanedUp = false
 
     @Bean
     @ConditionalOnProperty("kpod.otlp.enabled", havingValue = "true")
@@ -99,6 +100,14 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
     fun bpfProgramManager(bridge: BpfBridge, config: ResolvedConfig, registry: MeterRegistry): BpfProgramManager {
         val manager = BpfProgramManager(bridge, props.bpf.programDir, config, registry)
         this.programManager = manager
+
+        // Safety-net: JVM shutdown hook ensures BPF programs are detached even if
+        // Spring's @PreDestroy doesn't run (e.g., SIGTERM during startup, OOM kill).
+        // See: Coroot #290 — orphaned eBPF programs after SIGTERM
+        Runtime.getRuntime().addShutdownHook(Thread({
+            destroyBpfPrograms()
+        }, "bpf-cleanup"))
+
         return manager
     }
 
@@ -542,9 +551,16 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         podWatcherInstance?.stop()
         kubeletPodProviderInstance?.stop()
         metricsCollectorServiceInstance?.close()
+        destroyBpfPrograms()
+    }
+
+    @Synchronized
+    private fun destroyBpfPrograms() {
+        if (bpfCleanedUp) return
         programManager?.let {
             log.info("Destroying BPF programs")
             it.destroyAll()
         }
+        bpfCleanedUp = true
     }
 }
