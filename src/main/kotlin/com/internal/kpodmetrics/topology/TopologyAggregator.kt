@@ -15,11 +15,20 @@ data class ConnectionRecord(
     val remotePort: Int
 )
 
+data class RttRecord(
+    val srcService: String,
+    val dstId: String,
+    val rttSumUs: Long,
+    val rttCount: Long,
+    val histogram: LongArray
+)
+
 data class ServiceNode(
     val id: String,
     val title: String,
     val subTitle: String?,
-    val type: String
+    val type: String,
+    val tcpDrops: Long = 0
 )
 
 data class ServiceEdge(
@@ -43,6 +52,38 @@ class TopologyAggregator(
     private val windowSize: Int = 10,
     private val maxExternalNodes: Int = 20
 ) {
+    companion object {
+        const val RTT_HISTOGRAM_SLOTS = 27
+
+        fun inferProtocol(port: Int): String = when (port) {
+            80, 443, 8080, 8443 -> "http"
+            6379 -> "redis"
+            3306 -> "mysql"
+            5432 -> "postgresql"
+            else -> "tcp"
+        }
+
+        /**
+         * Compute p99 from a log2 histogram (slot i covers [2^i, 2^(i+1)) microseconds).
+         * Returns p99 in milliseconds.
+         */
+        fun computeP99Ms(histogram: LongArray, totalCount: Long): Double {
+            if (totalCount <= 0) return 0.0
+            val target = (totalCount * 99 + 99) / 100 // ceiling of 99th percentile
+            var cumulative = 0L
+            for (i in histogram.indices) {
+                cumulative += histogram[i]
+                if (cumulative >= target) {
+                    // Upper bound of this bucket in microseconds: 2^(i+1)
+                    val upperBoundUs = 1L shl (i + 1)
+                    return upperBoundUs.toDouble() / 1000.0
+                }
+            }
+            // All samples in the last bucket
+            return (1L shl RTT_HISTOGRAM_SLOTS).toDouble() / 1000.0
+        }
+    }
+
     private data class EdgeKey(val source: String, val target: String)
 
     private data class EdgeStats(
@@ -51,6 +92,7 @@ class TopologyAggregator(
         var rttSumUs: Long = 0,
         var rttCount: Long = 0,
         var bytesTotal: Long = 0,
+        val rttHistogram: LongArray = LongArray(RTT_HISTOGRAM_SLOTS),
         val protocols: MutableSet<String> = mutableSetOf(),
         var dstName: String = "",
         var dstNamespace: String? = null,
@@ -59,6 +101,8 @@ class TopologyAggregator(
 
     private val snapshots = ArrayDeque<Map<EdgeKey, EdgeStats>>()
     private var currentCycle = mutableMapOf<EdgeKey, EdgeStats>()
+    private val tcpDropSnapshots = ArrayDeque<Map<String, Long>>()
+    private var currentTcpDrops = mutableMapOf<String, Long>()
 
     @Synchronized
     fun ingest(connections: List<ConnectionRecord>) {
@@ -81,12 +125,38 @@ class TopologyAggregator(
     }
 
     @Synchronized
+    fun ingestTcpDrops(drops: Map<String, Long>) {
+        for ((service, count) in drops) {
+            currentTcpDrops[service] = (currentTcpDrops[service] ?: 0) + count
+        }
+    }
+
+    @Synchronized
+    fun ingestRtt(rttRecords: List<RttRecord>) {
+        for (rtt in rttRecords) {
+            val key = EdgeKey(rtt.srcService, rtt.dstId)
+            val stats = currentCycle[key] ?: continue // only enrich existing edges
+            stats.rttSumUs += rtt.rttSumUs
+            stats.rttCount += rtt.rttCount
+            for (i in rtt.histogram.indices.take(RTT_HISTOGRAM_SLOTS)) {
+                stats.rttHistogram[i] += rtt.histogram[i]
+            }
+        }
+    }
+
+    @Synchronized
     fun advanceWindow() {
         snapshots.addLast(currentCycle)
         if (snapshots.size > windowSize) {
             snapshots.removeFirst()
         }
         currentCycle = mutableMapOf()
+
+        tcpDropSnapshots.addLast(currentTcpDrops)
+        if (tcpDropSnapshots.size > windowSize) {
+            tcpDropSnapshots.removeFirst()
+        }
+        currentTcpDrops = mutableMapOf()
     }
 
     @Synchronized
@@ -107,6 +177,9 @@ class TopologyAggregator(
                 m.rttSumUs += stats.rttSumUs
                 m.rttCount += stats.rttCount
                 m.bytesTotal += stats.bytesTotal
+                for (i in stats.rttHistogram.indices) {
+                    m.rttHistogram[i] += stats.rttHistogram[i]
+                }
                 m.protocols.addAll(stats.protocols)
             }
         }
@@ -148,6 +221,9 @@ class TopologyAggregator(
                     otherStats.rttSumUs += stats.rttSumUs
                     otherStats.rttCount += stats.rttCount
                     otherStats.bytesTotal += stats.bytesTotal
+                    for (i in stats.rttHistogram.indices) {
+                        otherStats.rttHistogram[i] += stats.rttHistogram[i]
+                    }
                     otherStats.protocols.addAll(stats.protocols)
                 }
             }
@@ -160,6 +236,14 @@ class TopologyAggregator(
             }
         }
 
+        // Merge tcp drop snapshots per service
+        val mergedDrops = mutableMapOf<String, Long>()
+        for (snapshot in tcpDropSnapshots) {
+            for ((service, count) in snapshot) {
+                mergedDrops[service] = (mergedDrops[service] ?: 0) + count
+            }
+        }
+
         // Build nodes
         val nodeMap = mutableMapOf<String, ServiceNode>()
         for ((key, stats) in merged) {
@@ -169,7 +253,8 @@ class TopologyAggregator(
                     id = key.source,
                     title = key.source,
                     subTitle = null,
-                    type = "service"
+                    type = "service",
+                    tcpDrops = mergedDrops[key.source] ?: 0
                 )
             }
             // Destination node
@@ -178,7 +263,8 @@ class TopologyAggregator(
                     id = key.target,
                     title = stats.dstName,
                     subTitle = stats.dstNamespace,
-                    type = stats.dstType
+                    type = stats.dstType,
+                    tcpDrops = mergedDrops[key.target] ?: 0
                 )
             }
         }
@@ -198,7 +284,7 @@ class TopologyAggregator(
                 requestCount = stats.requestCount,
                 errorCount = stats.errorCount,
                 avgLatencyMs = avgLatencyMs,
-                p99LatencyMs = 0.0, // requires histogram data
+                p99LatencyMs = computeP99Ms(stats.rttHistogram, stats.rttCount),
                 bytesTotal = stats.bytesTotal,
                 protocols = stats.protocols.toSet()
             )
@@ -214,6 +300,8 @@ class TopologyAggregator(
     fun reset() {
         snapshots.clear()
         currentCycle = mutableMapOf()
+        tcpDropSnapshots.clear()
+        currentTcpDrops = mutableMapOf()
     }
 
     fun loadDemoData() {
@@ -236,13 +324,4 @@ class TopologyAggregator(
         }
     }
 
-    companion object {
-        fun inferProtocol(port: Int): String = when (port) {
-            80, 443, 8080, 8443 -> "http"
-            6379 -> "redis"
-            3306 -> "mysql"
-            5432 -> "postgresql"
-            else -> "tcp"
-        }
-    }
 }
