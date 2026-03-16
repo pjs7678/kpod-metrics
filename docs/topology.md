@@ -6,11 +6,20 @@ Auto-discovered service dependency graph from eBPF TCP peer data. Zero new BPF p
 
 ## How It Works
 
-The topology map groups TCP connections by service, building a directed graph of service-to-service communication with rich edge metadata:
+The topology map groups TCP connections by service, building a directed graph of service-to-service communication with rich metadata:
 
+**Edge metrics:**
 - **Request count** per edge
-- **Average latency** from TCP RTT
+- **Average latency** from TCP RTT (sum/count)
+- **P99 latency** from log2 RTT histogram (27-slot, microsecond precision)
 - **Protocol inference** from well-known ports (HTTP, Redis, MySQL, PostgreSQL)
+
+**Node metrics:**
+- **Request rate** (sum of connected edge traffic)
+- **Protocol mix** (arc fields for Grafana pie chart arcs)
+- **TCP drops** per service (from tcpdrop BPF program, cgroup-based)
+
+**Aggregation:**
 - **External node capping** (top 20 by traffic, rest merged into "other-external")
 - **Sliding window** (10 snapshots x 29s = ~5 min of data)
 
@@ -28,7 +37,7 @@ Returns a [Grafana Node Graph](https://grafana.com/docs/grafana/latest/panels-vi
     { "id": "frontend", "title": "frontend", "mainStat": "195", "arc__http": 1.0 }
   ],
   "edges": [
-    { "source": "frontend", "target": "default/api-server", "mainStat": "142", "secondaryStat": "12ms avg" }
+    { "source": "frontend", "target": "default/api-server", "mainStat": "568", "secondaryStat": "12ms avg / 32.8ms p99" }
   ]
 }
 ```
