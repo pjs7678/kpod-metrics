@@ -42,7 +42,8 @@ class TopologyEndpoint(
                 "id" to node.id,
                 "title" to node.title,
                 "subTitle" to node.subTitle,
-                "mainStat" to formatRate(totalRequests)
+                "mainStat" to formatRate(totalRequests),
+                "secondaryStat" to if (node.tcpDrops > 0) "${node.tcpDrops} drops" else ""
             )
             // Add arc__<protocol> fields as fractions
             if (traffic != null && traffic.totalRequests > 0) {
@@ -59,7 +60,10 @@ class TopologyEndpoint(
                 "source" to edge.source,
                 "target" to edge.target,
                 "mainStat" to formatRate(edge.requestCount),
-                "secondaryStat" to "${formatLatency(edge.avgLatencyMs)}ms avg",
+                "secondaryStat" to if (edge.p99LatencyMs > 0)
+                    "${formatLatency(edge.avgLatencyMs)}ms avg / ${formatLatency(edge.p99LatencyMs)}ms p99"
+                else
+                    "${formatLatency(edge.avgLatencyMs)}ms avg",
                 "detail__requestCount" to edge.requestCount,
                 "detail__errorCount" to edge.errorCount,
                 "detail__avgLatencyMs" to edge.avgLatencyMs,

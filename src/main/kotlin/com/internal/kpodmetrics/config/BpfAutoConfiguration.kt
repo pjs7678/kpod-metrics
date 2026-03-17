@@ -207,8 +207,10 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         manager: BpfProgramManager,
         resolver: CgroupResolver,
         registry: MeterRegistry,
-        config: ResolvedConfig
-    ) = TcpdropCollector(bridge, manager, resolver, registry, config, props.nodeName)
+        config: ResolvedConfig,
+        topologyAggregator: java.util.Optional<TopologyAggregator>
+    ) = TcpdropCollector(bridge, manager, resolver, registry, config, props.nodeName,
+        topologyAggregator.orElse(null))
 
     @Bean
     @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)

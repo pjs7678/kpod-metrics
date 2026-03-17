@@ -224,6 +224,20 @@ kubectl -n kpod-metrics port-forward ds/kpod-metrics 9090:9090
 curl http://localhost:9090/actuator/prometheus | grep kpod
 ```
 
+### Service Topology
+
+Auto-discovered service dependency graph from eBPF TCP peer data — no configuration, no sidecars.
+
+![Service Topology Demo](docs/topology-demo.gif)
+
+Edges show avg + p99 latency, request rate, and auto-detected protocol. Nodes show aggregated traffic, protocol mix, and TCP drops. See [docs/topology.md](docs/topology.md) for details.
+
+```bash
+# View topology API
+kubectl -n kpod-metrics port-forward ds/kpod-metrics 9090:9090
+curl http://localhost:9090/actuator/kpodTopology | python3 -m json.tool
+```
+
 ### Grafana Dashboard
 
 A ready-made Grafana dashboard is included with 9 rows covering all metric categories. It auto-provisions via the Grafana sidecar when deployed with Helm:

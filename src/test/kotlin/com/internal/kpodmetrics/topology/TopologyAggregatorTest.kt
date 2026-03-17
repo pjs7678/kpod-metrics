@@ -131,6 +131,63 @@ class TopologyAggregatorTest {
     }
 
     @Test
+    fun `p99 latency computed from histogram`() {
+        val agg = TopologyAggregator()
+        // Create an edge first
+        agg.ingest(listOf(conn(requestCount = 100)))
+        // Feed RTT histogram: 90 samples in slot 10 (~1ms), 10 samples in slot 15 (~32ms)
+        val histogram = LongArray(TopologyAggregator.RTT_HISTOGRAM_SLOTS)
+        histogram[10] = 90  // [1024us, 2048us)
+        histogram[15] = 10  // [32768us, 65536us)
+        agg.ingestRtt(listOf(
+            RttRecord(
+                srcService = "svc-a",
+                dstId = "default/svc-b",
+                rttSumUs = 90 * 1500 + 10 * 40_000, // ~535000us total
+                rttCount = 100,
+                histogram = histogram
+            )
+        ))
+        agg.advanceWindow()
+
+        val topo = agg.getTopology()
+        assertEquals(1, topo.edges.size)
+        val edge = topo.edges[0]
+        assertTrue(edge.avgLatencyMs > 0, "avg latency should be > 0")
+        // p99 should land in slot 15 upper bound: 2^16 = 65536us = 65.536ms
+        assertEquals(65.536, edge.p99LatencyMs, "p99 should be upper bound of slot 15")
+    }
+
+    @Test
+    fun `tcp drops tracked per service node`() {
+        val agg = TopologyAggregator()
+        agg.ingest(listOf(conn(requestCount = 50)))
+        agg.ingestTcpDrops(mapOf("svc-a" to 7L))
+        agg.advanceWindow()
+
+        val topo = agg.getTopology()
+        val nodeA = topo.nodes.find { it.id == "svc-a" }!!
+        assertEquals(7, nodeA.tcpDrops)
+    }
+
+    @Test
+    fun `ingestRtt only enriches existing edges`() {
+        val agg = TopologyAggregator()
+        agg.ingest(listOf(conn(requestCount = 10)))
+        // RTT for a non-existent edge — should be ignored
+        val histogram = LongArray(TopologyAggregator.RTT_HISTOGRAM_SLOTS)
+        histogram[10] = 5
+        agg.ingestRtt(listOf(
+            RttRecord("nonexistent", "default/svc-b", 5000, 5, histogram)
+        ))
+        agg.advanceWindow()
+
+        val topo = agg.getTopology()
+        assertEquals(1, topo.edges.size)
+        assertEquals(0.0, topo.edges[0].avgLatencyMs, "RTT for non-matching edge should not appear")
+    }
+
+    @Test
     fun `reset clears all snapshots`() {
         val agg = TopologyAggregator()
         agg.ingest(listOf(conn(requestCount = 42)))

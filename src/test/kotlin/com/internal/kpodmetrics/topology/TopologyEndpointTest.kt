@@ -13,7 +13,7 @@ class TopologyEndpointTest {
         val aggregator = mockk<TopologyAggregator>()
         every { aggregator.getTopology() } returns TopologySnapshot(
             nodes = listOf(
-                ServiceNode(id = "svc-a", title = "svc-a", subTitle = "default", type = "service"),
+                ServiceNode(id = "svc-a", title = "svc-a", subTitle = "default", type = "service", tcpDrops = 5),
                 ServiceNode(id = "default/svc-b", title = "svc-b", subTitle = "default", type = "service")
             ),
             edges = listOf(
@@ -48,6 +48,7 @@ class TopologyEndpointTest {
         assertEquals("default", nodeA["subTitle"])
         // mainStat = total requests across connected edges = 1500
         assertEquals("1.5 K", nodeA["mainStat"])
+        assertEquals("5 drops", nodeA["secondaryStat"])
         // arc fields: fraction of traffic by protocol
         assertTrue(nodeA.containsKey("arc__http"))
         assertTrue(nodeA.containsKey("arc__redis"))
@@ -61,7 +62,7 @@ class TopologyEndpointTest {
         assertEquals("svc-a", edge["source"])
         assertEquals("default/svc-b", edge["target"])
         assertEquals("1.5 K", edge["mainStat"])
-        assertEquals("12.4ms avg", edge["secondaryStat"])
+        assertEquals("12.4ms avg / 45ms p99", edge["secondaryStat"])
         assertEquals(1500L, edge["detail__requestCount"])
         assertEquals(3L, edge["detail__errorCount"])
         assertEquals(12.4, edge["detail__avgLatencyMs"])

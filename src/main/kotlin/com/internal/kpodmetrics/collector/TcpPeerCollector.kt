@@ -5,6 +5,7 @@ import com.internal.kpodmetrics.bpf.BpfProgramManager
 import com.internal.kpodmetrics.bpf.CgroupResolver
 import com.internal.kpodmetrics.config.ResolvedConfig
 import com.internal.kpodmetrics.topology.ConnectionRecord
+import com.internal.kpodmetrics.topology.RttRecord
 import com.internal.kpodmetrics.topology.TopologyAggregator
 import io.micrometer.core.instrument.DistributionSummary
 import io.micrometer.core.instrument.MeterRegistry
@@ -135,6 +136,7 @@ class TcpPeerCollector(
     private fun collectRtt() {
         val mapFd = programManager.getMapFd("tcp_peer", "tcp_peer_rtt")
         val entries = bridge.mapBatchLookupAndDelete(mapFd, RTT_KEY_SIZE, RTT_VALUE_SIZE, MAX_ENTRIES)
+        val rttRecords = mutableListOf<RttRecord>()
         for ((keyBytes, valueBytes) in entries) {
             val buf = ByteBuffer.wrap(keyBytes).order(ByteOrder.LITTLE_ENDIAN)
             val cgroupId = buf.long
@@ -144,8 +146,11 @@ class TcpPeerCollector(
             val podInfo = cgroupResolver.resolve(cgroupId) ?: continue
 
             val valBuf = ByteBuffer.wrap(valueBytes).order(ByteOrder.LITTLE_ENDIAN)
-            // Skip 27 histogram slots (27 * 8 = 216 bytes)
-            valBuf.position(27 * 8)
+            // Read 27 histogram slots
+            val histogram = LongArray(TopologyAggregator.RTT_HISTOGRAM_SLOTS)
+            for (i in histogram.indices) {
+                histogram[i] = valBuf.long
+            }
             val count = valBuf.long
             val sumUs = valBuf.long
 
@@ -171,6 +176,26 @@ class TcpPeerCollector(
                 .baseUnit("seconds")
                 .register(registry)
                 .record(avgRttSeconds)
+
+            // Feed RTT + histogram into topology aggregator
+            if (topologyAggregator != null) {
+                val srcService = deriveServiceName(podInfo.podName)
+                val dstId = if (peerInfo?.serviceName != null) {
+                    "${peerInfo.namespace}/${peerInfo.serviceName}"
+                } else if (peerInfo?.podName != null) {
+                    "${peerInfo.namespace}/${deriveServiceName(peerInfo.podName)}"
+                } else {
+                    "external:${remoteIpStr}:${remotePort}"
+                }
+                rttRecords.add(RttRecord(
+                    srcService = srcService,
+                    dstId = dstId,
+                    rttSumUs = sumUs,
+                    rttCount = count,
+                    histogram = histogram
+                ))
+            }
         }
+        topologyAggregator?.ingestRtt(rttRecords)
     }
 }
