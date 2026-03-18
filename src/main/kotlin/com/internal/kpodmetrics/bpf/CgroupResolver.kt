@@ -21,9 +21,13 @@ data class GraceCacheEntry(val podInfo: PodInfo, val deletedAt: Instant)
 class CgroupResolver {
     private val cache = ConcurrentHashMap<Long, PodInfo>()
     private val graceCache = ConcurrentHashMap<Long, GraceCacheEntry>()
+    // Negative cache: cgroup IDs that are NOT pods (system slices, host processes).
+    // Avoids repeated failed lookups for non-container cgroup IDs (Coroot #158, #222).
+    private val negativeCgroupCache = ConcurrentHashMap.newKeySet<Long>()
 
     companion object {
         private const val MAX_GRACE_CACHE_SIZE = 10_000
+        private const val MAX_NEGATIVE_CACHE_SIZE = 50_000
 
         private val SYSTEMD_PATTERN = Regex(
             "kubepods-(?:burstable|besteffort|guaranteed)-pod([a-f0-9]+)\\.slice/" +
@@ -53,9 +57,17 @@ class CgroupResolver {
 
     fun register(cgroupId: Long, podInfo: PodInfo) {
         cache[cgroupId] = podInfo
+        negativeCgroupCache.remove(cgroupId)
     }
 
-    fun resolve(cgroupId: Long): PodInfo? = cache[cgroupId] ?: graceCache[cgroupId]?.podInfo
+    fun resolve(cgroupId: Long): PodInfo? {
+        if (cgroupId in negativeCgroupCache) return null
+        val result = cache[cgroupId] ?: graceCache[cgroupId]?.podInfo
+        if (result == null && negativeCgroupCache.size < MAX_NEGATIVE_CACHE_SIZE) {
+            negativeCgroupCache.add(cgroupId)
+        }
+        return result
+    }
 
     fun evict(cgroupId: Long) {
         cache.remove(cgroupId)
