@@ -74,6 +74,18 @@ class BpfProgramManager(
         log.info("Loaded {} BPF programs: {}{}",
             loadedPrograms.size, loadedPrograms.keys,
             if (_failedPrograms.isNotEmpty()) ", failed: $_failedPrograms" else "")
+
+        // Warn about LRU hash map sharding on high-CPU nodes (Tracee #3930):
+        // kernel shards LRU maps across CPUs, so effective per-shard capacity = max_entries / num_cpus
+        val cpus = Runtime.getRuntime().availableProcessors()
+        val mapMaxEntries = 10240
+        val perShard = mapMaxEntries / cpus.coerceAtLeast(1)
+        if (perShard < 128) {
+            log.warn("High CPU count ({}) may cause BPF LRU map data loss: " +
+                "effective per-shard capacity is ~{} entries (map size {} / {} CPUs). " +
+                "Consider increasing BPF map max_entries for this node.",
+                cpus, perShard, mapMaxEntries, cpus)
+        }
     }
 
     private fun tryLoadProgram(name: String) {
