@@ -58,9 +58,12 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
             override fun url(): String = otlpProps.endpoint
             override fun headers(): Map<String, String> = otlpProps.headers
             override fun step(): java.time.Duration = java.time.Duration.ofMillis(otlpProps.step)
+            // Prevent unbounded payload growth (Alloy #3457, Beyla #1854):
+            // default batchSize is unlimited, which can cause OOM when backend is slow
+            override fun batchSize(): Int = 5000
             override fun get(key: String): String? = null
         }
-        log.info("OTLP metrics export enabled → {}", otlpProps.endpoint)
+        log.info("OTLP metrics export enabled → {} (batchSize=5000, step={}ms)", otlpProps.endpoint, otlpProps.step)
         return OtlpMeterRegistry(config, io.micrometer.core.instrument.Clock.SYSTEM)
     }
 
