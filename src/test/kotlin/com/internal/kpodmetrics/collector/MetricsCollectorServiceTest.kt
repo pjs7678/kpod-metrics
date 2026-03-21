@@ -28,6 +28,8 @@ class MetricsCollectorServiceTest {
     private lateinit var httpCollector: HttpCollector
     private lateinit var redisCollector: RedisCollector
     private lateinit var mysqlCollector: MysqlCollector
+    private lateinit var kafkaCollector: KafkaCollector
+    private lateinit var mongoCollector: MongoCollector
     private lateinit var registry: SimpleMeterRegistry
     private lateinit var service: MetricsCollectorService
 
@@ -47,12 +49,15 @@ class MetricsCollectorServiceTest {
         httpCollector = mockk(relaxed = true)
         redisCollector = mockk(relaxed = true)
         mysqlCollector = mockk(relaxed = true)
+        kafkaCollector = mockk(relaxed = true)
+        mongoCollector = mockk(relaxed = true)
         registry = SimpleMeterRegistry()
         service = MetricsCollectorService(
             cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
             dnsCollector, tcpPeerCollector, httpCollector, redisCollector, mysqlCollector,
+            kafkaCollector, mongoCollector,
             registry = registry
         )
     }
@@ -96,6 +101,7 @@ class MetricsCollectorServiceTest {
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
             dnsCollector, tcpPeerCollector, httpCollector, redisCollector, mysqlCollector,
+            kafkaCollector, mongoCollector,
             diskIOCollector, ifaceNetCollector, fsCollector, null, mapper
         )
         serviceWithCgroup.collect()
@@ -146,6 +152,7 @@ class MetricsCollectorServiceTest {
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
             dnsCollector, tcpPeerCollector, httpCollector, redisCollector, mysqlCollector,
+            kafkaCollector, mongoCollector,
             registry = registry,
             collectorOverrides = overrides
         )
@@ -174,6 +181,7 @@ class MetricsCollectorServiceTest {
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
             dnsCollector, tcpPeerCollector, httpCollector, redisCollector, mysqlCollector,
+            kafkaCollector, mongoCollector,
             diskIOCollector, ifaceNetCollector, fsCollector, null, mapper,
             registry = registry,
             collectorOverrides = overrides
@@ -196,6 +204,7 @@ class MetricsCollectorServiceTest {
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
             dnsCollector, tcpPeerCollector, httpCollector, redisCollector, mysqlCollector,
+            kafkaCollector, mongoCollector,
             registry = registry,
             collectionTimeoutMs = 100
         )
@@ -224,6 +233,7 @@ class MetricsCollectorServiceTest {
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
             dnsCollector, tcpPeerCollector, httpCollector, redisCollector, mysqlCollector,
+            kafkaCollector, mongoCollector,
             registry = registry
         )
     }
@@ -239,6 +249,7 @@ class MetricsCollectorServiceTest {
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
             dnsCollector, tcpPeerCollector, httpCollector, redisCollector, mysqlCollector,
+            kafkaCollector, mongoCollector,
             registry = registry,
             collectorIntervals = intervals,
             basePollIntervalMs = 30000
@@ -262,6 +273,7 @@ class MetricsCollectorServiceTest {
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
             dnsCollector, tcpPeerCollector, httpCollector, redisCollector, mysqlCollector,
+            kafkaCollector, mongoCollector,
             registry = registry,
             collectorIntervals = intervals,
             basePollIntervalMs = 30000
@@ -292,6 +304,7 @@ class MetricsCollectorServiceTest {
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
             dnsCollector, tcpPeerCollector, httpCollector, redisCollector, mysqlCollector,
+            kafkaCollector, mongoCollector,
             registry = registry,
             collectorIntervals = intervals,
             basePollIntervalMs = 30000
@@ -305,8 +318,8 @@ class MetricsCollectorServiceTest {
 
     @Test
     fun `getEnabledCollectorCount returns count of enabled collectors`() {
-        // Default: all 14 BPF collectors enabled, no cgroup collectors wired
-        kotlin.test.assertEquals(14, service.getEnabledCollectorCount())
+        // Default: all 16 BPF collectors enabled, no cgroup collectors wired
+        kotlin.test.assertEquals(16, service.getEnabledCollectorCount())
     }
 
     @Test
@@ -317,10 +330,11 @@ class MetricsCollectorServiceTest {
             biolatencyCollector, cachestatCollector,
             tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector,
             dnsCollector, tcpPeerCollector, httpCollector, redisCollector, mysqlCollector,
+            kafkaCollector, mongoCollector,
             registry = registry,
             collectorOverrides = overrides
         )
-        kotlin.test.assertEquals(12, filteredService.getEnabledCollectorCount())
+        kotlin.test.assertEquals(14, filteredService.getEnabledCollectorCount())
         filteredService.close()
     }
 
