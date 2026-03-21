@@ -14,6 +14,8 @@ data class TracingState(
     val http: ProtocolTracingConfig = ProtocolTracingConfig(thresholdMs = 200),
     val redis: ProtocolTracingConfig = ProtocolTracingConfig(thresholdMs = 10),
     val mysql: ProtocolTracingConfig = ProtocolTracingConfig(thresholdMs = 200),
+    val kafka: ProtocolTracingConfig = ProtocolTracingConfig(thresholdMs = 50),
+    val mongo: ProtocolTracingConfig = ProtocolTracingConfig(thresholdMs = 200),
     val source: String = "configmap"
 )
 
@@ -29,6 +31,8 @@ class TracingConfigManager(
             http = props.tracing.http,
             redis = props.tracing.redis,
             mysql = props.tracing.mysql,
+            kafka = props.tracing.kafka,
+            mongo = props.tracing.mongo,
             source = "configmap"
         )
     )
@@ -41,7 +45,9 @@ class TracingConfigManager(
         private val PROTOCOL_PROGRAMS = mapOf(
             "http" to "http",
             "redis" to "redis",
-            "mysql" to "mysql"
+            "mysql" to "mysql",
+            "kafka" to "kafka",
+            "mongo" to "mongo"
         )
     }
 
@@ -51,8 +57,8 @@ class TracingConfigManager(
         val updated = state.copy(source = "api")
         currentState.set(updated)
         applyCurrentConfig()
-        log.info("Tracing config updated via API: enabled={}, http={}, redis={}, mysql={}",
-            updated.enabled, updated.http, updated.redis, updated.mysql)
+        log.info("Tracing config updated via API: enabled={}, http={}, redis={}, mysql={}, kafka={}, mongo={}",
+            updated.enabled, updated.http, updated.redis, updated.mysql, updated.kafka, updated.mongo)
     }
 
     fun applyCurrentConfig() {
@@ -62,6 +68,8 @@ class TracingConfigManager(
                 "http" -> state.http
                 "redis" -> state.redis
                 "mysql" -> state.mysql
+                "kafka" -> state.kafka
+                "mongo" -> state.mongo
                 else -> continue
             }
             val enabled = state.enabled && protocolConfig.enabled

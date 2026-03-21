@@ -303,6 +303,26 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
     ) = MysqlCollector(bridge, manager, resolver, registry, config, props.nodeName)
 
     @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun kafkaCollector(
+        bridge: BpfBridge,
+        manager: BpfProgramManager,
+        resolver: CgroupResolver,
+        registry: MeterRegistry,
+        config: ResolvedConfig
+    ) = KafkaCollector(bridge, manager, resolver, registry, config, props.nodeName)
+
+    @Bean
+    @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
+    fun mongoCollector(
+        bridge: BpfBridge,
+        manager: BpfProgramManager,
+        resolver: CgroupResolver,
+        registry: MeterRegistry,
+        config: ResolvedConfig
+    ) = MongoCollector(bridge, manager, resolver, registry, config, props.nodeName)
+
+    @Bean
     fun podProvider(podWatcher: PodWatcher): PodProvider {
         if (props.discovery.mode == "kubelet") {
             val provider = KubeletPodProvider(
@@ -368,6 +388,8 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         httpCollector: HttpCollector,
         redisCollector: RedisCollector,
         mysqlCollector: MysqlCollector,
+        kafkaCollector: KafkaCollector,
+        mongoCollector: MongoCollector,
         diskIOCollector: Optional<DiskIOCollector>,
         ifaceNetCollector: Optional<InterfaceNetworkCollector>,
         fsCollector: Optional<FilesystemCollector>,
@@ -385,7 +407,7 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         val service = MetricsCollectorService(
             cpuCollector, netCollector, syscallCollector,
             biolatencyCollector, cachestatCollector,
-            tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector, dnsCollector, tcpPeerCollector, httpCollector, redisCollector, mysqlCollector,
+            tcpdropCollector, hardirqsCollector, softirqsCollector, execsnoopCollector, dnsCollector, tcpPeerCollector, httpCollector, redisCollector, mysqlCollector, kafkaCollector, mongoCollector,
             diskIOCollector.orElse(null),
             ifaceNetCollector.orElse(null),
             fsCollector.orElse(null),
@@ -535,6 +557,12 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
                 }
                 if (resolvedCfg.extended.mysql) {
                     it.configureMysqlPorts(resolvedCfg.extended.mysqlPorts)
+                }
+                if (resolvedCfg.extended.kafka) {
+                    it.configureKafkaPorts(resolvedCfg.extended.kafkaPorts)
+                }
+                if (resolvedCfg.extended.mongo) {
+                    it.configureMongoPorts(resolvedCfg.extended.mongoPorts)
                 }
 
                 if (props.profiling.enabled && props.profiling.cpu.enabled) {
