@@ -46,7 +46,7 @@ data class MetricsProperties(
                 ),
                 network = NetworkProperties(tcp = TcpProperties(enabled = true)),
                 syscall = SyscallProperties(enabled = false),
-                extended = ExtendedProperties(tcpdrop = true, execsnoop = true, dns = true, tcpPeer = true, http = true, redis = true, mysql = true),
+                extended = ExtendedProperties(tcpdrop = true, execsnoop = true, dns = true, tcpPeer = true, http = true, redis = true, mysql = true, kafka = true, mongo = true),
                 cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = true, filesystem = true, memory = true)
             )
             "comprehensive" -> ResolvedConfig(
@@ -63,7 +63,8 @@ data class MetricsProperties(
                     biolatency = true, cachestat = true,
                     tcpdrop = true, hardirqs = true, softirqs = true, execsnoop = true,
                     dns = true, tcpPeer = true, http = true,
-                    redis = true, mysql = true
+                    redis = true, mysql = true,
+                    kafka = true, mongo = true
                 ),
                 cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = true, filesystem = true, memory = true)
             )
@@ -165,6 +166,8 @@ data class TracingProperties(
     val http: ProtocolTracingConfig = ProtocolTracingConfig(thresholdMs = 200),
     val redis: ProtocolTracingConfig = ProtocolTracingConfig(thresholdMs = 10),
     val mysql: ProtocolTracingConfig = ProtocolTracingConfig(thresholdMs = 200),
+    val kafka: ProtocolTracingConfig = ProtocolTracingConfig(thresholdMs = 50),
+    val mongo: ProtocolTracingConfig = ProtocolTracingConfig(thresholdMs = 200),
     val otlpEndpoint: String = "",
     val ringBufferSizeKb: Int = 256
 )
@@ -184,7 +187,11 @@ data class ExtendedProperties(
     val redis: Boolean = false,
     val redisPorts: List<Int> = listOf(6379),
     val mysql: Boolean = false,
-    val mysqlPorts: List<Int> = listOf(3306)
+    val mysqlPorts: List<Int> = listOf(3306),
+    val kafka: Boolean = false,
+    val kafkaPorts: List<Int> = listOf(9092),
+    val mongo: Boolean = false,
+    val mongoPorts: List<Int> = listOf(27017)
 )
 
 data class CgroupCollectorProperties(
@@ -209,6 +216,8 @@ data class CollectorIntervals(
     val http: Long? = null,
     val redis: Long? = null,
     val mysql: Long? = null,
+    val kafka: Long? = null,
+    val mongo: Long? = null,
     val diskIO: Long? = null,
     val ifaceNet: Long? = null,
     val filesystem: Long? = null,
@@ -250,6 +259,8 @@ data class CollectorOverrides(
     val http: Boolean? = null,
     val redis: Boolean? = null,
     val mysql: Boolean? = null,
+    val kafka: Boolean? = null,
+    val mongo: Boolean? = null,
     val diskIO: Boolean? = null,
     val ifaceNet: Boolean? = null,
     val filesystem: Boolean? = null,

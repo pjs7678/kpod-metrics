@@ -50,11 +50,14 @@ RUN if [ "$TARGET_ARCH" = "amd64" ]; then \
 # CO-RE build (kernel 5.2+ with BTF) → /build/bpf/core/
 RUN BPF_ARCH=$(cat /tmp/bpf_arch) && \
     mkdir -p /build/bpf/core && \
+    FAILED="" && \
     for f in /build/bpf/*.bpf.c; do \
       name=$(basename "$f" .bpf.c); \
       clang -O2 -g -target bpf -D__TARGET_ARCH_${BPF_ARCH} \
-        -I/build/bpf -c "$f" -o "/build/bpf/core/${name}.bpf.o"; \
-    done
+        -I/build/bpf -c "$f" -o "/build/bpf/core/${name}.bpf.o" || \
+      FAILED="${FAILED} ${name}"; \
+    done && \
+    if [ -n "$FAILED" ]; then echo "WARNING: CO-RE build failed for:${FAILED}"; fi
 
 # Legacy build (fallback when CO-RE verifier rejects BTF func args) → /build/bpf/legacy/
 # Uses compat_vmlinux.h as vmlinux.h — no preserve_access_index, no CO-RE relocations.

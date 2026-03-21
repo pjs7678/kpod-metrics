@@ -68,6 +68,8 @@ class BpfProgramManager(
         if (ext.http) tryLoadProgram("http")
         if (ext.redis) tryLoadProgram("redis")
         if (ext.mysql) tryLoadProgram("mysql")
+        if (ext.kafka) tryLoadProgram("kafka")
+        if (ext.mongo) tryLoadProgram("mongo")
 
         loadedCount.set(loadedPrograms.size)
         failedCount.set(_failedPrograms.size)
@@ -257,5 +259,45 @@ class BpfProgramManager(
             bridge.mapUpdate(mapFd, keyBytes, valueBytes)
         }
         log.info("MySQL port filter configured: {}", ports)
+    }
+
+    fun configureKafkaPorts(ports: List<Int>) {
+        if (!isProgramLoaded("kafka")) return
+        val mapFd = getMapFd("kafka", "kafka_ports")
+        for (port in ports) {
+            val keyBytes = java.nio.ByteBuffer.allocate(8)
+                .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                .putShort(port.toShort())
+                .putShort(0)  // _pad1
+                .putInt(0)    // _pad2
+                .array()
+            val valueBytes = java.nio.ByteBuffer.allocate(8)
+                .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                .put(1.toByte())  // enabled
+                .put(ByteArray(7))  // _pad
+                .array()
+            bridge.mapUpdate(mapFd, keyBytes, valueBytes)
+        }
+        log.info("Kafka port filter configured: {}", ports)
+    }
+
+    fun configureMongoPorts(ports: List<Int>) {
+        if (!isProgramLoaded("mongo")) return
+        val mapFd = getMapFd("mongo", "mongo_ports")
+        for (port in ports) {
+            val keyBytes = java.nio.ByteBuffer.allocate(8)
+                .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                .putShort(port.toShort())
+                .putShort(0)  // _pad1
+                .putInt(0)    // _pad2
+                .array()
+            val valueBytes = java.nio.ByteBuffer.allocate(8)
+                .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                .put(1.toByte())  // enabled
+                .put(ByteArray(7))  // _pad
+                .array()
+            bridge.mapUpdate(mapFd, keyBytes, valueBytes)
+        }
+        log.info("MongoDB port filter configured: {}", ports)
     }
 }

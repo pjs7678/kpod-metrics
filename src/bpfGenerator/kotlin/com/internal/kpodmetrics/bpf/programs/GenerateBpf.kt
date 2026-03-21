@@ -12,7 +12,7 @@ fun main() {
         // Custom programs
         cpuSchedProgram, netProgram, syscallProgram, dnsProgram, httpProgram,
         // TODO: cpuProfileProgram needs DSL features (perfEvent, stackVar) not yet available
-        tcpPeerProgram, redisProgram, mysqlProgram,
+        tcpPeerProgram, redisProgram, mysqlProgram, kafkaProgram, mongoProgram,
         // BCC-style tools (cachestat, tcpdrop overridden for kernel compat)
         biolatency(), cachestatProgram, tcpdropProgram,
         hardirqs(), softirqs(), execsnoop()
@@ -39,7 +39,7 @@ fun main() {
     // DNS and HTTP programs use raw() heavily; their generated Kotlin MapReaders
     // have type mismatches (shared value types across maps with different key shapes).
     // The existing collectors use the raw JNI bridge, so we only need the C output.
-    val cOnlyPrograms = setOf("dns", "http", "cpu_profile", "tcp_peer", "redis", "mysql")
+    val cOnlyPrograms = setOf("dns", "http", "cpu_profile", "tcp_peer", "redis", "mysql", "kafka", "mongo")
     programs.forEach { prog ->
         if (prog.name in cOnlyPrograms) {
             val cFile = File(config.cDir, "${prog.name}.bpf.c")

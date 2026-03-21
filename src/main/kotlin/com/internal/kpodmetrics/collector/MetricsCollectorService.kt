@@ -36,6 +36,8 @@ class MetricsCollectorService(
     private val httpCollector: HttpCollector,
     private val redisCollector: RedisCollector,
     private val mysqlCollector: MysqlCollector,
+    private val kafkaCollector: KafkaCollector,
+    private val mongoCollector: MongoCollector,
     private val diskIOCollector: DiskIOCollector? = null,
     private val ifaceNetCollector: InterfaceNetworkCollector? = null,
     private val fsCollector: FilesystemCollector? = null,
@@ -85,6 +87,8 @@ class MetricsCollectorService(
         "http" to collectorIntervals.http,
         "redis" to collectorIntervals.redis,
         "mysql" to collectorIntervals.mysql,
+        "kafka" to collectorIntervals.kafka,
+        "mongo" to collectorIntervals.mongo,
         "diskIO" to collectorIntervals.diskIO,
         "ifaceNet" to collectorIntervals.ifaceNet,
         "filesystem" to collectorIntervals.filesystem,
@@ -106,6 +110,8 @@ class MetricsCollectorService(
         "http" to collectorOverrides.http,
         "redis" to collectorOverrides.redis,
         "mysql" to collectorOverrides.mysql,
+        "kafka" to collectorOverrides.kafka,
+        "mongo" to collectorOverrides.mongo,
         "diskIO" to collectorOverrides.diskIO,
         "ifaceNet" to collectorOverrides.ifaceNet,
         "filesystem" to collectorOverrides.filesystem,
@@ -189,6 +195,8 @@ class MetricsCollectorService(
             "http" to httpCollector::collect,
             "redis" to redisCollector::collect,
             "mysql" to mysqlCollector::collect,
+            "kafka" to kafkaCollector::collect,
+            "mongo" to mongoCollector::collect,
             bpfMapStatsCollector?.let { "bpfMapStats" to it::collect },
             bpfOverheadCollector?.let { "bpfOverhead" to it::collect }
         )
@@ -268,7 +276,7 @@ class MetricsCollectorService(
 
     fun getEnabledCollectorCount(): Int {
         val bpfCount = listOf("cpu", "network", "syscall", "biolatency", "cachestat",
-            "tcpdrop", "hardirqs", "softirqs", "execsnoop", "dns", "tcpPeer", "http", "redis", "mysql").count { isCollectorEnabled(it) }
+            "tcpdrop", "hardirqs", "softirqs", "execsnoop", "dns", "tcpPeer", "http", "redis", "mysql", "kafka", "mongo").count { isCollectorEnabled(it) }
         val cgroupCount = listOfNotNull(
             diskIOCollector?.let { "diskIO" },
             ifaceNetCollector?.let { "ifaceNet" },
