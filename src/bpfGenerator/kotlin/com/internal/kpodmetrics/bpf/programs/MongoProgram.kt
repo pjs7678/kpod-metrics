@@ -36,7 +36,8 @@ object MongoLatKey : BpfStruct("mongo_latency_key") {
 
 object MongoInflightKey : BpfStruct("mongo_inflight_key") {
     val cgroupId by u64()
-    val sockCookie by u64()
+    val requestId by u32()
+    val sockCookie by u32()
 }
 
 object MongoInflightVal : BpfStruct("mongo_inflight_val") {
@@ -407,12 +408,7 @@ val mongoProgram = ebpf("mongo") {
     if (bpf_probe_read_user(buf, to_read, iov0.iov_base) < 0) return 0;
 
     __u64 cgroup_id = bpf_get_current_cgroup_id();
-    __u64 sock_cookie = (__u64)sk;
-
-    struct mongo_inflight_key inf_key = {
-        .cgroup_id = cgroup_id,
-        .sock_cookie = sock_cookie,
-    };
+    __u32 sock_cookie = (__u32)(__u64)sk;
 
     /* Check if this is a MongoDB request (OP_MSG, responseTo == 0) */
     __u32 request_id = 0;
@@ -423,6 +419,11 @@ val mongoProgram = ebpf("mongo") {
             .command = command,
         };
         inc_mongo_event(&mongo_events, &ev_key);
+        struct mongo_inflight_key inf_key = {
+            .cgroup_id = cgroup_id,
+            .request_id = request_id,
+            .sock_cookie = sock_cookie,
+        };
         struct mongo_inflight_val inf_val = {
             .ts = bpf_ktime_get_ns(),
             .request_id = request_id,
@@ -435,6 +436,11 @@ val mongoProgram = ebpf("mongo") {
     /* Check if this is a MongoDB response (OP_MSG, responseTo != 0) */
     __u32 response_to = 0;
     if (is_mongo_response(buf, to_read, &response_to)) {
+        struct mongo_inflight_key inf_key = {
+            .cgroup_id = cgroup_id,
+            .request_id = response_to,
+            .sock_cookie = sock_cookie,
+        };
         struct mongo_inflight_val *inf = bpf_map_lookup_elem(&mongo_inflight, &inf_key);
         if (!inf) return 0;
 
@@ -502,7 +508,7 @@ val mongoProgram = ebpf("mongo") {
 
     struct msghdr *msg = (struct msghdr *)stash->msghdr_ptr;
     __u64 cgroup_id = stash->cgroup_id;
-    __u64 sock_cookie = stash->sock_cookie;
+    __u32 sock_cookie = (__u32)stash->sock_cookie;
     struct sock *sk = (struct sock *)stash->sock_ptr;
     if (!msg || !sk) return 0;
 
@@ -516,11 +522,6 @@ val mongoProgram = ebpf("mongo") {
     to_read &= (MAX_PAYLOAD - 1);  /* provable bound for older verifiers */
     if (bpf_probe_read_user(buf, to_read, iov0.iov_base) < 0) return 0;
 
-    struct mongo_inflight_key inf_key = {
-        .cgroup_id = cgroup_id,
-        .sock_cookie = sock_cookie,
-    };
-
     /* Check for inbound MongoDB request */
     __u32 request_id = 0;
     if (is_mongo_request(buf, to_read, &request_id)) {
@@ -530,6 +531,11 @@ val mongoProgram = ebpf("mongo") {
             .command = command,
         };
         inc_mongo_event(&mongo_events, &ev_key);
+        struct mongo_inflight_key inf_key = {
+            .cgroup_id = cgroup_id,
+            .request_id = request_id,
+            .sock_cookie = sock_cookie,
+        };
         struct mongo_inflight_val inf_val = {
             .ts = bpf_ktime_get_ns(),
             .request_id = request_id,
@@ -542,6 +548,11 @@ val mongoProgram = ebpf("mongo") {
     /* Check for inbound MongoDB response */
     __u32 response_to = 0;
     if (is_mongo_response(buf, to_read, &response_to)) {
+        struct mongo_inflight_key inf_key = {
+            .cgroup_id = cgroup_id,
+            .request_id = response_to,
+            .sock_cookie = sock_cookie,
+        };
         struct mongo_inflight_val *inf = bpf_map_lookup_elem(&mongo_inflight, &inf_key);
         if (!inf) return 0;
 
