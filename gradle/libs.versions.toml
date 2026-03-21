@@ -1,12 +1,12 @@
 [versions]
-spring-boot = "3.4.3"
+spring-boot = "4.0.4"
 spring-dependency-management = "1.1.7"
-kotlin = "2.1.10"
-kotlinx-coroutines = "1.10.1"
-kubernetes-client = "7.1.0"
-mockk = "1.13.16"
-protobuf = "4.29.3"
-opentelemetry = "1.45.0"
+kotlin = "2.3.20"
+kotlinx-coroutines = "1.10.2"
+kubernetes-client = "7.6.1"
+mockk = "1.14.9"
+protobuf = "4.34.1"
+opentelemetry = "1.60.1"
 
 [libraries]
 spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
