@@ -51,6 +51,20 @@ struct { \
     if (_v) __sync_fetch_and_add(_v, -1); \
 } while(0)
 
+struct span_event {
+    __u64 ts_ns;
+    __u64 latency_ns;
+    __u64 cgroup_id;
+    __u32 dst_ip;
+    __u16 dst_port;
+    __u16 src_port;
+    __u8 protocol;
+    __u8 method;
+    __u16 status_code;
+    __u8 direction;
+    __u8 pad[3];
+};
+
 static __always_inline __u32 log2l(__u64 v) {
     __u32 r = 0;
     #pragma unroll
