@@ -10,9 +10,9 @@ entries:
           url: https://github.com/pjs7678/kpod-metrics
     apiVersion: v2
     appVersion: 1.11.0
-    created: "2026-03-29T09:17:34.193652027Z"
+    created: "2026-03-29T06:44:45.080396151Z"
     description: eBPF-based pod-level kernel metrics for Kubernetes
-    digest: 4d58847d3badd315145929c7cc40c11a4a89c404b011f1651149d9ba4581b595
+    digest: ae3835337e4e675c51acb1756b0a2c9b9629d37ed382027225c0a0ba24cd73e6
     home: https://github.com/pjs7678/kpod-metrics
     icon: https://raw.githubusercontent.com/pjs7678/kpod-metrics/main/docs/logo.png
     keywords:
@@ -31,4 +31,4 @@ entries:
     urls:
     - https://pjs7678.github.io/kpod-metrics/kpod-metrics-1.11.0.tgz
     version: 1.11.0
-generated: "2026-03-29T09:17:34.192458472Z"
+generated: "2026-03-29T06:44:45.078402615Z"
