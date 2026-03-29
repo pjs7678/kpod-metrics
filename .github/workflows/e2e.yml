@@ -52,14 +52,14 @@ jobs:
           docker build -f kpod-metrics/Dockerfile \
             --build-arg TARGETARCH=amd64 \
             -t kpod-metrics:e2e \
-            -t internal-registry/kpod-metrics:e2e .
+            -t ghcr.io/pjs7678/kpod-metrics:e2e .
 
       - uses: azure/setup-helm@v4
 
       - name: Deploy kpod-metrics
         run: |
           helm install kpod-metrics kpod-metrics/helm/kpod-metrics \
-            --set image.repository=internal-registry/kpod-metrics \
+            --set image.repository=ghcr.io/pjs7678/kpod-metrics \
             --set image.tag=e2e \
             --set image.pullPolicy=Never \
             --set securityContext.privileged=true \

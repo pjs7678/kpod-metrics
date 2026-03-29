@@ -1,6 +1,9 @@
 # kpod-metrics
 
 [![CI](https://github.com/pjs7678/kpod-metrics/actions/workflows/ci.yml/badge.svg)](https://github.com/pjs7678/kpod-metrics/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/kpod-metrics)](https://artifacthub.io/packages/helm/kpod-metrics/kpod-metrics)
+[![GitHub release](https://img.shields.io/github/v/release/pjs7678/kpod-metrics)](https://github.com/pjs7678/kpod-metrics/releases)
 
 eBPF-based pod-level kernel metrics collector for Kubernetes. Runs as a DaemonSet, attaches eBPF programs to kernel tracepoints, and exports per-pod CPU, network, memory, syscall, disk I/O, and filesystem metrics to Prometheus.
 
@@ -209,9 +212,28 @@ CONFIG_DEBUG_INFO_BTF=y  # Required only for CO-RE path; optional on 4.18+
 ### Deploy with Helm
 
 ```bash
+helm repo add kpod-metrics https://pjs7678.github.io/kpod-metrics
+helm repo update
+helm install kpod-metrics kpod-metrics/kpod-metrics \
+  --namespace kpod-metrics --create-namespace
+```
+
+Or from a local clone:
+
+```bash
 helm install kpod-metrics ./helm/kpod-metrics \
   --namespace kpod-metrics --create-namespace
 ```
+
+### Try It Locally (kind)
+
+Spin up a local demo cluster with a single command:
+
+```bash
+./scripts/quickstart.sh
+```
+
+This creates a `kind` cluster, installs kpod-metrics, and sets up port-forwarding so you can immediately view metrics. Run `./scripts/quickstart.sh --cleanup` to tear it down.
 
 ### Verify
 
@@ -289,7 +311,7 @@ All settings are under the `kpod.*` prefix. Configure via Helm values or environ
 
 ```yaml
 image:
-  repository: internal-registry/kpod-metrics
+  repository: ghcr.io/pjs7678/kpod-metrics
   tag: "1.11.0"
 
 resources:
@@ -550,6 +572,24 @@ kpod-metrics/
 ├── build.gradle.kts
 └── settings.gradle.kts         # Composite build with kotlin-ebpf-dsl
 ```
+
+## Comparison with Similar Tools
+
+| Feature | kpod-metrics | Pixie | Hubble | Inspektor Gadget | Kepler |
+|---------|:----------:|:-----:|:------:|:----------------:|:------:|
+| Per-pod kernel metrics | yes | yes | network only | per-gadget | energy only |
+| eBPF-based | yes | yes | yes | yes | yes |
+| Zero config topology | yes | yes | yes | no | no |
+| Prometheus-native export | yes | via plugin | via plugin | via plugin | yes |
+| OTLP export | yes | no | no | no | no |
+| Lightweight DaemonSet | ~256 Mi | ~2 Gi | ~128 Mi | ~128 Mi | ~128 Mi |
+| No sidecar required | yes | yes | yes | yes | yes |
+| Kernel 4.18+ support | yes (legacy mode) | no (5.2+) | no (5.2+) | no (5.2+) | yes |
+| Kotlin eBPF DSL | yes | no (C/C++) | no (C) | no (C) | no (C) |
+| Grafana dashboard included | yes | own UI | own UI | no | yes |
+| L7 protocol detection | yes (HTTP/Redis/MySQL/Kafka/MongoDB) | yes | yes | per-gadget | no |
+
+**When to choose kpod-metrics**: You want a lightweight, Prometheus-native pod metrics collector with zero-config service topology, broad kernel support, and type-safe eBPF programs defined in Kotlin instead of C.
 
 ## Tech Stack
 

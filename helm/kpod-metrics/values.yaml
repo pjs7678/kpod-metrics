@@ -1,5 +1,5 @@
 image:
-  repository: internal-registry/kpod-metrics
+  repository: ghcr.io/pjs7678/kpod-metrics
   tag: "1.11.0"
   pullPolicy: IfNotPresent
 

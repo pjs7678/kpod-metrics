@@ -16,3 +16,11 @@ keywords:
   - cgroup
 maintainers:
   - name: pjs7678
+icon: https://raw.githubusercontent.com/pjs7678/kpod-metrics/main/docs/logo.png
+annotations:
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/links: |
+    - name: Documentation
+      url: https://github.com/pjs7678/kpod-metrics/blob/main/README.md
+    - name: Source
+      url: https://github.com/pjs7678/kpod-metrics
