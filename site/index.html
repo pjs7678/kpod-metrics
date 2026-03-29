@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>kpod-metrics - eBPF Pod Metrics for Kubernetes</title>
+  <meta name="description" content="Lightweight, eBPF-based pod-level kernel metrics collector for Kubernetes. Zero instrumentation, Prometheus-native, with auto-discovered service topology.">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .gradient-bg { background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%); }
+    .card-hover { transition: transform 0.2s, box-shadow 0.2s; }
+    .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.12); }
+    .code-block { background: #1e293b; }
+    pre code { font-size: 0.875rem; line-height: 1.7; }
+  </style>
+</head>
+<body class="bg-white text-gray-900 antialiased">
+
+  <!-- Hero -->
+  <section class="gradient-bg text-white">
+    <nav class="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <svg class="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
+        <span class="text-xl font-bold">kpod-metrics</span>
+      </div>
+      <div class="flex items-center gap-6 text-sm">
+        <a href="#features" class="hover:text-emerald-400 transition">Features</a>
+        <a href="#architecture" class="hover:text-emerald-400 transition">Architecture</a>
+        <a href="#quickstart" class="hover:text-emerald-400 transition">Quick Start</a>
+        <a href="#comparison" class="hover:text-emerald-400 transition">Comparison</a>
+        <a href="https://github.com/pjs7678/kpod-metrics" class="hover:text-emerald-400 transition flex items-center gap-1">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          GitHub
+        </a>
+      </div>
+    </nav>
+
+    <div class="max-w-6xl mx-auto px-6 py-20 text-center">
+      <div class="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-4 py-1.5 text-emerald-400 text-sm mb-6">
+        <span class="w-2 h-2 bg-emerald-400 rounded-full"></span>
+        Open Source &middot; Apache 2.0
+      </div>
+      <h1 class="text-5xl md:text-6xl font-bold tracking-tight mb-6">
+        eBPF-powered pod metrics<br>
+        <span class="text-emerald-400">for Kubernetes</span>
+      </h1>
+      <p class="text-xl text-gray-300 max-w-2xl mx-auto mb-10">
+        Lightweight DaemonSet that attaches eBPF programs to kernel tracepoints and exports per-pod CPU, network, memory, syscall, disk I/O, and filesystem metrics to Prometheus. Zero instrumentation. Zero sidecars.
+      </p>
+      <div class="flex justify-center gap-4">
+        <a href="#quickstart" class="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-8 py-3 rounded-lg transition">
+          Get Started
+        </a>
+        <a href="https://github.com/pjs7678/kpod-metrics" class="border border-gray-500 hover:border-gray-300 text-white font-semibold px-8 py-3 rounded-lg transition">
+          View on GitHub
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="features" class="py-20 bg-gray-50">
+    <div class="max-w-6xl mx-auto px-6">
+      <h2 class="text-3xl font-bold text-center mb-4">Why kpod-metrics?</h2>
+      <p class="text-gray-600 text-center max-w-2xl mx-auto mb-14">Deep kernel observability without touching your application code.</p>
+
+      <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Card 1 -->
+        <div class="bg-white rounded-xl p-6 shadow-sm card-hover">
+          <div class="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </div>
+          <h3 class="font-semibold text-lg mb-2">Zero Instrumentation</h3>
+          <p class="text-gray-600 text-sm">eBPF attaches to kernel tracepoints automatically. No code changes, no sidecars, no agents inside your pods.</p>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="bg-white rounded-xl p-6 shadow-sm card-hover">
+          <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+          </div>
+          <h3 class="font-semibold text-lg mb-2">Per-Pod Granularity</h3>
+          <p class="text-gray-600 text-sm">Every metric is labeled with namespace, pod, container, and node. Drill down from cluster to individual container.</p>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="bg-white rounded-xl p-6 shadow-sm card-hover">
+          <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/></svg>
+          </div>
+          <h3 class="font-semibold text-lg mb-2">L7 Protocol Detection</h3>
+          <p class="text-gray-600 text-sm">Auto-detect HTTP, DNS, Redis, MySQL, Kafka, and MongoDB traffic with per-request latency and error tracking.</p>
+        </div>
+
+        <!-- Card 4 -->
+        <div class="bg-white rounded-xl p-6 shadow-sm card-hover">
+          <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          </div>
+          <h3 class="font-semibold text-lg mb-2">Prometheus-Native</h3>
+          <p class="text-gray-600 text-sm">Metrics exported directly to Prometheus. Works with Grafana dashboards (included), ServiceMonitor, and OTLP export.</p>
+        </div>
+      </div>
+
+      <!-- Secondary features -->
+      <div class="grid md:grid-cols-3 gap-6 mt-8">
+        <div class="bg-white rounded-xl p-6 shadow-sm card-hover">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 bg-cyan-100 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-cyan-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"/></svg>
+            </div>
+            <h3 class="font-semibold">Service Topology</h3>
+          </div>
+          <p class="text-gray-600 text-sm">Auto-discovered service dependency graph from TCP peer data. Shows latency, request rate, and protocol per edge. No configuration needed.</p>
+        </div>
+
+        <div class="bg-white rounded-xl p-6 shadow-sm card-hover">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 bg-rose-100 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+            </div>
+            <h3 class="font-semibold">Kotlin eBPF DSL</h3>
+          </div>
+          <p class="text-gray-600 text-sm">BPF programs defined in type-safe Kotlin instead of C. Generates both kernel-side C code and Kotlin MapReader classes automatically.</p>
+        </div>
+
+        <div class="bg-white rounded-xl p-6 shadow-sm card-hover">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
+            </div>
+            <h3 class="font-semibold">Lightweight</h3>
+          </div>
+          <p class="text-gray-600 text-sm">~256 Mi memory per node. Tested up to 1,000 nodes / 100,000 pods. Three profiles (minimal, standard, comprehensive) to control overhead.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Metrics Overview -->
+  <section class="py-20">
+    <div class="max-w-6xl mx-auto px-6">
+      <h2 class="text-3xl font-bold text-center mb-4">What You Get</h2>
+      <p class="text-gray-600 text-center max-w-2xl mx-auto mb-14">50+ metrics across 7 categories, all with per-pod labels.</p>
+
+      <div class="grid md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div class="border rounded-lg p-5">
+          <div class="text-emerald-600 font-semibold mb-2">CPU</div>
+          <ul class="text-sm text-gray-600 space-y-1">
+            <li>Run queue latency</li>
+            <li>Context switches</li>
+          </ul>
+        </div>
+        <div class="border rounded-lg p-5">
+          <div class="text-blue-600 font-semibold mb-2">Network</div>
+          <ul class="text-sm text-gray-600 space-y-1">
+            <li>TCP bytes sent/received</li>
+            <li>Retransmits &amp; drops</li>
+            <li>Connection count &amp; RTT</li>
+            <li>Interface rx/tx stats</li>
+          </ul>
+        </div>
+        <div class="border rounded-lg p-5">
+          <div class="text-purple-600 font-semibold mb-2">Memory</div>
+          <ul class="text-sm text-gray-600 space-y-1">
+            <li>OOM kills</li>
+            <li>Page faults</li>
+            <li>Page cache stats</li>
+            <li>Cgroup usage/peak/swap</li>
+          </ul>
+        </div>
+        <div class="border rounded-lg p-5">
+          <div class="text-orange-600 font-semibold mb-2">Syscalls</div>
+          <ul class="text-sm text-gray-600 space-y-1">
+            <li>Per-syscall count</li>
+            <li>Error rate</li>
+            <li>Latency distribution</li>
+          </ul>
+        </div>
+        <div class="border rounded-lg p-5">
+          <div class="text-rose-600 font-semibold mb-2">Disk I/O</div>
+          <ul class="text-sm text-gray-600 space-y-1">
+            <li>Block I/O latency</li>
+            <li>Read/write bytes</li>
+            <li>Operation count</li>
+          </ul>
+        </div>
+        <div class="border rounded-lg p-5">
+          <div class="text-cyan-600 font-semibold mb-2">L7 Protocols</div>
+          <ul class="text-sm text-gray-600 space-y-1">
+            <li>HTTP request latency</li>
+            <li>DNS resolution</li>
+            <li>Redis / MySQL</li>
+            <li>Kafka / MongoDB</li>
+          </ul>
+        </div>
+        <div class="border rounded-lg p-5">
+          <div class="text-amber-600 font-semibold mb-2">Interrupts</div>
+          <ul class="text-sm text-gray-600 space-y-1">
+            <li>Hardware IRQ latency</li>
+            <li>Software IRQ latency</li>
+          </ul>
+        </div>
+        <div class="border rounded-lg p-5">
+          <div class="text-gray-600 font-semibold mb-2">Process</div>
+          <ul class="text-sm text-gray-600 space-y-1">
+            <li>Exec / fork / exit</li>
+            <li>Container restarts</li>
+            <li>Filesystem capacity</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Architecture -->
+  <section id="architecture" class="py-20 bg-gray-50">
+    <div class="max-w-6xl mx-auto px-6">
+      <h2 class="text-3xl font-bold text-center mb-4">Architecture</h2>
+      <p class="text-gray-600 text-center max-w-2xl mx-auto mb-14">Runs as a DaemonSet on each node. eBPF programs collect kernel events, JNI bridge reads BPF maps, Kotlin collectors export to Prometheus.</p>
+
+      <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-xl shadow-sm p-8 font-mono text-sm overflow-x-auto">
+<pre class="text-gray-700 leading-relaxed"><code>Node (DaemonSet pod)
+&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+&#9474;  <span class="text-blue-600">Spring Boot</span> (JDK 21 + Virtual Threads)         &#9474;
+&#9474;                                                  &#9474;
+&#9474;  MetricsCollectorService (every 30s)             &#9474;
+&#9474;  &#9500;&#9472;&#9472; <span class="text-emerald-600">eBPF Collectors</span> &#9472;&#9472;&#9654; JNI &#9472;&#9654; BPF Maps       &#9474;
+&#9474;  &#9474;   &#9500;&#9472;&#9472; CpuSchedulingCollector                &#9474;
+&#9474;  &#9474;   &#9500;&#9472;&#9472; NetworkCollector                      &#9474;
+&#9474;  &#9474;   &#9500;&#9472;&#9472; MemoryCollector                       &#9474;
+&#9474;  &#9474;   &#9500;&#9472;&#9472; SyscallCollector                      &#9474;
+&#9474;  &#9474;   &#9500;&#9472;&#9472; HttpCollector / DnsCollector           &#9474;
+&#9474;  &#9474;   &#9492;&#9472;&#9472; KafkaCollector / MongoCollector        &#9474;
+&#9474;  &#9492;&#9472;&#9472; <span class="text-orange-600">Cgroup Collectors</span> &#9472;&#9654; /sys/fs/cgroup    &#9474;
+&#9474;      &#9500;&#9472;&#9472; DiskIOCollector                       &#9474;
+&#9474;      &#9500;&#9472;&#9472; InterfaceNetworkCollector              &#9474;
+&#9474;      &#9492;&#9472;&#9472; FilesystemCollector                   &#9474;
+&#9474;                                                  &#9474;
+&#9474;  <span class="text-purple-600">Prometheus exporter</span> (:9090/actuator/prometheus) &#9474;
+&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+         &#9474; JNI (libkpod_bpf.so)
+    &#9484;&#9472;&#9472;&#9472;&#9472;&#9660;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+    &#9474; <span class="text-rose-600">Linux Kernel</span>                &#9474;
+    &#9474; &#9500;&#9472;&#9472; cpu_sched.bpf.o            &#9474;
+    &#9474; &#9500;&#9472;&#9472; net.bpf.o / dns.bpf.o      &#9474;
+    &#9474; &#9500;&#9472;&#9472; mem.bpf.o                  &#9474;
+    &#9474; &#9492;&#9472;&#9472; syscall.bpf.o              &#9474;
+    &#9474;                             &#9474;
+    &#9474; Tracepoints: sched_switch, &#9474;
+    &#9474; tcp_sendmsg, sys_enter ... &#9474;
+    &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;</code></pre>
+        </div>
+
+        <!-- Pipeline -->
+        <div class="flex items-center justify-center gap-3 mt-10 flex-wrap">
+          <div class="bg-rose-100 text-rose-700 font-semibold px-4 py-2 rounded-lg text-sm">Kernel Tracepoints</div>
+          <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+          <div class="bg-emerald-100 text-emerald-700 font-semibold px-4 py-2 rounded-lg text-sm">eBPF Programs</div>
+          <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+          <div class="bg-blue-100 text-blue-700 font-semibold px-4 py-2 rounded-lg text-sm">JNI Bridge</div>
+          <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+          <div class="bg-purple-100 text-purple-700 font-semibold px-4 py-2 rounded-lg text-sm">Kotlin Collectors</div>
+          <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+          <div class="bg-orange-100 text-orange-700 font-semibold px-4 py-2 rounded-lg text-sm">Prometheus / OTLP</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quickstart -->
+  <section id="quickstart" class="py-20">
+    <div class="max-w-6xl mx-auto px-6">
+      <h2 class="text-3xl font-bold text-center mb-4">Quick Start</h2>
+      <p class="text-gray-600 text-center max-w-2xl mx-auto mb-14">Up and running in under a minute.</p>
+
+      <div class="max-w-3xl mx-auto space-y-6">
+        <!-- Step 1 -->
+        <div class="flex gap-4">
+          <div class="flex-shrink-0 w-8 h-8 bg-emerald-500 text-white rounded-full flex items-center justify-center font-bold text-sm">1</div>
+          <div class="flex-1">
+            <h3 class="font-semibold mb-2">Add the Helm repository</h3>
+            <div class="code-block rounded-lg p-4">
+              <code class="text-emerald-400">helm repo add</code><code class="text-gray-300"> kpod-metrics https://pjs7678.github.io/kpod-metrics</code><br>
+              <code class="text-emerald-400">helm repo update</code>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="flex gap-4">
+          <div class="flex-shrink-0 w-8 h-8 bg-emerald-500 text-white rounded-full flex items-center justify-center font-bold text-sm">2</div>
+          <div class="flex-1">
+            <h3 class="font-semibold mb-2">Install</h3>
+            <div class="code-block rounded-lg p-4">
+              <code class="text-emerald-400">helm install</code><code class="text-gray-300"> kpod-metrics kpod-metrics/kpod-metrics \</code><br>
+              <code class="text-gray-300">  --namespace kpod-metrics --create-namespace</code>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="flex gap-4">
+          <div class="flex-shrink-0 w-8 h-8 bg-emerald-500 text-white rounded-full flex items-center justify-center font-bold text-sm">3</div>
+          <div class="flex-1">
+            <h3 class="font-semibold mb-2">Verify metrics</h3>
+            <div class="code-block rounded-lg p-4">
+              <code class="text-emerald-400">kubectl</code><code class="text-gray-300"> -n kpod-metrics port-forward ds/kpod-metrics 9090:9090</code><br>
+              <code class="text-emerald-400">curl</code><code class="text-gray-300"> http://localhost:9090/actuator/prometheus | grep kpod</code>
+            </div>
+          </div>
+        </div>
+
+        <!-- Local demo -->
+        <div class="bg-gray-50 rounded-xl p-6 mt-8">
+          <h3 class="font-semibold mb-2">Try it locally with kind</h3>
+          <p class="text-gray-600 text-sm mb-3">One command to spin up a local demo cluster:</p>
+          <div class="code-block rounded-lg p-4">
+            <code class="text-emerald-400">git clone</code><code class="text-gray-300"> https://github.com/pjs7678/kpod-metrics.git</code><br>
+            <code class="text-emerald-400">cd</code><code class="text-gray-300"> kpod-metrics && ./scripts/quickstart.sh</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Comparison -->
+  <section id="comparison" class="py-20 bg-gray-50">
+    <div class="max-w-6xl mx-auto px-6">
+      <h2 class="text-3xl font-bold text-center mb-4">How It Compares</h2>
+      <p class="text-gray-600 text-center max-w-2xl mx-auto mb-14">See how kpod-metrics stacks up against other eBPF observability tools.</p>
+
+      <div class="overflow-x-auto">
+        <table class="w-full bg-white rounded-xl shadow-sm text-sm">
+          <thead>
+            <tr class="border-b">
+              <th class="text-left p-4 font-semibold">Feature</th>
+              <th class="p-4 font-semibold text-emerald-600">kpod-metrics</th>
+              <th class="p-4 font-semibold text-gray-500">Pixie</th>
+              <th class="p-4 font-semibold text-gray-500">Hubble</th>
+              <th class="p-4 font-semibold text-gray-500">Inspektor Gadget</th>
+              <th class="p-4 font-semibold text-gray-500">Kepler</th>
+            </tr>
+          </thead>
+          <tbody class="text-center">
+            <tr class="border-b">
+              <td class="text-left p-4 text-gray-700">Per-pod kernel metrics</td>
+              <td class="p-4"><span class="text-emerald-600 font-bold">&#10003;</span></td>
+              <td class="p-4"><span class="text-emerald-600">&#10003;</span></td>
+              <td class="p-4 text-gray-400">network only</td>
+              <td class="p-4 text-gray-400">per-gadget</td>
+              <td class="p-4 text-gray-400">energy only</td>
+            </tr>
+            <tr class="border-b">
+              <td class="text-left p-4 text-gray-700">Zero-config topology</td>
+              <td class="p-4"><span class="text-emerald-600 font-bold">&#10003;</span></td>
+              <td class="p-4"><span class="text-emerald-600">&#10003;</span></td>
+              <td class="p-4"><span class="text-emerald-600">&#10003;</span></td>
+              <td class="p-4"><span class="text-gray-300">&mdash;</span></td>
+              <td class="p-4"><span class="text-gray-300">&mdash;</span></td>
+            </tr>
+            <tr class="border-b">
+              <td class="text-left p-4 text-gray-700">Prometheus-native</td>
+              <td class="p-4"><span class="text-emerald-600 font-bold">&#10003;</span></td>
+              <td class="p-4 text-gray-400">via plugin</td>
+              <td class="p-4 text-gray-400">via plugin</td>
+              <td class="p-4 text-gray-400">via plugin</td>
+              <td class="p-4"><span class="text-emerald-600">&#10003;</span></td>
+            </tr>
+            <tr class="border-b">
+              <td class="text-left p-4 text-gray-700">OTLP export</td>
+              <td class="p-4"><span class="text-emerald-600 font-bold">&#10003;</span></td>
+              <td class="p-4"><span class="text-gray-300">&mdash;</span></td>
+              <td class="p-4"><span class="text-gray-300">&mdash;</span></td>
+              <td class="p-4"><span class="text-gray-300">&mdash;</span></td>
+              <td class="p-4"><span class="text-gray-300">&mdash;</span></td>
+            </tr>
+            <tr class="border-b">
+              <td class="text-left p-4 text-gray-700">L7 protocol detection</td>
+              <td class="p-4"><span class="text-emerald-600 font-bold">6 protocols</span></td>
+              <td class="p-4"><span class="text-emerald-600">&#10003;</span></td>
+              <td class="p-4"><span class="text-emerald-600">&#10003;</span></td>
+              <td class="p-4 text-gray-400">per-gadget</td>
+              <td class="p-4"><span class="text-gray-300">&mdash;</span></td>
+            </tr>
+            <tr class="border-b">
+              <td class="text-left p-4 text-gray-700">Memory footprint</td>
+              <td class="p-4 text-emerald-600 font-semibold">~256 Mi</td>
+              <td class="p-4 text-gray-500">~2 Gi</td>
+              <td class="p-4 text-gray-500">~128 Mi</td>
+              <td class="p-4 text-gray-500">~128 Mi</td>
+              <td class="p-4 text-gray-500">~128 Mi</td>
+            </tr>
+            <tr class="border-b">
+              <td class="text-left p-4 text-gray-700">Kernel 4.18+ support</td>
+              <td class="p-4"><span class="text-emerald-600 font-bold">&#10003;</span></td>
+              <td class="p-4"><span class="text-gray-300">&mdash;</span></td>
+              <td class="p-4"><span class="text-gray-300">&mdash;</span></td>
+              <td class="p-4"><span class="text-gray-300">&mdash;</span></td>
+              <td class="p-4"><span class="text-emerald-600">&#10003;</span></td>
+            </tr>
+            <tr class="border-b">
+              <td class="text-left p-4 text-gray-700">Kotlin eBPF DSL</td>
+              <td class="p-4"><span class="text-emerald-600 font-bold">&#10003;</span></td>
+              <td class="p-4 text-gray-400">C/C++</td>
+              <td class="p-4 text-gray-400">C</td>
+              <td class="p-4 text-gray-400">C</td>
+              <td class="p-4 text-gray-400">C</td>
+            </tr>
+            <tr>
+              <td class="text-left p-4 text-gray-700">Grafana dashboard</td>
+              <td class="p-4"><span class="text-emerald-600 font-bold">included</span></td>
+              <td class="p-4 text-gray-400">own UI</td>
+              <td class="p-4 text-gray-400">own UI</td>
+              <td class="p-4"><span class="text-gray-300">&mdash;</span></td>
+              <td class="p-4"><span class="text-emerald-600">&#10003;</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Compatibility -->
+  <section class="py-20">
+    <div class="max-w-6xl mx-auto px-6">
+      <h2 class="text-3xl font-bold text-center mb-14">Compatibility</h2>
+
+      <div class="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+        <div class="text-center">
+          <div class="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"/></svg>
+          </div>
+          <h3 class="font-semibold text-lg mb-2">Linux Kernel</h3>
+          <p class="text-gray-600 text-sm"><strong>4.18+</strong> (legacy mode)<br><strong>5.2+</strong> (CO-RE, recommended)</p>
+        </div>
+        <div class="text-center">
+          <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+          </div>
+          <h3 class="font-semibold text-lg mb-2">Kubernetes</h3>
+          <p class="text-gray-600 text-sm"><strong>1.19+</strong><br>Cgroup v2 (default on K8s 1.25+)</p>
+        </div>
+        <div class="text-center">
+          <div class="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          </div>
+          <h3 class="font-semibold text-lg mb-2">Architecture</h3>
+          <p class="text-gray-600 text-sm"><strong>amd64</strong> &amp; <strong>arm64</strong><br>Multi-arch Docker image</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Kotlin eBPF DSL -->
+  <section class="py-20 bg-gray-50">
+    <div class="max-w-6xl mx-auto px-6">
+      <h2 class="text-3xl font-bold text-center mb-4">Built Different: Kotlin eBPF DSL</h2>
+      <p class="text-gray-600 text-center max-w-2xl mx-auto mb-14">Define eBPF programs in type-safe Kotlin instead of writing raw C. The DSL generates both kernel-side C code and Kotlin MapReader classes.</p>
+
+      <div class="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+        <div>
+          <div class="text-sm font-semibold text-gray-500 mb-2">Kotlin DSL (what you write)</div>
+          <div class="code-block rounded-lg p-5">
+<pre><code class="text-gray-300"><span class="text-blue-400">val</span> memProgram = <span class="text-emerald-400">ebpfProgram</span>(<span class="text-orange-300">"mem"</span>) {
+  <span class="text-blue-400">val</span> counterKey = <span class="text-emerald-400">struct</span>(<span class="text-orange-300">"counter_key"</span>) {
+    <span class="text-emerald-400">u64</span>(<span class="text-orange-300">"cgroup_id"</span>)
+  }
+  <span class="text-blue-400">val</span> oomKills = <span class="text-emerald-400">hashMap</span>(
+    <span class="text-orange-300">"oom_kills"</span>, counterKey,
+    BpfScalar.U64, maxEntries = <span class="text-orange-300">10240</span>
+  )
+
+  <span class="text-emerald-400">tracepoint</span>(<span class="text-orange-300">"oom"</span>, <span class="text-orange-300">"mark_victim"</span>) {
+    <span class="text-blue-400">val</span> cgId = <span class="text-emerald-400">getCurrentCgroupId</span>()
+    <span class="text-blue-400">val</span> ptr = <span class="text-emerald-400">mapLookupElem</span>(oomKills, cgId)
+    <span class="text-emerald-400">ifNonNull</span>(ptr) { <span class="text-emerald-400">atomicIncrement</span>(it) }
+  }
+}</code></pre>
+          </div>
+        </div>
+        <div>
+          <div class="text-sm font-semibold text-gray-500 mb-2">Generated (what runs in the kernel)</div>
+          <div class="code-block rounded-lg p-5">
+<pre><code class="text-gray-300"><span class="text-blue-400">struct</span> counter_key {
+  __u64 cgroup_id;
+};
+
+<span class="text-blue-400">struct</span> {
+  __uint(type, BPF_MAP_TYPE_HASH);
+  __uint(max_entries, <span class="text-orange-300">10240</span>);
+  __type(key, <span class="text-blue-400">struct</span> counter_key);
+  __type(value, __u64);
+} oom_kills SEC(<span class="text-orange-300">".maps"</span>);
+
+SEC(<span class="text-orange-300">"tp/oom/mark_victim"</span>)
+<span class="text-blue-400">int</span> <span class="text-emerald-400">handle_mark_victim</span>(<span class="text-blue-400">void</span> *ctx) {
+  <span class="text-blue-400">struct</span> counter_key key = {};
+  key.cgroup_id = bpf_get_current_cgroup_id();
+  __u64 *val = bpf_map_lookup_elem(&amp;oom_kills, &amp;key);
+  <span class="text-blue-400">if</span> (val) __sync_fetch_and_add(val, <span class="text-orange-300">1</span>);
+  <span class="text-blue-400">return</span> <span class="text-orange-300">0</span>;
+}</code></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Community -->
+  <section class="py-20">
+    <div class="max-w-6xl mx-auto px-6 text-center">
+      <h2 class="text-3xl font-bold mb-4">Get Involved</h2>
+      <p class="text-gray-600 max-w-2xl mx-auto mb-10">kpod-metrics is open source under the Apache 2.0 license. Contributions, bug reports, and feature requests are welcome.</p>
+
+      <div class="flex justify-center gap-4 flex-wrap">
+        <a href="https://github.com/pjs7678/kpod-metrics" class="inline-flex items-center gap-2 bg-gray-900 text-white font-semibold px-6 py-3 rounded-lg hover:bg-gray-700 transition">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          GitHub
+        </a>
+        <a href="https://github.com/pjs7678/kpod-metrics/blob/main/README.md" class="inline-flex items-center gap-2 border border-gray-300 text-gray-700 font-semibold px-6 py-3 rounded-lg hover:bg-gray-50 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+          Documentation
+        </a>
+        <a href="https://github.com/pjs7678/kpod-metrics/blob/main/CONTRIBUTING.md" class="inline-flex items-center gap-2 border border-gray-300 text-gray-700 font-semibold px-6 py-3 rounded-lg hover:bg-gray-50 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Contributing
+        </a>
+        <a href="index.yaml" class="inline-flex items-center gap-2 border border-gray-300 text-gray-700 font-semibold px-6 py-3 rounded-lg hover:bg-gray-50 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          Helm Chart Index
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="border-t py-8">
+    <div class="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-500">
+      <div>kpod-metrics &middot; Apache 2.0 License</div>
+      <div class="flex items-center gap-4">
+        <a href="https://github.com/pjs7678/kpod-metrics" class="hover:text-gray-900 transition">GitHub</a>
+        <a href="https://github.com/pjs7678/kpod-metrics/blob/main/README.md" class="hover:text-gray-900 transition">Docs</a>
+        <a href="index.yaml" class="hover:text-gray-900 transition">Helm Index</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
