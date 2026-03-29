@@ -3,7 +3,7 @@ name: Publish Helm Chart
 on:
   push:
     branches: [main]
-    paths: ["helm/**", "site/**"]
+    paths: ["helm/**"]
   release:
     types: [published]
   workflow_dispatch:
@@ -39,8 +39,15 @@ jobs:
             helm repo index .helm-repo --url https://pjs7678.github.io/kpod-metrics
           fi
 
-      - name: Copy landing page
-        run: cp site/index.html .helm-repo/index.html
+      - name: Preserve existing docs site
+        run: |
+          # Copy existing gh-pages content that isn't Helm-related
+          for f in $(git ls-tree --name-only origin/gh-pages 2>/dev/null); do
+            case "$f" in
+              index.yaml|*.tgz|existing-index.yaml) ;; # skip Helm files
+              *) git checkout origin/gh-pages -- "$f" && mv "$f" .helm-repo/ 2>/dev/null || true ;;
+            esac
+          done
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4

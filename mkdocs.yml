@@ -1,0 +1,93 @@
+site_name: kpod-metrics
+site_url: https://pjs7678.github.io/kpod-metrics
+site_description: eBPF-based pod-level kernel metrics collector for Kubernetes
+repo_url: https://github.com/pjs7678/kpod-metrics
+repo_name: pjs7678/kpod-metrics
+
+theme:
+  name: material
+  custom_dir: docs/overrides
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.tabs.link
+  icon:
+    repo: fontawesome/brands/github
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Quick Start: getting-started/quickstart.md
+      - Prerequisites: getting-started/prerequisites.md
+      - Configuration: getting-started/configuration.md
+      - Profiles: getting-started/profiles.md
+  - Metrics:
+      - Overview: metrics/overview.md
+      - eBPF Metrics: metrics/ebpf.md
+      - Cgroup Metrics: metrics/cgroup.md
+      - L7 Protocol Metrics: metrics/l7.md
+      - Self-Monitoring: metrics/self-monitoring.md
+  - Features:
+      - Service Topology: features/topology.md
+      - Grafana Dashboard: features/grafana.md
+      - OTLP Export: features/otlp.md
+      - Prometheus Operator: features/prometheus-operator.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - Kotlin eBPF DSL: architecture/ebpf-dsl.md
+      - BPF Code Generation: architecture/codegen.md
+      - Scaling: architecture/scaling.md
+  - Development:
+      - Contributing: development/contributing.md
+      - Building: development/building.md
+      - Testing: development/testing.md
+      - Adding a Collector: development/adding-collector.md
+  - Operations:
+      - Troubleshooting: operations/troubleshooting.md
+      - Security: operations/security.md
+  - Changelog: changelog.md

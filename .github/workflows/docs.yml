@@ -1,0 +1,52 @@
+name: Deploy Docs
+
+on:
+  push:
+    branches: [main]
+    paths: ["docs/**", "mkdocs.yml", "CHANGELOG.md"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install MkDocs
+        run: pip install mkdocs-material
+
+      - name: Build docs
+        run: mkdocs build --site-dir .docs-site
+
+      - name: Merge with Helm repo
+        run: |
+          # Fetch existing gh-pages content (Helm chart index + packages)
+          git fetch origin gh-pages || true
+          mkdir -p .deploy
+          if git show origin/gh-pages:index.yaml >/dev/null 2>&1; then
+            git checkout origin/gh-pages -- index.yaml
+            mv index.yaml .deploy/
+          fi
+          # Copy any existing .tgz chart packages
+          for f in $(git ls-tree --name-only origin/gh-pages 2>/dev/null | grep '.tgz$'); do
+            git checkout origin/gh-pages -- "$f"
+            mv "$f" .deploy/
+          done
+          # Copy MkDocs output
+          cp -r .docs-site/* .deploy/
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .deploy
+          publish_branch: gh-pages
