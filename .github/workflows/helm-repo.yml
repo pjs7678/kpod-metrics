@@ -1,0 +1,46 @@
+name: Publish Helm Chart
+
+on:
+  push:
+    branches: [main]
+    paths: ["helm/**"]
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+  pages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: azure/setup-helm@v4
+
+      - name: Package chart
+        run: |
+          mkdir -p .helm-repo
+          helm package helm/kpod-metrics -d .helm-repo
+
+      - name: Fetch existing index and merge
+        run: |
+          if git ls-remote --exit-code origin gh-pages >/dev/null 2>&1; then
+            git fetch origin gh-pages
+            git checkout origin/gh-pages -- index.yaml 2>/dev/null && \
+              mv index.yaml .helm-repo/existing-index.yaml && \
+              helm repo index .helm-repo --url https://pjs7678.github.io/kpod-metrics --merge .helm-repo/existing-index.yaml || true
+          fi
+          if [ ! -f .helm-repo/index.yaml ]; then
+            helm repo index .helm-repo --url https://pjs7678.github.io/kpod-metrics
+          fi
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .helm-repo
+          publish_branch: gh-pages
