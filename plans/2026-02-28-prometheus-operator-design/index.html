@@ -10,29 +10,27 @@
       
       
       
-        <link rel="canonical" href="https://pjs7678.github.io/kpod-metrics/">
+        <link rel="canonical" href="https://pjs7678.github.io/kpod-metrics/plans/2026-02-28-prometheus-operator-design/">
       
       
-      
-        <link rel="next" href="getting-started/quickstart/">
       
       
         
       
       
-      <link rel="icon" href="assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>kpod-metrics</title>
+        <title>Prometheus Operator Integration Design - kpod-metrics</title>
       
     
     
-      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -51,9 +49,9 @@
       
     
     
-      <link rel="stylesheet" href="stylesheets/extra.css">
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
     
-    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -78,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#kpod-metrics" class="md-skip">
+        <a href="#prometheus-operator-integration-design" class="md-skip">
           Skip to content
         </a>
       
@@ -92,7 +90,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="." title="kpod-metrics" class="md-header__button md-logo" aria-label="kpod-metrics" data-md-component="logo">
+    <a href="../.." title="kpod-metrics" class="md-header__button md-logo" aria-label="kpod-metrics" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Home
+              Prometheus Operator Integration Design
             
           </span>
         </div>
@@ -223,11 +221,9 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="." class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
         
   
   
@@ -248,7 +244,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="getting-started/quickstart/" class="md-tabs__link">
+        <a href="../../getting-started/quickstart/" class="md-tabs__link">
           
   
   
@@ -268,7 +264,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="metrics/overview/" class="md-tabs__link">
+        <a href="../../metrics/overview/" class="md-tabs__link">
           
   
   
@@ -288,7 +284,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="features/topology/" class="md-tabs__link">
+        <a href="../../features/topology/" class="md-tabs__link">
           
   
   
@@ -308,7 +304,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="architecture/overview/" class="md-tabs__link">
+        <a href="../../architecture/overview/" class="md-tabs__link">
           
   
   
@@ -328,7 +324,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="development/contributing/" class="md-tabs__link">
+        <a href="../../development/contributing/" class="md-tabs__link">
           
   
   
@@ -348,7 +344,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="operations/troubleshooting/" class="md-tabs__link">
+        <a href="../../operations/troubleshooting/" class="md-tabs__link">
           
   
   
@@ -366,7 +362,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="changelog/" class="md-tabs__link">
+      <a href="../../changelog/" class="md-tabs__link">
         
   
   
@@ -401,7 +397,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="." title="kpod-metrics" class="md-nav__button md-logo" aria-label="kpod-metrics" data-md-component="logo">
+    <a href="../.." title="kpod-metrics" class="md-nav__button md-logo" aria-label="kpod-metrics" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -428,37 +424,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Home
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="." class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -474,59 +443,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#quick-install" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Quick Install
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#key-features" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Key Features
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#architecture" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Architecture
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -592,7 +508,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/quickstart/" class="md-nav__link">
+      <a href="../../getting-started/quickstart/" class="md-nav__link">
         
   
   
@@ -620,7 +536,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/prerequisites/" class="md-nav__link">
+      <a href="../../getting-started/prerequisites/" class="md-nav__link">
         
   
   
@@ -648,7 +564,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/configuration/" class="md-nav__link">
+      <a href="../../getting-started/configuration/" class="md-nav__link">
         
   
   
@@ -676,7 +592,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/profiles/" class="md-nav__link">
+      <a href="../../getting-started/profiles/" class="md-nav__link">
         
   
   
@@ -765,7 +681,7 @@
   
   
     <li class="md-nav__item">
-      <a href="metrics/overview/" class="md-nav__link">
+      <a href="../../metrics/overview/" class="md-nav__link">
         
   
   
@@ -793,7 +709,7 @@
   
   
     <li class="md-nav__item">
-      <a href="metrics/ebpf/" class="md-nav__link">
+      <a href="../../metrics/ebpf/" class="md-nav__link">
         
   
   
@@ -821,7 +737,7 @@
   
   
     <li class="md-nav__item">
-      <a href="metrics/cgroup/" class="md-nav__link">
+      <a href="../../metrics/cgroup/" class="md-nav__link">
         
   
   
@@ -849,7 +765,7 @@
   
   
     <li class="md-nav__item">
-      <a href="metrics/l7/" class="md-nav__link">
+      <a href="../../metrics/l7/" class="md-nav__link">
         
   
   
@@ -877,7 +793,7 @@
   
   
     <li class="md-nav__item">
-      <a href="metrics/self-monitoring/" class="md-nav__link">
+      <a href="../../metrics/self-monitoring/" class="md-nav__link">
         
   
   
@@ -966,7 +882,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/topology/" class="md-nav__link">
+      <a href="../../features/topology/" class="md-nav__link">
         
   
   
@@ -994,7 +910,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/grafana/" class="md-nav__link">
+      <a href="../../features/grafana/" class="md-nav__link">
         
   
   
@@ -1022,7 +938,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/otlp/" class="md-nav__link">
+      <a href="../../features/otlp/" class="md-nav__link">
         
   
   
@@ -1050,7 +966,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/prometheus-operator/" class="md-nav__link">
+      <a href="../../features/prometheus-operator/" class="md-nav__link">
         
   
   
@@ -1139,7 +1055,7 @@
   
   
     <li class="md-nav__item">
-      <a href="architecture/overview/" class="md-nav__link">
+      <a href="../../architecture/overview/" class="md-nav__link">
         
   
   
@@ -1167,7 +1083,7 @@
   
   
     <li class="md-nav__item">
-      <a href="architecture/ebpf-dsl/" class="md-nav__link">
+      <a href="../../architecture/ebpf-dsl/" class="md-nav__link">
         
   
   
@@ -1195,7 +1111,7 @@
   
   
     <li class="md-nav__item">
-      <a href="architecture/codegen/" class="md-nav__link">
+      <a href="../../architecture/codegen/" class="md-nav__link">
         
   
   
@@ -1223,7 +1139,7 @@
   
   
     <li class="md-nav__item">
-      <a href="architecture/scaling/" class="md-nav__link">
+      <a href="../../architecture/scaling/" class="md-nav__link">
         
   
   
@@ -1312,7 +1228,7 @@
   
   
     <li class="md-nav__item">
-      <a href="development/contributing/" class="md-nav__link">
+      <a href="../../development/contributing/" class="md-nav__link">
         
   
   
@@ -1340,7 +1256,7 @@
   
   
     <li class="md-nav__item">
-      <a href="development/building/" class="md-nav__link">
+      <a href="../../development/building/" class="md-nav__link">
         
   
   
@@ -1368,7 +1284,7 @@
   
   
     <li class="md-nav__item">
-      <a href="development/testing/" class="md-nav__link">
+      <a href="../../development/testing/" class="md-nav__link">
         
   
   
@@ -1396,7 +1312,7 @@
   
   
     <li class="md-nav__item">
-      <a href="development/adding-collector/" class="md-nav__link">
+      <a href="../../development/adding-collector/" class="md-nav__link">
         
   
   
@@ -1485,7 +1401,7 @@
   
   
     <li class="md-nav__item">
-      <a href="operations/troubleshooting/" class="md-nav__link">
+      <a href="../../operations/troubleshooting/" class="md-nav__link">
         
   
   
@@ -1513,7 +1429,7 @@
   
   
     <li class="md-nav__item">
-      <a href="operations/security/" class="md-nav__link">
+      <a href="../../operations/security/" class="md-nav__link">
         
   
   
@@ -1548,7 +1464,7 @@
   
   
     <li class="md-nav__item">
-      <a href="changelog/" class="md-nav__link">
+      <a href="../../changelog/" class="md-nav__link">
         
   
   
@@ -1595,10 +1511,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#quick-install" class="md-nav__link">
+  <a href="#context" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Quick Install
+        Context
       
     </span>
   </a>
@@ -1606,10 +1522,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#key-features" class="md-nav__link">
+  <a href="#scope" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Key Features
+        Scope
       
     </span>
   </a>
@@ -1617,10 +1533,60 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#architecture" class="md-nav__link">
+  <a href="#new-helm-templates" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Architecture
+        New Helm Templates
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="New Helm Templates">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#serviceyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        service.yaml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#servicemonitoryaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        servicemonitor.yaml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prometheusruleyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        prometheusrule.yaml
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#valuesyaml-additions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        values.yaml Additions
       
     </span>
   </a>
@@ -1647,73 +1613,87 @@
   
 
 
-<h1 id="kpod-metrics">kpod-metrics<a class="headerlink" href="#kpod-metrics" title="Permanent link">&para;</a></h1>
-<p><strong>eBPF-based pod-level kernel metrics collector for Kubernetes.</strong></p>
-<p>kpod-metrics runs as a DaemonSet on each node, attaches eBPF programs to kernel tracepoints, and exports per-pod CPU, network, memory, syscall, disk I/O, and filesystem metrics to Prometheus.</p>
-<div class="grid cards">
+<h1 id="prometheus-operator-integration-design">Prometheus Operator Integration Design<a class="headerlink" href="#prometheus-operator-integration-design" title="Permanent link">&para;</a></h1>
+<h2 id="context">Context<a class="headerlink" href="#context" title="Permanent link">&para;</a></h2>
+<p>kpod-metrics uses annotation-based Prometheus scraping. Clusters running the Prometheus Operator need ServiceMonitor and PrometheusRule CRDs for proper integration. Operators also need production alerting rules out of the box.</p>
+<h2 id="scope">Scope<a class="headerlink" href="#scope" title="Permanent link">&para;</a></h2>
 <ul>
-<li>
-<p>:zap: <strong>Zero Instrumentation</strong></p>
-<hr />
-<p>eBPF attaches to kernel tracepoints automatically. No code changes, no sidecars, no agents inside your pods.</p>
-</li>
-<li>
-<p>:bar_chart: <strong>Per-Pod Granularity</strong></p>
-<hr />
-<p>Every metric is labeled with <code>namespace</code>, <code>pod</code>, <code>container</code>, and <code>node</code>. Drill down from cluster to individual container.</p>
-</li>
-<li>
-<p>:globe_with_meridians: <strong>L7 Protocol Detection</strong></p>
-<hr />
-<p>Auto-detect HTTP, DNS, Redis, MySQL, Kafka, and MongoDB traffic with per-request latency and error tracking.</p>
-</li>
-<li>
-<p>:chart_with_upwards_trend: <strong>Prometheus-Native</strong></p>
-<hr />
-<p>Metrics exported directly to Prometheus. Works with Grafana dashboards (included), ServiceMonitor, and OTLP export.</p>
-</li>
+<li>Headless Service (required target for ServiceMonitor)</li>
+<li>ServiceMonitor CRD template</li>
+<li>PrometheusRule CRD template with 8 production alerts</li>
+<li>All Helm-gated, disabled by default (requires Prometheus Operator)</li>
 </ul>
-</div>
-<h2 id="quick-install">Quick Install<a class="headerlink" href="#quick-install" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>helm<span class="w"> </span>repo<span class="w"> </span>add<span class="w"> </span>kpod-metrics<span class="w"> </span>https://pjs7678.github.io/kpod-metrics
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>helm<span class="w"> </span>repo<span class="w"> </span>update
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>helm<span class="w"> </span>install<span class="w"> </span>kpod-metrics<span class="w"> </span>kpod-metrics/kpod-metrics<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span>--namespace<span class="w"> </span>kpod-metrics<span class="w"> </span>--create-namespace
+<h2 id="new-helm-templates">New Helm Templates<a class="headerlink" href="#new-helm-templates" title="Permanent link">&para;</a></h2>
+<h3 id="serviceyaml">service.yaml<a class="headerlink" href="#serviceyaml" title="Permanent link">&para;</a></h3>
+<p>Headless ClusterIP Service selecting kpod-metrics pods, exposing port 9090 (metrics).</p>
+<h3 id="servicemonitoryaml">servicemonitor.yaml<a class="headerlink" href="#servicemonitoryaml" title="Permanent link">&para;</a></h3>
+<p>ServiceMonitor targeting the headless Service with configurable interval, scrapeTimeout, labels.</p>
+<h3 id="prometheusruleyaml">prometheusrule.yaml<a class="headerlink" href="#prometheusruleyaml" title="Permanent link">&para;</a></h3>
+<p>PrometheusRule with 8 alerts:</p>
+<table>
+<thead>
+<tr>
+<th>Alert</th>
+<th>Severity</th>
+<th>Condition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>KpodHighRunqueueLatency</td>
+<td>warning</td>
+<td>p99 &gt; 100ms for 5m</td>
+</tr>
+<tr>
+<td>KpodHighTcpRetransmitRate</td>
+<td>warning</td>
+<td>rate &gt; 10/s for 5m</td>
+</tr>
+<tr>
+<td>KpodTcpDropsDetected</td>
+<td>warning</td>
+<td>drops &gt; 0 for 5m</td>
+</tr>
+<tr>
+<td>KpodHighSyscallErrorRate</td>
+<td>warning</td>
+<td>error rate &gt; 5% for 10m</td>
+</tr>
+<tr>
+<td>KpodFilesystemAlmostFull</td>
+<td>critical</td>
+<td>usage &gt; 90% for 5m</td>
+</tr>
+<tr>
+<td>KpodBpfMapNearCapacity</td>
+<td>warning</td>
+<td>utilization &gt; 80% for 5m</td>
+</tr>
+<tr>
+<td>KpodBpfMapUpdateErrors</td>
+<td>critical</td>
+<td>errors &gt; 0 for 5m</td>
+</tr>
+<tr>
+<td>KpodTargetDown</td>
+<td>critical</td>
+<td>target unreachable for 5m</td>
+</tr>
+</tbody>
+</table>
+<h2 id="valuesyaml-additions">values.yaml Additions<a class="headerlink" href="#valuesyaml-additions" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">serviceMonitor</span><span class="p">:</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30s</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">scrapeTimeout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10s</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span><span class="nt">labels</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="nt">annotations</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="nt">prometheusRule</span><span class="p">:</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">  </span><span class="nt">labels</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">  </span><span class="nt">annotations</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
 </code></pre></div>
-<p>See the <a href="getting-started/quickstart/">Quick Start guide</a> for detailed setup instructions.</p>
-<h2 id="key-features">Key Features<a class="headerlink" href="#key-features" title="Permanent link">&para;</a></h2>
-<ul>
-<li><strong>50+ metrics</strong> across CPU, network, memory, syscalls, disk I/O, filesystem, and interrupts</li>
-<li><strong>Auto-discovered service topology</strong> from TCP peer data — no configuration needed</li>
-<li><strong>L7 protocol detection</strong> for HTTP, DNS, Redis, MySQL, Kafka, MongoDB</li>
-<li><strong>Grafana dashboards</strong> included with 9 metric rows</li>
-<li><strong>Prometheus Operator</strong> support with ServiceMonitor and 18 alerting rules</li>
-<li><strong>OTLP export</strong> for OpenTelemetry-compatible backends</li>
-<li><strong>Three profiles</strong> (minimal, standard, comprehensive) to control overhead</li>
-<li><strong>Kotlin eBPF DSL</strong> — BPF programs defined in type-safe Kotlin, not raw C</li>
-<li><strong>Broad kernel support</strong> — 4.18+ (legacy) and 5.2+ (CO-RE)</li>
-<li><strong>Tested at scale</strong> — 1,000 nodes / 100,000 pods</li>
-</ul>
-<h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Node (DaemonSet pod)
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>┌─────────────────────────────────────────────────┐
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>│  Spring Boot (JDK 21 + Virtual Threads)         │
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>│                                                  │
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>│  MetricsCollectorService (every 30s default)    │
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>│  ├── eBPF Collectors ──► JNI ──► BPF Maps      │
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>│  └── Cgroup Collectors ──► /sys/fs/cgroup       │
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>│                                                  │
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>│  Prometheus exporter (:9090/actuator/prometheus) │
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>└─────────────────────────────────────────────────┘
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>         │ JNI (libkpod_bpf.so)
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    ┌────▼────────────────────────┐
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    │ Linux Kernel                │
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    │ eBPF programs on            │
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>    │ tracepoints: sched_switch,  │
-<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    │ tcp_sendmsg, oom_kill, ...  │
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>    └─────────────────────────────┘
-</code></pre></div>
-<p>Learn more in the <a href="architecture/overview/">Architecture overview</a>.</p>
 
 
 
@@ -1771,10 +1751,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

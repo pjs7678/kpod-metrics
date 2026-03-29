@@ -10,29 +10,27 @@
       
       
       
-        <link rel="canonical" href="https://pjs7678.github.io/kpod-metrics/">
+        <link rel="canonical" href="https://pjs7678.github.io/kpod-metrics/plans/2026-03-08-tcp-peer-design/">
       
       
-      
-        <link rel="next" href="getting-started/quickstart/">
       
       
         
       
       
-      <link rel="icon" href="assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>kpod-metrics</title>
+        <title>TCP Peer Tracking Design - kpod-metrics</title>
       
     
     
-      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -51,9 +49,9 @@
       
     
     
-      <link rel="stylesheet" href="stylesheets/extra.css">
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
     
-    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -78,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#kpod-metrics" class="md-skip">
+        <a href="#tcp-peer-tracking-design" class="md-skip">
           Skip to content
         </a>
       
@@ -92,7 +90,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="." title="kpod-metrics" class="md-header__button md-logo" aria-label="kpod-metrics" data-md-component="logo">
+    <a href="../.." title="kpod-metrics" class="md-header__button md-logo" aria-label="kpod-metrics" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Home
+              TCP Peer Tracking Design
             
           </span>
         </div>
@@ -223,11 +221,9 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="." class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
         
   
   
@@ -248,7 +244,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="getting-started/quickstart/" class="md-tabs__link">
+        <a href="../../getting-started/quickstart/" class="md-tabs__link">
           
   
   
@@ -268,7 +264,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="metrics/overview/" class="md-tabs__link">
+        <a href="../../metrics/overview/" class="md-tabs__link">
           
   
   
@@ -288,7 +284,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="features/topology/" class="md-tabs__link">
+        <a href="../../features/topology/" class="md-tabs__link">
           
   
   
@@ -308,7 +304,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="architecture/overview/" class="md-tabs__link">
+        <a href="../../architecture/overview/" class="md-tabs__link">
           
   
   
@@ -328,7 +324,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="development/contributing/" class="md-tabs__link">
+        <a href="../../development/contributing/" class="md-tabs__link">
           
   
   
@@ -348,7 +344,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="operations/troubleshooting/" class="md-tabs__link">
+        <a href="../../operations/troubleshooting/" class="md-tabs__link">
           
   
   
@@ -366,7 +362,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="changelog/" class="md-tabs__link">
+      <a href="../../changelog/" class="md-tabs__link">
         
   
   
@@ -401,7 +397,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="." title="kpod-metrics" class="md-nav__button md-logo" aria-label="kpod-metrics" data-md-component="logo">
+    <a href="../.." title="kpod-metrics" class="md-nav__button md-logo" aria-label="kpod-metrics" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -428,37 +424,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Home
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="." class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -474,59 +443,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#quick-install" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Quick Install
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#key-features" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Key Features
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#architecture" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Architecture
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -592,7 +508,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/quickstart/" class="md-nav__link">
+      <a href="../../getting-started/quickstart/" class="md-nav__link">
         
   
   
@@ -620,7 +536,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/prerequisites/" class="md-nav__link">
+      <a href="../../getting-started/prerequisites/" class="md-nav__link">
         
   
   
@@ -648,7 +564,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/configuration/" class="md-nav__link">
+      <a href="../../getting-started/configuration/" class="md-nav__link">
         
   
   
@@ -676,7 +592,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/profiles/" class="md-nav__link">
+      <a href="../../getting-started/profiles/" class="md-nav__link">
         
   
   
@@ -765,7 +681,7 @@
   
   
     <li class="md-nav__item">
-      <a href="metrics/overview/" class="md-nav__link">
+      <a href="../../metrics/overview/" class="md-nav__link">
         
   
   
@@ -793,7 +709,7 @@
   
   
     <li class="md-nav__item">
-      <a href="metrics/ebpf/" class="md-nav__link">
+      <a href="../../metrics/ebpf/" class="md-nav__link">
         
   
   
@@ -821,7 +737,7 @@
   
   
     <li class="md-nav__item">
-      <a href="metrics/cgroup/" class="md-nav__link">
+      <a href="../../metrics/cgroup/" class="md-nav__link">
         
   
   
@@ -849,7 +765,7 @@
   
   
     <li class="md-nav__item">
-      <a href="metrics/l7/" class="md-nav__link">
+      <a href="../../metrics/l7/" class="md-nav__link">
         
   
   
@@ -877,7 +793,7 @@
   
   
     <li class="md-nav__item">
-      <a href="metrics/self-monitoring/" class="md-nav__link">
+      <a href="../../metrics/self-monitoring/" class="md-nav__link">
         
   
   
@@ -966,7 +882,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/topology/" class="md-nav__link">
+      <a href="../../features/topology/" class="md-nav__link">
         
   
   
@@ -994,7 +910,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/grafana/" class="md-nav__link">
+      <a href="../../features/grafana/" class="md-nav__link">
         
   
   
@@ -1022,7 +938,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/otlp/" class="md-nav__link">
+      <a href="../../features/otlp/" class="md-nav__link">
         
   
   
@@ -1050,7 +966,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/prometheus-operator/" class="md-nav__link">
+      <a href="../../features/prometheus-operator/" class="md-nav__link">
         
   
   
@@ -1139,7 +1055,7 @@
   
   
     <li class="md-nav__item">
-      <a href="architecture/overview/" class="md-nav__link">
+      <a href="../../architecture/overview/" class="md-nav__link">
         
   
   
@@ -1167,7 +1083,7 @@
   
   
     <li class="md-nav__item">
-      <a href="architecture/ebpf-dsl/" class="md-nav__link">
+      <a href="../../architecture/ebpf-dsl/" class="md-nav__link">
         
   
   
@@ -1195,7 +1111,7 @@
   
   
     <li class="md-nav__item">
-      <a href="architecture/codegen/" class="md-nav__link">
+      <a href="../../architecture/codegen/" class="md-nav__link">
         
   
   
@@ -1223,7 +1139,7 @@
   
   
     <li class="md-nav__item">
-      <a href="architecture/scaling/" class="md-nav__link">
+      <a href="../../architecture/scaling/" class="md-nav__link">
         
   
   
@@ -1312,7 +1228,7 @@
   
   
     <li class="md-nav__item">
-      <a href="development/contributing/" class="md-nav__link">
+      <a href="../../development/contributing/" class="md-nav__link">
         
   
   
@@ -1340,7 +1256,7 @@
   
   
     <li class="md-nav__item">
-      <a href="development/building/" class="md-nav__link">
+      <a href="../../development/building/" class="md-nav__link">
         
   
   
@@ -1368,7 +1284,7 @@
   
   
     <li class="md-nav__item">
-      <a href="development/testing/" class="md-nav__link">
+      <a href="../../development/testing/" class="md-nav__link">
         
   
   
@@ -1396,7 +1312,7 @@
   
   
     <li class="md-nav__item">
-      <a href="development/adding-collector/" class="md-nav__link">
+      <a href="../../development/adding-collector/" class="md-nav__link">
         
   
   
@@ -1485,7 +1401,7 @@
   
   
     <li class="md-nav__item">
-      <a href="operations/troubleshooting/" class="md-nav__link">
+      <a href="../../operations/troubleshooting/" class="md-nav__link">
         
   
   
@@ -1513,7 +1429,7 @@
   
   
     <li class="md-nav__item">
-      <a href="operations/security/" class="md-nav__link">
+      <a href="../../operations/security/" class="md-nav__link">
         
   
   
@@ -1548,7 +1464,7 @@
   
   
     <li class="md-nav__item">
-      <a href="changelog/" class="md-nav__link">
+      <a href="../../changelog/" class="md-nav__link">
         
   
   
@@ -1595,21 +1511,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#quick-install" class="md-nav__link">
+  <a href="#goal" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Quick Install
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#key-features" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Key Features
+        Goal
       
     </span>
   </a>
@@ -1624,6 +1529,156 @@
       
     </span>
   </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metrics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bpf-program-tcp_peerbpfc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BPF Program: tcp_peer.bpf.c
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="BPF Program: tcp_peer.bpf.c">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#maps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Maps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#programs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Programs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sock-field-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sock field access
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kotlin-side" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kotlin Side
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Kotlin Side">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#podipresolverkt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PodIpResolver.kt
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tcppeercollectorkt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TcpPeerCollector.kt
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Config
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Files
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Files">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#new" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        New
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modified" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modified
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1647,73 +1702,113 @@
   
 
 
-<h1 id="kpod-metrics">kpod-metrics<a class="headerlink" href="#kpod-metrics" title="Permanent link">&para;</a></h1>
-<p><strong>eBPF-based pod-level kernel metrics collector for Kubernetes.</strong></p>
-<p>kpod-metrics runs as a DaemonSet on each node, attaches eBPF programs to kernel tracepoints, and exports per-pod CPU, network, memory, syscall, disk I/O, and filesystem metrics to Prometheus.</p>
-<div class="grid cards">
-<ul>
-<li>
-<p>:zap: <strong>Zero Instrumentation</strong></p>
-<hr />
-<p>eBPF attaches to kernel tracepoints automatically. No code changes, no sidecars, no agents inside your pods.</p>
-</li>
-<li>
-<p>:bar_chart: <strong>Per-Pod Granularity</strong></p>
-<hr />
-<p>Every metric is labeled with <code>namespace</code>, <code>pod</code>, <code>container</code>, and <code>node</code>. Drill down from cluster to individual container.</p>
-</li>
-<li>
-<p>:globe_with_meridians: <strong>L7 Protocol Detection</strong></p>
-<hr />
-<p>Auto-detect HTTP, DNS, Redis, MySQL, Kafka, and MongoDB traffic with per-request latency and error tracking.</p>
-</li>
-<li>
-<p>:chart_with_upwards_trend: <strong>Prometheus-Native</strong></p>
-<hr />
-<p>Metrics exported directly to Prometheus. Works with Grafana dashboards (included), ServiceMonitor, and OTLP export.</p>
-</li>
-</ul>
-</div>
-<h2 id="quick-install">Quick Install<a class="headerlink" href="#quick-install" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>helm<span class="w"> </span>repo<span class="w"> </span>add<span class="w"> </span>kpod-metrics<span class="w"> </span>https://pjs7678.github.io/kpod-metrics
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>helm<span class="w"> </span>repo<span class="w"> </span>update
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>helm<span class="w"> </span>install<span class="w"> </span>kpod-metrics<span class="w"> </span>kpod-metrics/kpod-metrics<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span>--namespace<span class="w"> </span>kpod-metrics<span class="w"> </span>--create-namespace
-</code></pre></div>
-<p>See the <a href="getting-started/quickstart/">Quick Start guide</a> for detailed setup instructions.</p>
-<h2 id="key-features">Key Features<a class="headerlink" href="#key-features" title="Permanent link">&para;</a></h2>
-<ul>
-<li><strong>50+ metrics</strong> across CPU, network, memory, syscalls, disk I/O, filesystem, and interrupts</li>
-<li><strong>Auto-discovered service topology</strong> from TCP peer data — no configuration needed</li>
-<li><strong>L7 protocol detection</strong> for HTTP, DNS, Redis, MySQL, Kafka, MongoDB</li>
-<li><strong>Grafana dashboards</strong> included with 9 metric rows</li>
-<li><strong>Prometheus Operator</strong> support with ServiceMonitor and 18 alerting rules</li>
-<li><strong>OTLP export</strong> for OpenTelemetry-compatible backends</li>
-<li><strong>Three profiles</strong> (minimal, standard, comprehensive) to control overhead</li>
-<li><strong>Kotlin eBPF DSL</strong> — BPF programs defined in type-safe Kotlin, not raw C</li>
-<li><strong>Broad kernel support</strong> — 4.18+ (legacy) and 5.2+ (CO-RE)</li>
-<li><strong>Tested at scale</strong> — 1,000 nodes / 100,000 pods</li>
-</ul>
+<h1 id="tcp-peer-tracking-design">TCP Peer Tracking Design<a class="headerlink" href="#tcp-peer-tracking-design" title="Permanent link">&para;</a></h1>
+<h2 id="goal">Goal<a class="headerlink" href="#goal" title="Permanent link">&para;</a></h2>
+<p>Track per-peer TCP connections and RTT with remote IP/port resolution to Kubernetes pod/service names, enabling "who talks to whom" visibility at L4.</p>
 <h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Node (DaemonSet pod)
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>┌─────────────────────────────────────────────────┐
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>│  Spring Boot (JDK 21 + Virtual Threads)         │
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>│                                                  │
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>│  MetricsCollectorService (every 30s default)    │
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>│  ├── eBPF Collectors ──► JNI ──► BPF Maps      │
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>│  └── Cgroup Collectors ──► /sys/fs/cgroup       │
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>│                                                  │
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>│  Prometheus exporter (:9090/actuator/prometheus) │
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>└─────────────────────────────────────────────────┘
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>         │ JNI (libkpod_bpf.so)
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    ┌────▼────────────────────────┐
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    │ Linux Kernel                │
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    │ eBPF programs on            │
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>    │ tracepoints: sched_switch,  │
-<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    │ tcp_sendmsg, oom_kill, ...  │
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>    └─────────────────────────────┘
+<p>Hand-written BPF C program (<code>tcp_peer.bpf.c</code>) attached via kprobe/kretprobe to <code>tcp_connect</code> (client) and <code>inet_csk_accept</code> (server), plus <code>tp/tcp/tcp_probe</code> for per-peer RTT. Kotlin-side collector reads BPF maps, resolves remote IPs to pod/service names via fabric8 Kubernetes client with caching.</p>
+<h2 id="metrics">Metrics<a class="headerlink" href="#metrics" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kpod.net.tcp.peer.connections</code></td>
+<td>Counter</td>
+<td>namespace, pod, container, node, remote_ip, remote_port, direction, remote_pod, remote_service</td>
+</tr>
+<tr>
+<td><code>kpod.net.tcp.peer.rtt</code></td>
+<td>DistributionSummary</td>
+<td>namespace, pod, container, node, remote_ip, remote_port, remote_pod, remote_service</td>
+</tr>
+</tbody>
+</table>
+<p><code>direction</code> = <code>client</code> (outgoing via tcp_connect) or <code>server</code> (incoming via inet_csk_accept).</p>
+<h2 id="bpf-program-tcp_peerbpfc">BPF Program: <code>tcp_peer.bpf.c</code><a class="headerlink" href="#bpf-program-tcp_peerbpfc" title="Permanent link">&para;</a></h2>
+<h3 id="maps">Maps<a class="headerlink" href="#maps" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong><code>tcp_peer_conns</code></strong> — LRU_HASH, max_entries=10240</li>
+<li>Key (20 bytes): <code>{ u64 cgroup_id, u32 remote_ip4, u16 remote_port, u8 direction, u8 _pad }</code></li>
+<li>
+<p>Value (8 bytes): <code>{ u64 count }</code></p>
+</li>
+<li>
+<p><strong><code>tcp_peer_rtt</code></strong> — LRU_HASH, max_entries=10240</p>
+</li>
+<li>Key (16 bytes): <code>{ u64 cgroup_id, u32 remote_ip4, u16 remote_port, u16 _pad }</code></li>
+<li>Value (232 bytes): <code>{ u64 slots[27], u64 count, u64 sum_us }</code></li>
+</ol>
+<h3 id="programs">Programs<a class="headerlink" href="#programs" title="Permanent link">&para;</a></h3>
+<ol>
+<li>
+<p><strong><code>kprobe/tcp_connect</code></strong> — Client-side connection. Extract <code>sk-&gt;__sk_common.skc_daddr</code> and <code>sk-&gt;__sk_common.skc_dport</code> from the <code>struct sock *</code> (arg1). Increment <code>tcp_peer_conns[cgroup, remote_ip, port, CLIENT]</code>.</p>
+</li>
+<li>
+<p><strong><code>kretprobe/inet_csk_accept</code></strong> — Server-side accept. Read returned <code>struct sock *</code> from retval. Extract <code>sk-&gt;__sk_common.skc_daddr</code> (remote peer) and <code>sk-&gt;__sk_common.skc_num</code> (local port, but we want remote port = <code>skc_dport</code>). Increment <code>tcp_peer_conns[cgroup, remote_ip, port, SERVER]</code>.</p>
+</li>
+<li>
+<p><strong><code>tp/tcp/tcp_probe</code></strong> — RTT measurement per peer. Read <code>saddr</code>, <code>daddr</code>, <code>dport</code>, <code>srtt</code> from tracepoint args. Update <code>tcp_peer_rtt[cgroup, remote_ip, port]</code> histogram.</p>
+</li>
+</ol>
+<h3 id="sock-field-access">Sock field access<a class="headerlink" href="#sock-field-access" title="Permanent link">&para;</a></h3>
+<p>Use <code>bpf_probe_read_kernel</code> to read <code>struct sock</code> fields:
+- <code>skc_daddr</code> at <code>__sk_common</code> offset — remote IPv4 address
+- <code>skc_dport</code> at <code>__sk_common</code> offset — remote port (network byte order)
+- For <code>tcp_probe</code> tracepoint: fields available directly in tracepoint args</p>
+<h2 id="kotlin-side">Kotlin Side<a class="headerlink" href="#kotlin-side" title="Permanent link">&para;</a></h2>
+<h3 id="podipresolverkt"><code>PodIpResolver.kt</code><a class="headerlink" href="#podipresolverkt" title="Permanent link">&para;</a></h3>
+<p>Caches IP → (podName, namespace, serviceName) mappings:
+- On startup: lists all pods and services, builds IP index
+- Refreshes every 30 seconds via PodWatcher events
+- Falls back to raw IP string if unresolved
+- Also resolves ClusterIP services</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kd">class</span><span class="w"> </span><span class="nc">PodIpResolver</span><span class="p">(</span><span class="n">kubernetesClient</span><span class="p">:</span><span class="w"> </span><span class="n">KubernetesClient</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span><span class="kd">fun</span><span class="w"> </span><span class="nf">resolve</span><span class="p">(</span><span class="n">ip</span><span class="p">:</span><span class="w"> </span><span class="kt">String</span><span class="p">):</span><span class="w"> </span><span class="n">PeerInfo? </span><span class="w"> </span><span class="c1">// returns (podName, namespace, serviceName?)</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="kd">fun</span><span class="w"> </span><span class="nf">refresh</span><span class="p">()</span><span class="w">  </span><span class="c1">// called periodically or on pod events</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="p">}</span>
 </code></pre></div>
-<p>Learn more in the <a href="architecture/overview/">Architecture overview</a>.</p>
+<h3 id="tcppeercollectorkt"><code>TcpPeerCollector.kt</code><a class="headerlink" href="#tcppeercollectorkt" title="Permanent link">&para;</a></h3>
+<p>Same pattern as DnsCollector — manual ByteBuffer parsing:
+- Reads <code>tcp_peer_conns</code> map (20B key, 8B value)
+- Reads <code>tcp_peer_rtt</code> map (16B key, 232B value)
+- Resolves cgroup → pod via CgroupResolver
+- Resolves remote IP → pod/service via PodIpResolver
+- Exports metrics with full label set</p>
+<h3 id="config">Config<a class="headerlink" href="#config" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>ExtendedProperties.tcpPeer: Boolean = false</code> (default)</li>
+<li>Standard profile: <code>tcpPeer = true</code></li>
+<li>Comprehensive profile: <code>tcpPeer = true</code></li>
+<li><code>CollectorIntervals.tcpPeer: Long? = null</code></li>
+<li><code>CollectorOverrides.tcpPeer: Boolean? = null</code></li>
+</ul>
+<h2 id="files">Files<a class="headerlink" href="#files" title="Permanent link">&para;</a></h2>
+<h3 id="new">New<a class="headerlink" href="#new" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>bpf/tcp_peer.bpf.c</code> (~200 lines)</li>
+<li><code>src/.../collector/TcpPeerCollector.kt</code> (~150 lines)</li>
+<li><code>src/.../collector/PodIpResolver.kt</code> (~80 lines)</li>
+<li><code>src/test/.../collector/TcpPeerCollectorTest.kt</code></li>
+<li><code>src/test/.../collector/PodIpResolverTest.kt</code></li>
+<li><code>helm/kpod-metrics/dashboards/tcp_peer.json</code></li>
+</ul>
+<h3 id="modified">Modified<a class="headerlink" href="#modified" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>src/.../config/MetricsProperties.kt</code> — add tcpPeer config</li>
+<li><code>src/.../config/BpfAutoConfiguration.kt</code> — wire beans</li>
+<li><code>src/.../bpf/BpfProgramManager.kt</code> — load tcp_peer program</li>
+<li><code>src/.../collector/MetricsCollectorService.kt</code> — add tcpPeer collector</li>
+<li><code>Dockerfile</code> — copy tcp_peer.bpf.c</li>
+<li><code>e2e/e2e-test.sh</code> — assert tcp peer metrics</li>
+<li><code>e2e/workloads.yaml</code> — existing net workloads sufficient</li>
+<li><code>helm/kpod-metrics/values.yaml</code> — document tcp peer config</li>
+</ul>
 
 
 
@@ -1771,10 +1866,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

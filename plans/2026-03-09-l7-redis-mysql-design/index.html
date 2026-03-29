@@ -10,29 +10,27 @@
       
       
       
-        <link rel="canonical" href="https://pjs7678.github.io/kpod-metrics/">
+        <link rel="canonical" href="https://pjs7678.github.io/kpod-metrics/plans/2026-03-09-l7-redis-mysql-design/">
       
       
-      
-        <link rel="next" href="getting-started/quickstart/">
       
       
         
       
       
-      <link rel="icon" href="assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>kpod-metrics</title>
+        <title>Redis & MySQL L7 Protocol Detection Design - kpod-metrics</title>
       
     
     
-      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -51,9 +49,9 @@
       
     
     
-      <link rel="stylesheet" href="stylesheets/extra.css">
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
     
-    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -78,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#kpod-metrics" class="md-skip">
+        <a href="#redis-mysql-l7-protocol-detection-design" class="md-skip">
           Skip to content
         </a>
       
@@ -92,7 +90,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="." title="kpod-metrics" class="md-header__button md-logo" aria-label="kpod-metrics" data-md-component="logo">
+    <a href="../.." title="kpod-metrics" class="md-header__button md-logo" aria-label="kpod-metrics" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Home
+              Redis &amp; MySQL L7 Protocol Detection Design
             
           </span>
         </div>
@@ -223,11 +221,9 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="." class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
         
   
   
@@ -248,7 +244,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="getting-started/quickstart/" class="md-tabs__link">
+        <a href="../../getting-started/quickstart/" class="md-tabs__link">
           
   
   
@@ -268,7 +264,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="metrics/overview/" class="md-tabs__link">
+        <a href="../../metrics/overview/" class="md-tabs__link">
           
   
   
@@ -288,7 +284,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="features/topology/" class="md-tabs__link">
+        <a href="../../features/topology/" class="md-tabs__link">
           
   
   
@@ -308,7 +304,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="architecture/overview/" class="md-tabs__link">
+        <a href="../../architecture/overview/" class="md-tabs__link">
           
   
   
@@ -328,7 +324,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="development/contributing/" class="md-tabs__link">
+        <a href="../../development/contributing/" class="md-tabs__link">
           
   
   
@@ -348,7 +344,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="operations/troubleshooting/" class="md-tabs__link">
+        <a href="../../operations/troubleshooting/" class="md-tabs__link">
           
   
   
@@ -366,7 +362,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="changelog/" class="md-tabs__link">
+      <a href="../../changelog/" class="md-tabs__link">
         
   
   
@@ -401,7 +397,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="." title="kpod-metrics" class="md-nav__button md-logo" aria-label="kpod-metrics" data-md-component="logo">
+    <a href="../.." title="kpod-metrics" class="md-nav__button md-logo" aria-label="kpod-metrics" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -428,37 +424,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Home
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="." class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -474,59 +443,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#quick-install" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Quick Install
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#key-features" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Key Features
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#architecture" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Architecture
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -592,7 +508,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/quickstart/" class="md-nav__link">
+      <a href="../../getting-started/quickstart/" class="md-nav__link">
         
   
   
@@ -620,7 +536,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/prerequisites/" class="md-nav__link">
+      <a href="../../getting-started/prerequisites/" class="md-nav__link">
         
   
   
@@ -648,7 +564,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/configuration/" class="md-nav__link">
+      <a href="../../getting-started/configuration/" class="md-nav__link">
         
   
   
@@ -676,7 +592,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/profiles/" class="md-nav__link">
+      <a href="../../getting-started/profiles/" class="md-nav__link">
         
   
   
@@ -765,7 +681,7 @@
   
   
     <li class="md-nav__item">
-      <a href="metrics/overview/" class="md-nav__link">
+      <a href="../../metrics/overview/" class="md-nav__link">
         
   
   
@@ -793,7 +709,7 @@
   
   
     <li class="md-nav__item">
-      <a href="metrics/ebpf/" class="md-nav__link">
+      <a href="../../metrics/ebpf/" class="md-nav__link">
         
   
   
@@ -821,7 +737,7 @@
   
   
     <li class="md-nav__item">
-      <a href="metrics/cgroup/" class="md-nav__link">
+      <a href="../../metrics/cgroup/" class="md-nav__link">
         
   
   
@@ -849,7 +765,7 @@
   
   
     <li class="md-nav__item">
-      <a href="metrics/l7/" class="md-nav__link">
+      <a href="../../metrics/l7/" class="md-nav__link">
         
   
   
@@ -877,7 +793,7 @@
   
   
     <li class="md-nav__item">
-      <a href="metrics/self-monitoring/" class="md-nav__link">
+      <a href="../../metrics/self-monitoring/" class="md-nav__link">
         
   
   
@@ -966,7 +882,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/topology/" class="md-nav__link">
+      <a href="../../features/topology/" class="md-nav__link">
         
   
   
@@ -994,7 +910,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/grafana/" class="md-nav__link">
+      <a href="../../features/grafana/" class="md-nav__link">
         
   
   
@@ -1022,7 +938,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/otlp/" class="md-nav__link">
+      <a href="../../features/otlp/" class="md-nav__link">
         
   
   
@@ -1050,7 +966,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/prometheus-operator/" class="md-nav__link">
+      <a href="../../features/prometheus-operator/" class="md-nav__link">
         
   
   
@@ -1139,7 +1055,7 @@
   
   
     <li class="md-nav__item">
-      <a href="architecture/overview/" class="md-nav__link">
+      <a href="../../architecture/overview/" class="md-nav__link">
         
   
   
@@ -1167,7 +1083,7 @@
   
   
     <li class="md-nav__item">
-      <a href="architecture/ebpf-dsl/" class="md-nav__link">
+      <a href="../../architecture/ebpf-dsl/" class="md-nav__link">
         
   
   
@@ -1195,7 +1111,7 @@
   
   
     <li class="md-nav__item">
-      <a href="architecture/codegen/" class="md-nav__link">
+      <a href="../../architecture/codegen/" class="md-nav__link">
         
   
   
@@ -1223,7 +1139,7 @@
   
   
     <li class="md-nav__item">
-      <a href="architecture/scaling/" class="md-nav__link">
+      <a href="../../architecture/scaling/" class="md-nav__link">
         
   
   
@@ -1312,7 +1228,7 @@
   
   
     <li class="md-nav__item">
-      <a href="development/contributing/" class="md-nav__link">
+      <a href="../../development/contributing/" class="md-nav__link">
         
   
   
@@ -1340,7 +1256,7 @@
   
   
     <li class="md-nav__item">
-      <a href="development/building/" class="md-nav__link">
+      <a href="../../development/building/" class="md-nav__link">
         
   
   
@@ -1368,7 +1284,7 @@
   
   
     <li class="md-nav__item">
-      <a href="development/testing/" class="md-nav__link">
+      <a href="../../development/testing/" class="md-nav__link">
         
   
   
@@ -1396,7 +1312,7 @@
   
   
     <li class="md-nav__item">
-      <a href="development/adding-collector/" class="md-nav__link">
+      <a href="../../development/adding-collector/" class="md-nav__link">
         
   
   
@@ -1485,7 +1401,7 @@
   
   
     <li class="md-nav__item">
-      <a href="operations/troubleshooting/" class="md-nav__link">
+      <a href="../../operations/troubleshooting/" class="md-nav__link">
         
   
   
@@ -1513,7 +1429,7 @@
   
   
     <li class="md-nav__item">
-      <a href="operations/security/" class="md-nav__link">
+      <a href="../../operations/security/" class="md-nav__link">
         
   
   
@@ -1548,7 +1464,7 @@
   
   
     <li class="md-nav__item">
-      <a href="changelog/" class="md-nav__link">
+      <a href="../../changelog/" class="md-nav__link">
         
   
   
@@ -1595,10 +1511,143 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#quick-install" class="md-nav__link">
+  <a href="#redis-program" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Quick Install
+        Redis Program
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Redis Program">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#protocol-resp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Protocol: RESP
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#detection-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detection Strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tracked-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tracked Commands
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bpf-maps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BPF Maps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prometheus-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prometheus Metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mysql-program" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MySQL Program
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="MySQL Program">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#protocol-mysql-wire-protocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Protocol: MySQL Wire Protocol
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#detection-strategy_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detection Strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bpf-maps_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BPF Maps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prometheus-metrics_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prometheus Metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#direction-semantics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Direction Semantics
       
     </span>
   </a>
@@ -1606,10 +1655,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#key-features" class="md-nav__link">
+  <a href="#hook-points" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Key Features
+        Hook Points
       
     </span>
   </a>
@@ -1617,10 +1666,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#architecture" class="md-nav__link">
+  <a href="#integration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Architecture
+        Integration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kernel-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kernel Requirements
       
     </span>
   </a>
@@ -1647,73 +1707,184 @@
   
 
 
-<h1 id="kpod-metrics">kpod-metrics<a class="headerlink" href="#kpod-metrics" title="Permanent link">&para;</a></h1>
-<p><strong>eBPF-based pod-level kernel metrics collector for Kubernetes.</strong></p>
-<p>kpod-metrics runs as a DaemonSet on each node, attaches eBPF programs to kernel tracepoints, and exports per-pod CPU, network, memory, syscall, disk I/O, and filesystem metrics to Prometheus.</p>
-<div class="grid cards">
+<h1 id="redis-mysql-l7-protocol-detection-design">Redis &amp; MySQL L7 Protocol Detection Design<a class="headerlink" href="#redis-mysql-l7-protocol-detection-design" title="Permanent link">&para;</a></h1>
+<p><strong>Goal:</strong> Add BPF-based latency tracking for Redis and MySQL to distinguish slow backend (external) vs slow client-side processing.</p>
+<p><strong>Architecture:</strong> Two separate BPF programs (<code>redis</code>, <code>mysql</code>) following the HTTP/DNS pattern — hook tcp_sendmsg/tcp_recvmsg, parse protocol headers from IOV buffers, match requests to responses via inflight maps, record latency histograms. Both defined in kotlin-ebpf-dsl with C-only emission; collectors use raw JNI bridge.</p>
+<hr />
+<h2 id="redis-program">Redis Program<a class="headerlink" href="#redis-program" title="Permanent link">&para;</a></h2>
+<h3 id="protocol-resp">Protocol: RESP<a class="headerlink" href="#protocol-resp" title="Permanent link">&para;</a></h3>
+<p>Requests start with <code>*</code> (RESP array): <code>*&lt;count&gt;\r\n$&lt;len&gt;\r\n&lt;COMMAND&gt;\r\n...</code>
+Responses start with <code>+</code> (simple string), <code>-</code> (error), <code>:</code> (integer), <code>$</code> (bulk), <code>*</code> (array).</p>
+<h3 id="detection-strategy">Detection Strategy<a class="headerlink" href="#detection-strategy" title="Permanent link">&para;</a></h3>
 <ul>
-<li>
-<p>:zap: <strong>Zero Instrumentation</strong></p>
-<hr />
-<p>eBPF attaches to kernel tracepoints automatically. No code changes, no sidecars, no agents inside your pods.</p>
-</li>
-<li>
-<p>:bar_chart: <strong>Per-Pod Granularity</strong></p>
-<hr />
-<p>Every metric is labeled with <code>namespace</code>, <code>pod</code>, <code>container</code>, and <code>node</code>. Drill down from cluster to individual container.</p>
-</li>
-<li>
-<p>:globe_with_meridians: <strong>L7 Protocol Detection</strong></p>
-<hr />
-<p>Auto-detect HTTP, DNS, Redis, MySQL, Kafka, and MongoDB traffic with per-request latency and error tracking.</p>
-</li>
-<li>
-<p>:chart_with_upwards_trend: <strong>Prometheus-Native</strong></p>
-<hr />
-<p>Metrics exported directly to Prometheus. Works with Grafana dashboards (included), ServiceMonitor, and OTLP export.</p>
-</li>
+<li><strong>Request</strong>: Read first ~64 bytes. Parse RESP array to extract command name.</li>
+<li><strong>Response</strong>: Match first byte for type. <code>-</code> prefix = error; extract error type (ERR, WRONGTYPE, MOVED, etc).</li>
+<li><strong>Matching</strong>: <code>(cgroup_id, sock_cookie)</code> inflight key — one outstanding request per socket direction.</li>
 </ul>
-</div>
-<h2 id="quick-install">Quick Install<a class="headerlink" href="#quick-install" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>helm<span class="w"> </span>repo<span class="w"> </span>add<span class="w"> </span>kpod-metrics<span class="w"> </span>https://pjs7678.github.io/kpod-metrics
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>helm<span class="w"> </span>repo<span class="w"> </span>update
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>helm<span class="w"> </span>install<span class="w"> </span>kpod-metrics<span class="w"> </span>kpod-metrics/kpod-metrics<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span>--namespace<span class="w"> </span>kpod-metrics<span class="w"> </span>--create-namespace
-</code></pre></div>
-<p>See the <a href="getting-started/quickstart/">Quick Start guide</a> for detailed setup instructions.</p>
-<h2 id="key-features">Key Features<a class="headerlink" href="#key-features" title="Permanent link">&para;</a></h2>
+<h3 id="tracked-commands">Tracked Commands<a class="headerlink" href="#tracked-commands" title="Permanent link">&para;</a></h3>
+<p>GET, SET, DEL, HGET, HSET, LPUSH, RPUSH, SADD, ZADD, EXPIRE, INCR. Everything else bucketed as OTHER.</p>
+<h3 id="bpf-maps">BPF Maps<a class="headerlink" href="#bpf-maps" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Map</th>
+<th>Type</th>
+<th>Key</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>redis_ports</code></td>
+<td>HASH</td>
+<td><code>__u16 port</code></td>
+<td><code>__u8</code> (1)</td>
+</tr>
+<tr>
+<td><code>redis_inflight</code></td>
+<td>LRU_HASH</td>
+<td><code>(cgroup_id, sock_cookie)</code></td>
+<td><code>(timestamp, command, direction)</code></td>
+</tr>
+<tr>
+<td><code>redis_events</code></td>
+<td>LRU_HASH</td>
+<td><code>(cgroup_id, command, direction)</code></td>
+<td><code>counter_value</code></td>
+</tr>
+<tr>
+<td><code>redis_latency</code></td>
+<td>LRU_HASH</td>
+<td><code>(cgroup_id, command, direction)</code></td>
+<td><code>hist_value</code> (27-slot log2 + count + sum_ns)</td>
+</tr>
+<tr>
+<td><code>redis_errors</code></td>
+<td>LRU_HASH</td>
+<td><code>(cgroup_id, error_type)</code></td>
+<td><code>counter_value</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="prometheus-metrics">Prometheus Metrics<a class="headerlink" href="#prometheus-metrics" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>50+ metrics</strong> across CPU, network, memory, syscalls, disk I/O, filesystem, and interrupts</li>
-<li><strong>Auto-discovered service topology</strong> from TCP peer data — no configuration needed</li>
-<li><strong>L7 protocol detection</strong> for HTTP, DNS, Redis, MySQL, Kafka, MongoDB</li>
-<li><strong>Grafana dashboards</strong> included with 9 metric rows</li>
-<li><strong>Prometheus Operator</strong> support with ServiceMonitor and 18 alerting rules</li>
-<li><strong>OTLP export</strong> for OpenTelemetry-compatible backends</li>
-<li><strong>Three profiles</strong> (minimal, standard, comprehensive) to control overhead</li>
-<li><strong>Kotlin eBPF DSL</strong> — BPF programs defined in type-safe Kotlin, not raw C</li>
-<li><strong>Broad kernel support</strong> — 4.18+ (legacy) and 5.2+ (CO-RE)</li>
-<li><strong>Tested at scale</strong> — 1,000 nodes / 100,000 pods</li>
+<li><code>kpod.redis.requests{command, direction}</code> — counter</li>
+<li><code>kpod.redis.request.duration{command, direction}</code> — distribution summary (ns)</li>
+<li><code>kpod.redis.errors{error_type}</code> — counter</li>
 </ul>
-<h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Node (DaemonSet pod)
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>┌─────────────────────────────────────────────────┐
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>│  Spring Boot (JDK 21 + Virtual Threads)         │
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>│                                                  │
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>│  MetricsCollectorService (every 30s default)    │
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>│  ├── eBPF Collectors ──► JNI ──► BPF Maps      │
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>│  └── Cgroup Collectors ──► /sys/fs/cgroup       │
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>│                                                  │
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>│  Prometheus exporter (:9090/actuator/prometheus) │
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>└─────────────────────────────────────────────────┘
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>         │ JNI (libkpod_bpf.so)
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    ┌────▼────────────────────────┐
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    │ Linux Kernel                │
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    │ eBPF programs on            │
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>    │ tracepoints: sched_switch,  │
-<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    │ tcp_sendmsg, oom_kill, ...  │
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>    └─────────────────────────────┘
-</code></pre></div>
-<p>Learn more in the <a href="architecture/overview/">Architecture overview</a>.</p>
+<hr />
+<h2 id="mysql-program">MySQL Program<a class="headerlink" href="#mysql-program" title="Permanent link">&para;</a></h2>
+<h3 id="protocol-mysql-wire-protocol">Protocol: MySQL Wire Protocol<a class="headerlink" href="#protocol-mysql-wire-protocol" title="Permanent link">&para;</a></h3>
+<p>4-byte packet header (3-byte length + 1-byte sequence ID) followed by payload. Command byte at offset 4.</p>
+<h3 id="detection-strategy_1">Detection Strategy<a class="headerlink" href="#detection-strategy_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Request</strong>: Read first ~64 bytes. Check command byte at offset 4:</li>
+<li><code>0x03</code> COM_QUERY: parse first SQL keyword at offset 5 (SELECT, INSERT, UPDATE, DELETE, BEGIN, COMMIT → stmt_type). Bucket rest as OTHER.</li>
+<li><code>0x16</code> COM_STMT_PREPARE, <code>0x17</code> COM_STMT_EXECUTE, <code>0x0e</code> COM_PING: track by command type.</li>
+<li><strong>Response</strong>: First byte after 4-byte header:</li>
+<li><code>0x00</code> = OK packet</li>
+<li><code>0xFF</code> = ERR packet (error code at bytes 5-6, little-endian)</li>
+<li><code>0xFE</code> = EOF</li>
+<li>Other = column count (result set)</li>
+<li><strong>Matching</strong>: <code>(cgroup_id, sock_cookie)</code> inflight key — same as Redis/HTTP.</li>
+</ul>
+<h3 id="bpf-maps_1">BPF Maps<a class="headerlink" href="#bpf-maps_1" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Map</th>
+<th>Type</th>
+<th>Key</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mysql_ports</code></td>
+<td>HASH</td>
+<td><code>__u16 port</code></td>
+<td><code>__u8</code> (1)</td>
+</tr>
+<tr>
+<td><code>mysql_inflight</code></td>
+<td>LRU_HASH</td>
+<td><code>(cgroup_id, sock_cookie)</code></td>
+<td><code>(timestamp, command, stmt_type, direction)</code></td>
+</tr>
+<tr>
+<td><code>mysql_events</code></td>
+<td>LRU_HASH</td>
+<td><code>(cgroup_id, command, stmt_type, direction)</code></td>
+<td><code>counter_value</code></td>
+</tr>
+<tr>
+<td><code>mysql_latency</code></td>
+<td>LRU_HASH</td>
+<td><code>(cgroup_id, command, stmt_type, direction)</code></td>
+<td><code>hist_value</code> (27-slot log2 + count + sum_ns)</td>
+</tr>
+<tr>
+<td><code>mysql_errors</code></td>
+<td>LRU_HASH</td>
+<td><code>(cgroup_id, error_code)</code></td>
+<td><code>counter_value</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="prometheus-metrics_1">Prometheus Metrics<a class="headerlink" href="#prometheus-metrics_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>kpod.mysql.requests{command, stmt_type, direction}</code> — counter</li>
+<li><code>kpod.mysql.request.duration{command, stmt_type, direction}</code> — distribution summary (ns)</li>
+<li><code>kpod.mysql.errors{error_code}</code> — counter</li>
+</ul>
+<hr />
+<h2 id="direction-semantics">Direction Semantics<a class="headerlink" href="#direction-semantics" title="Permanent link">&para;</a></h2>
+<p>Same as HTTP:
+- <strong>client</strong> (outbound request, inbound response): app calling Redis/MySQL. Latency = backend slowness.
+- <strong>server</strong> (inbound request, outbound response): app proxying. Latency = app processing time.</p>
+<p>This is the core of distinguishing "slow external" vs "slow client-side."</p>
+<hr />
+<h2 id="hook-points">Hook Points<a class="headerlink" href="#hook-points" title="Permanent link">&para;</a></h2>
+<p>Both programs use the same hooks as HTTP:</p>
+<table>
+<thead>
+<tr>
+<th>Hook</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kprobe/tcp_sendmsg</code></td>
+<td>Parse outbound requests/responses</td>
+</tr>
+<tr>
+<td><code>kprobe/tcp_recvmsg</code></td>
+<td>Stash msghdr + sock to per-CPU array</td>
+</tr>
+<tr>
+<td><code>kretprobe/tcp_recvmsg</code></td>
+<td>Parse inbound requests/responses from stashed buffer</td>
+</tr>
+</tbody>
+</table>
+<p>Port filter checked early (before payload read) for fast rejection.</p>
+<hr />
+<h2 id="integration">Integration<a class="headerlink" href="#integration" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>DSL</strong>: <code>RedisProgram.kt</code>, <code>MysqlProgram.kt</code> in <code>src/bpfGenerator/kotlin/.../bpf/programs/</code></li>
+<li><strong>GenerateBpf.kt</strong>: Add to programs list + <code>cOnlyPrograms</code> set</li>
+<li><strong>Collectors</strong>: <code>RedisCollector.kt</code>, <code>MysqlCollector.kt</code> following <code>HttpCollector</code> pattern</li>
+<li><strong>BpfProgramManager</strong>: Add <code>configureRedisPorts()</code>, <code>configureMysqlPorts()</code></li>
+<li><strong>MetricsProperties</strong>: Add to <code>standard</code> profile, add port config properties</li>
+<li><strong>Default ports</strong>: Redis 6379, MySQL 3306 (configurable via properties)</li>
+</ul>
+<hr />
+<h2 id="kernel-requirements">Kernel Requirements<a class="headerlink" href="#kernel-requirements" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Minimum kernel: 5.5 (same as HTTP/DNS — needs <code>bpf_probe_read_kernel</code>)</li>
+<li>Uses: <code>bpf_get_current_cgroup_id</code> (5.3+), <code>bpf_get_socket_cookie</code>, <code>bpf_ktime_get_ns</code></li>
+</ul>
 
 
 
@@ -1771,10 +1942,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

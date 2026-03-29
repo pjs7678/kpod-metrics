@@ -10,29 +10,31 @@
       
       
       
-        <link rel="canonical" href="https://pjs7678.github.io/kpod-metrics/">
+        <link rel="canonical" href="https://pjs7678.github.io/kpod-metrics/features/topology/">
       
       
+        <link rel="prev" href="../../metrics/self-monitoring/">
       
-        <link rel="next" href="getting-started/quickstart/">
+      
+        <link rel="next" href="../grafana/">
       
       
         
       
       
-      <link rel="icon" href="assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>kpod-metrics</title>
+        <title>Service Topology - kpod-metrics</title>
       
     
     
-      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -51,9 +53,9 @@
       
     
     
-      <link rel="stylesheet" href="stylesheets/extra.css">
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
     
-    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -78,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#kpod-metrics" class="md-skip">
+        <a href="#service-topology" class="md-skip">
           Skip to content
         </a>
       
@@ -92,7 +94,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="." title="kpod-metrics" class="md-header__button md-logo" aria-label="kpod-metrics" data-md-component="logo">
+    <a href="../.." title="kpod-metrics" class="md-header__button md-logo" aria-label="kpod-metrics" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Home
+              Service Topology
             
           </span>
         </div>
@@ -223,11 +225,9 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="." class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
         
   
   
@@ -248,7 +248,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="getting-started/quickstart/" class="md-tabs__link">
+        <a href="../../getting-started/quickstart/" class="md-tabs__link">
           
   
   
@@ -268,7 +268,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="metrics/overview/" class="md-tabs__link">
+        <a href="../../metrics/overview/" class="md-tabs__link">
           
   
   
@@ -284,11 +284,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="features/topology/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
           
   
   
@@ -308,7 +310,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="architecture/overview/" class="md-tabs__link">
+        <a href="../../architecture/overview/" class="md-tabs__link">
           
   
   
@@ -328,7 +330,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="development/contributing/" class="md-tabs__link">
+        <a href="../../development/contributing/" class="md-tabs__link">
           
   
   
@@ -348,7 +350,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="operations/troubleshooting/" class="md-tabs__link">
+        <a href="../../operations/troubleshooting/" class="md-tabs__link">
           
   
   
@@ -366,7 +368,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="changelog/" class="md-tabs__link">
+      <a href="../../changelog/" class="md-tabs__link">
         
   
   
@@ -401,7 +403,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="." title="kpod-metrics" class="md-nav__button md-logo" aria-label="kpod-metrics" data-md-component="logo">
+    <a href="../.." title="kpod-metrics" class="md-nav__button md-logo" aria-label="kpod-metrics" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -428,37 +430,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Home
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="." class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -474,59 +449,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#quick-install" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Quick Install
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#key-features" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Key Features
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#architecture" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Architecture
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -592,7 +514,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/quickstart/" class="md-nav__link">
+      <a href="../../getting-started/quickstart/" class="md-nav__link">
         
   
   
@@ -620,7 +542,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/prerequisites/" class="md-nav__link">
+      <a href="../../getting-started/prerequisites/" class="md-nav__link">
         
   
   
@@ -648,7 +570,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/configuration/" class="md-nav__link">
+      <a href="../../getting-started/configuration/" class="md-nav__link">
         
   
   
@@ -676,7 +598,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/profiles/" class="md-nav__link">
+      <a href="../../getting-started/profiles/" class="md-nav__link">
         
   
   
@@ -765,7 +687,7 @@
   
   
     <li class="md-nav__item">
-      <a href="metrics/overview/" class="md-nav__link">
+      <a href="../../metrics/overview/" class="md-nav__link">
         
   
   
@@ -793,7 +715,7 @@
   
   
     <li class="md-nav__item">
-      <a href="metrics/ebpf/" class="md-nav__link">
+      <a href="../../metrics/ebpf/" class="md-nav__link">
         
   
   
@@ -821,7 +743,7 @@
   
   
     <li class="md-nav__item">
-      <a href="metrics/cgroup/" class="md-nav__link">
+      <a href="../../metrics/cgroup/" class="md-nav__link">
         
   
   
@@ -849,7 +771,7 @@
   
   
     <li class="md-nav__item">
-      <a href="metrics/l7/" class="md-nav__link">
+      <a href="../../metrics/l7/" class="md-nav__link">
         
   
   
@@ -877,7 +799,7 @@
   
   
     <li class="md-nav__item">
-      <a href="metrics/self-monitoring/" class="md-nav__link">
+      <a href="../../metrics/self-monitoring/" class="md-nav__link">
         
   
   
@@ -909,28 +831,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
-        
-          
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
             
   
   
@@ -948,7 +873,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -963,10 +888,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="features/topology/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Service Topology
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -982,6 +934,81 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How It Works
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#grafana-visualization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Grafana Visualization
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#demo-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Demo Mode
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -994,7 +1021,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/grafana/" class="md-nav__link">
+      <a href="../grafana/" class="md-nav__link">
         
   
   
@@ -1022,7 +1049,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/otlp/" class="md-nav__link">
+      <a href="../otlp/" class="md-nav__link">
         
   
   
@@ -1050,7 +1077,7 @@
   
   
     <li class="md-nav__item">
-      <a href="features/prometheus-operator/" class="md-nav__link">
+      <a href="../prometheus-operator/" class="md-nav__link">
         
   
   
@@ -1139,7 +1166,7 @@
   
   
     <li class="md-nav__item">
-      <a href="architecture/overview/" class="md-nav__link">
+      <a href="../../architecture/overview/" class="md-nav__link">
         
   
   
@@ -1167,7 +1194,7 @@
   
   
     <li class="md-nav__item">
-      <a href="architecture/ebpf-dsl/" class="md-nav__link">
+      <a href="../../architecture/ebpf-dsl/" class="md-nav__link">
         
   
   
@@ -1195,7 +1222,7 @@
   
   
     <li class="md-nav__item">
-      <a href="architecture/codegen/" class="md-nav__link">
+      <a href="../../architecture/codegen/" class="md-nav__link">
         
   
   
@@ -1223,7 +1250,7 @@
   
   
     <li class="md-nav__item">
-      <a href="architecture/scaling/" class="md-nav__link">
+      <a href="../../architecture/scaling/" class="md-nav__link">
         
   
   
@@ -1312,7 +1339,7 @@
   
   
     <li class="md-nav__item">
-      <a href="development/contributing/" class="md-nav__link">
+      <a href="../../development/contributing/" class="md-nav__link">
         
   
   
@@ -1340,7 +1367,7 @@
   
   
     <li class="md-nav__item">
-      <a href="development/building/" class="md-nav__link">
+      <a href="../../development/building/" class="md-nav__link">
         
   
   
@@ -1368,7 +1395,7 @@
   
   
     <li class="md-nav__item">
-      <a href="development/testing/" class="md-nav__link">
+      <a href="../../development/testing/" class="md-nav__link">
         
   
   
@@ -1396,7 +1423,7 @@
   
   
     <li class="md-nav__item">
-      <a href="development/adding-collector/" class="md-nav__link">
+      <a href="../../development/adding-collector/" class="md-nav__link">
         
   
   
@@ -1485,7 +1512,7 @@
   
   
     <li class="md-nav__item">
-      <a href="operations/troubleshooting/" class="md-nav__link">
+      <a href="../../operations/troubleshooting/" class="md-nav__link">
         
   
   
@@ -1513,7 +1540,7 @@
   
   
     <li class="md-nav__item">
-      <a href="operations/security/" class="md-nav__link">
+      <a href="../../operations/security/" class="md-nav__link">
         
   
   
@@ -1548,7 +1575,7 @@
   
   
     <li class="md-nav__item">
-      <a href="changelog/" class="md-nav__link">
+      <a href="../../changelog/" class="md-nav__link">
         
   
   
@@ -1595,10 +1622,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#quick-install" class="md-nav__link">
+  <a href="#how-it-works" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Quick Install
+        How It Works
       
     </span>
   </a>
@@ -1606,10 +1633,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#key-features" class="md-nav__link">
+  <a href="#api" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Key Features
+        API
       
     </span>
   </a>
@@ -1617,10 +1644,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#architecture" class="md-nav__link">
+  <a href="#grafana-visualization" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Architecture
+        Grafana Visualization
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#demo-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Demo Mode
       
     </span>
   </a>
@@ -1647,73 +1696,45 @@
   
 
 
-<h1 id="kpod-metrics">kpod-metrics<a class="headerlink" href="#kpod-metrics" title="Permanent link">&para;</a></h1>
-<p><strong>eBPF-based pod-level kernel metrics collector for Kubernetes.</strong></p>
-<p>kpod-metrics runs as a DaemonSet on each node, attaches eBPF programs to kernel tracepoints, and exports per-pod CPU, network, memory, syscall, disk I/O, and filesystem metrics to Prometheus.</p>
-<div class="grid cards">
+<h1 id="service-topology">Service Topology<a class="headerlink" href="#service-topology" title="Permanent link">&para;</a></h1>
+<p>Auto-discovered service dependency graph from eBPF TCP peer data. Zero configuration, zero sidecars.</p>
+<p><img alt="Service Topology Demo" src="../../topology-demo.gif" /></p>
+<h2 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
+<p>The topology map groups TCP connections by service, building a directed graph of service-to-service communication with rich metadata:</p>
+<p><strong>Edge metrics:</strong></p>
 <ul>
-<li>
-<p>:zap: <strong>Zero Instrumentation</strong></p>
-<hr />
-<p>eBPF attaches to kernel tracepoints automatically. No code changes, no sidecars, no agents inside your pods.</p>
-</li>
-<li>
-<p>:bar_chart: <strong>Per-Pod Granularity</strong></p>
-<hr />
-<p>Every metric is labeled with <code>namespace</code>, <code>pod</code>, <code>container</code>, and <code>node</code>. Drill down from cluster to individual container.</p>
-</li>
-<li>
-<p>:globe_with_meridians: <strong>L7 Protocol Detection</strong></p>
-<hr />
-<p>Auto-detect HTTP, DNS, Redis, MySQL, Kafka, and MongoDB traffic with per-request latency and error tracking.</p>
-</li>
-<li>
-<p>:chart_with_upwards_trend: <strong>Prometheus-Native</strong></p>
-<hr />
-<p>Metrics exported directly to Prometheus. Works with Grafana dashboards (included), ServiceMonitor, and OTLP export.</p>
-</li>
+<li><strong>Request count</strong> per edge</li>
+<li><strong>Average latency</strong> from TCP RTT (sum/count)</li>
+<li><strong>P99 latency</strong> from log2 RTT histogram (27-slot, microsecond precision)</li>
+<li><strong>Protocol inference</strong> from well-known ports and L7 detection (HTTP, Redis, MySQL, PostgreSQL, Kafka, MongoDB)</li>
 </ul>
-</div>
-<h2 id="quick-install">Quick Install<a class="headerlink" href="#quick-install" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>helm<span class="w"> </span>repo<span class="w"> </span>add<span class="w"> </span>kpod-metrics<span class="w"> </span>https://pjs7678.github.io/kpod-metrics
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>helm<span class="w"> </span>repo<span class="w"> </span>update
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>helm<span class="w"> </span>install<span class="w"> </span>kpod-metrics<span class="w"> </span>kpod-metrics/kpod-metrics<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span>--namespace<span class="w"> </span>kpod-metrics<span class="w"> </span>--create-namespace
-</code></pre></div>
-<p>See the <a href="getting-started/quickstart/">Quick Start guide</a> for detailed setup instructions.</p>
-<h2 id="key-features">Key Features<a class="headerlink" href="#key-features" title="Permanent link">&para;</a></h2>
+<p><strong>Node metrics:</strong></p>
 <ul>
-<li><strong>50+ metrics</strong> across CPU, network, memory, syscalls, disk I/O, filesystem, and interrupts</li>
-<li><strong>Auto-discovered service topology</strong> from TCP peer data — no configuration needed</li>
-<li><strong>L7 protocol detection</strong> for HTTP, DNS, Redis, MySQL, Kafka, MongoDB</li>
-<li><strong>Grafana dashboards</strong> included with 9 metric rows</li>
-<li><strong>Prometheus Operator</strong> support with ServiceMonitor and 18 alerting rules</li>
-<li><strong>OTLP export</strong> for OpenTelemetry-compatible backends</li>
-<li><strong>Three profiles</strong> (minimal, standard, comprehensive) to control overhead</li>
-<li><strong>Kotlin eBPF DSL</strong> — BPF programs defined in type-safe Kotlin, not raw C</li>
-<li><strong>Broad kernel support</strong> — 4.18+ (legacy) and 5.2+ (CO-RE)</li>
-<li><strong>Tested at scale</strong> — 1,000 nodes / 100,000 pods</li>
+<li><strong>Request rate</strong> (sum of connected edge traffic)</li>
+<li><strong>Protocol mix</strong> (arc fields for Grafana pie chart arcs)</li>
+<li><strong>TCP drops</strong> per service (from tcpdrop BPF program, cgroup-based)</li>
 </ul>
-<h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Node (DaemonSet pod)
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>┌─────────────────────────────────────────────────┐
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>│  Spring Boot (JDK 21 + Virtual Threads)         │
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>│                                                  │
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>│  MetricsCollectorService (every 30s default)    │
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>│  ├── eBPF Collectors ──► JNI ──► BPF Maps      │
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>│  └── Cgroup Collectors ──► /sys/fs/cgroup       │
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>│                                                  │
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>│  Prometheus exporter (:9090/actuator/prometheus) │
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>└─────────────────────────────────────────────────┘
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>         │ JNI (libkpod_bpf.so)
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    ┌────▼────────────────────────┐
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    │ Linux Kernel                │
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    │ eBPF programs on            │
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>    │ tracepoints: sched_switch,  │
-<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    │ tcp_sendmsg, oom_kill, ...  │
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>    └─────────────────────────────┘
+<h2 id="api">API<a class="headerlink" href="#api" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kpod-metrics<span class="w"> </span>port-forward<span class="w"> </span>ds/kpod-metrics<span class="w"> </span><span class="m">9090</span>:9090
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>curl<span class="w"> </span>http://localhost:9090/actuator/kpodTopology<span class="w"> </span><span class="p">|</span><span class="w"> </span>python3<span class="w"> </span>-m<span class="w"> </span>json.tool
 </code></pre></div>
-<p>Learn more in the <a href="architecture/overview/">Architecture overview</a>.</p>
+<p>The API returns a Grafana Node Graph-compatible JSON with <code>nodes</code> and <code>edges</code> arrays.</p>
+<h2 id="grafana-visualization">Grafana Visualization<a class="headerlink" href="#grafana-visualization" title="Permanent link">&para;</a></h2>
+<p>The topology is visualized as a Node Graph panel in Grafana. It requires the <a href="https://grafana.com/grafana/plugins/yesoreyeram-infinity-datasource/">Infinity data source plugin</a> to fetch the JSON API.</p>
+<p>The included Grafana dashboard has a dedicated topology row with the Node Graph panel pre-configured.</p>
+<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">topology</span><span class="p">:</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">        </span><span class="c1"># Enable topology collection (default)</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">windowSize</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w">       </span><span class="c1"># Aggregation window in collection cycles</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="nt">maxExternalNodes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span><span class="w">  </span><span class="c1"># Max external (non-pod) nodes to show</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="nt">demoData</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span><span class="w">       </span><span class="c1"># Inject sample data for testing</span>
+</code></pre></div>
+<h2 id="demo-mode">Demo Mode<a class="headerlink" href="#demo-mode" title="Permanent link">&para;</a></h2>
+<p>Enable demo data to test the topology visualization without real traffic:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">topology</span><span class="p">:</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">demoData</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</code></pre></div>
+<p>This injects a sample service graph with realistic latency and protocol data.</p>
 
 
 
@@ -1771,10 +1792,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>
