@@ -7,6 +7,12 @@
 
 eBPF-based pod-level kernel metrics collector for Kubernetes. Runs as a DaemonSet, attaches eBPF programs to kernel tracepoints, and exports per-pod CPU, network, memory, syscall, disk I/O, and filesystem metrics to Prometheus.
 
+## Demo
+
+<p align="center">
+  <img src="docs/demo.svg" alt="kpod-metrics demo" width="800">
+</p>
+
 ## Architecture
 
 ```
