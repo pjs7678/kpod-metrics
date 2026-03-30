@@ -4,6 +4,12 @@
 
 kpod-metrics runs as a DaemonSet on each node, attaches eBPF programs to kernel tracepoints, and exports per-pod CPU, network, memory, syscall, disk I/O, and filesystem metrics to Prometheus.
 
+## Demo
+
+<p align="center">
+  <img src="demo.svg" alt="kpod-metrics demo" style="max-width:100%; border-radius:8px;">
+</p>
+
 <div class="grid cards" markdown>
 
 - :zap: **Zero Instrumentation**
