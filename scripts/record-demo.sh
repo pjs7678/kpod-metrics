@@ -45,16 +45,16 @@ type_cmd() {
   printf "${BOLD}\$ ${NC}"
   for ((i=0; i<${#1}; i++)); do
     printf "%s" "${1:$i:1}"
-    sleep 0.04
+    sleep 0.06
   done
   echo
-  sleep 0.3
+  sleep 1
 }
 
 section() {
   echo
   printf "${YELLOW}━━━ %s ━━━${NC}\n" "$1"
-  sleep 0.8
+  sleep 2
 }
 
 clear
@@ -69,19 +69,19 @@ cat << 'BANNER'
 
 BANNER
 printf "${NC}"
-sleep 1.5
+sleep 3
 
 section "Step 1: Add Helm repository"
 
 type_cmd "helm repo add kpod-metrics https://pjs7678.github.io/kpod-metrics"
 printf "${GRAY}\"kpod-metrics\" has been added to your repositories${NC}\n"
-sleep 0.5
+sleep 1.5
 
 type_cmd "helm repo update"
 printf "${GRAY}Hang tight while we grab the latest from your chart repositories...\n"
 printf "...Successfully got an update from the \"kpod-metrics\" chart repository\n"
 printf "Update Complete. ⎈Happy Helming!⎈${NC}\n"
-sleep 1
+sleep 2.5
 
 section "Step 2: Install kpod-metrics"
 
@@ -91,72 +91,94 @@ printf "LAST DEPLOYED: Sat Mar 29 2026\n"
 printf "NAMESPACE: kpod-metrics\n"
 printf "STATUS: deployed\n"
 printf "REVISION: 1${NC}\n"
-sleep 1.5
+sleep 3
 
 section "Step 3: Check pods"
 
 type_cmd "kubectl -n kpod-metrics get pods"
 printf "NAME                    READY   STATUS    RESTARTS   AGE\n"
 printf "kpod-metrics-${CYAN}xk9p2${NC}   1/1     ${GREEN}Running${NC}   0          45s\n"
-sleep 1.5
+sleep 3
 
 section "Step 4: View metrics"
 
 type_cmd "kubectl -n kpod-metrics port-forward ds/kpod-metrics 9090:9090 &"
 printf "${GRAY}Forwarding from 127.0.0.1:9090 -> 9090${NC}\n"
-sleep 0.5
+sleep 1.5
 
 type_cmd "curl -s localhost:9090/actuator/prometheus | grep kpod | head -15"
 echo
 printf "# HELP kpod_cpu_context_switches_total Context switch count\n"
+sleep 0.3
 printf "kpod_cpu_context_switches_total{namespace=\"default\",pod=\"api-server-7b4d9\",container=\"api\",node=\"node-1\"} ${CYAN}284751${NC}\n"
+sleep 0.3
 printf "kpod_cpu_context_switches_total{namespace=\"default\",pod=\"worker-5c8f2\",container=\"worker\",node=\"node-1\"} ${CYAN}157302${NC}\n"
+sleep 0.5
 echo
 printf "# HELP kpod_net_tcp_bytes_sent_total TCP bytes sent\n"
+sleep 0.3
 printf "kpod_net_tcp_bytes_sent_total{namespace=\"default\",pod=\"api-server-7b4d9\",container=\"api\",node=\"node-1\"} ${CYAN}1.048576e+08${NC}\n"
+sleep 0.5
 echo
 printf "# HELP kpod_net_tcp_rtt_seconds TCP round-trip time\n"
+sleep 0.3
 printf "kpod_net_tcp_rtt_seconds{namespace=\"default\",pod=\"api-server-7b4d9\",quantile=\"0.5\"} ${CYAN}0.000842${NC}\n"
+sleep 0.2
 printf "kpod_net_tcp_rtt_seconds{namespace=\"default\",pod=\"api-server-7b4d9\",quantile=\"0.9\"} ${CYAN}0.002150${NC}\n"
+sleep 0.2
 printf "kpod_net_tcp_rtt_seconds{namespace=\"default\",pod=\"api-server-7b4d9\",quantile=\"0.99\"} ${CYAN}0.008431${NC}\n"
+sleep 0.5
 echo
 printf "# HELP kpod_mem_cgroup_usage_bytes Current memory usage\n"
+sleep 0.3
 printf "kpod_mem_cgroup_usage_bytes{namespace=\"default\",pod=\"api-server-7b4d9\",container=\"api\",node=\"node-1\"} ${CYAN}1.34217728e+08${NC}\n"
+sleep 0.5
 echo
 printf "# HELP kpod_syscall_count_total Syscall invocations\n"
+sleep 0.3
 printf "kpod_syscall_count_total{namespace=\"default\",pod=\"api-server-7b4d9\",syscall=\"read\",node=\"node-1\"} ${CYAN}892451${NC}\n"
+sleep 0.2
 printf "kpod_syscall_count_total{namespace=\"default\",pod=\"api-server-7b4d9\",syscall=\"write\",node=\"node-1\"} ${CYAN}541203${NC}\n"
-sleep 2
+sleep 4
 
 section "Step 5: Service topology"
 
 type_cmd "curl -s localhost:9090/actuator/kpodTopology | python3 -m json.tool | head -25"
 printf "${GRAY}{\n"
+sleep 0.2
 printf "    \"nodes\": [\n"
+sleep 0.2
 printf "        {\n"
 printf "            \"id\": \"default/api-server\",\n"
+sleep 0.2
 printf "            \"title\": \"api-server\",\n"
 printf "            \"mainStat\": \"1,247 req/s\",\n"
+sleep 0.2
 printf "            \"arc__http\": 0.85,\n"
 printf "            \"arc__redis\": 0.15\n"
 printf "        },\n"
+sleep 0.3
 printf "        {\n"
 printf "            \"id\": \"default/postgres\",\n"
+sleep 0.2
 printf "            \"title\": \"postgres\",\n"
 printf "            \"mainStat\": \"523 req/s\"\n"
 printf "        }\n"
 printf "    ],\n"
+sleep 0.3
 printf "    \"edges\": [\n"
 printf "        {\n"
+sleep 0.2
 printf "            \"source\": \"default/api-server\",\n"
 printf "            \"target\": \"default/postgres\",\n"
+sleep 0.2
 printf "            \"mainStat\": \"2.1ms avg\",\n"
 printf "            \"secondaryStat\": \"8.4ms p99\",\n"
 printf "            \"detail__protocol\": \"mysql\"\n"
 printf "        }\n"
 printf "    ]\n"
 printf "}${NC}\n"
-sleep 2
+sleep 5
 
 echo
 printf "${GREEN}${BOLD}✓ kpod-metrics is collecting per-pod kernel metrics!${NC}\n"
@@ -164,7 +186,7 @@ echo
 printf "  Docs:   ${CYAN}https://pjs7678.github.io/kpod-metrics${NC}\n"
 printf "  GitHub: ${CYAN}https://github.com/pjs7678/kpod-metrics${NC}\n"
 echo
-sleep 2
+sleep 4
 DEMO
 
 chmod +x "$DEMO_SCRIPT"
