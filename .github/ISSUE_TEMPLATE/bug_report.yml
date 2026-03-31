@@ -1,0 +1,62 @@
+name: Bug Report
+description: Report a bug in kpod-metrics
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill out the sections below.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened? What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this?
+      placeholder: |
+        1. Install kpod-metrics with `helm install ...`
+        2. Run `kubectl ...`
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Paste relevant logs from `kubectl logs ds/kpod-metrics`
+      render: shell
+  - type: input
+    id: version
+    attributes:
+      label: kpod-metrics version
+      placeholder: "1.11.0"
+    validations:
+      required: true
+  - type: input
+    id: kernel
+    attributes:
+      label: Kernel version
+      description: Output of `uname -r`
+      placeholder: "5.15.0-91-generic"
+    validations:
+      required: true
+  - type: input
+    id: k8s
+    attributes:
+      label: Kubernetes version
+      description: Output of `kubectl version --short`
+      placeholder: "v1.28.2"
+  - type: dropdown
+    id: profile
+    attributes:
+      label: Collection profile
+      options:
+        - minimal
+        - standard
+        - comprehensive
+        - custom

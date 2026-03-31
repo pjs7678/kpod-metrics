@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question / Discussion
+    url: https://github.com/pjs7678/kpod-metrics/discussions
+    about: Ask questions and discuss ideas in GitHub Discussions
+  - name: Documentation
+    url: https://pjs7678.github.io/kpod-metrics
+    about: Check the docs for troubleshooting and configuration guides
