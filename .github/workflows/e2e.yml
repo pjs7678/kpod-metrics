@@ -54,7 +54,7 @@ jobs:
             -t kpod-metrics:e2e \
             -t ghcr.io/pjs7678/kpod-metrics:e2e .
 
-      - uses: azure/setup-helm@v4
+      - uses: azure/setup-helm@v5
 
       - name: Deploy kpod-metrics
         run: |
