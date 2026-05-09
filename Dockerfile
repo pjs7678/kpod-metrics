@@ -25,7 +25,7 @@ COPY kpod-metrics/src/ src/
 RUN gradle -PebpfDslPath=/kotlin-ebpf-dsl -Pkotlin.compiler.execution.strategy=in-process generateBpf --no-daemon
 
 # Stage 2: Compile eBPF programs from generated C code
-FROM ubuntu:24.04 AS bpf-builder
+FROM ubuntu:26.04 AS bpf-builder
 # TARGETARCH is set automatically by docker buildx (amd64, arm64).
 # Map it to the BPF target arch expected by clang -D__TARGET_ARCH_<arch>.
 ARG TARGETARCH
@@ -78,7 +78,7 @@ RUN BPF_ARCH=$(cat /tmp/bpf_arch) && \
     if [ -n "$FAILED" ]; then echo "WARNING: legacy build failed for:${FAILED}"; fi
 
 # Stage 3: Build JNI native library
-FROM ubuntu:24.04 AS jni-builder
+FROM ubuntu:26.04 AS jni-builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake make gcc libbpf-dev libelf-dev zlib1g-dev openjdk-21-jdk-headless dpkg-dev \
     && rm -rf /var/lib/apt/lists/*
