@@ -13,11 +13,11 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           path: kpod-metrics
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           repository: pjs7678/kotlin-ebpf-dsl
           path: kotlin-ebpf-dsl
