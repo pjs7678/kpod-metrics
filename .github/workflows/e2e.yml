@@ -22,11 +22,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           path: kpod-metrics
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           repository: pjs7678/kotlin-ebpf-dsl
           path: kotlin-ebpf-dsl
