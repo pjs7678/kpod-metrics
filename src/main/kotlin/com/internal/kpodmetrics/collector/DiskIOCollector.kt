@@ -13,6 +13,7 @@ class DiskIOCollector(
 ) {
     private val log = LoggerFactory.getLogger(DiskIOCollector::class.java)
     private val errorCounter: Counter = registry.counter("kpod.cgroup.read.errors", "collector", "diskIO")
+    private val meters = CumulativeMeters(registry)
 
     fun collect(targets: List<PodCgroupTarget>) {
         for (target in targets) {
@@ -21,10 +22,10 @@ class DiskIOCollector(
                 for (stat in stats) {
                     val device = "${stat.major}:${stat.minor}"
                     val tags = target.tags().and("device", device)
-                    registry.counter("kpod.disk.read.bytes", tags).increment(stat.readBytes.toDouble())
-                    registry.counter("kpod.disk.written.bytes", tags).increment(stat.writeBytes.toDouble())
-                    registry.counter("kpod.disk.reads", tags).increment(stat.reads.toDouble())
-                    registry.counter("kpod.disk.writes", tags).increment(stat.writes.toDouble())
+                    meters.counter("kpod.disk.read.bytes", tags, stat.readBytes)
+                    meters.counter("kpod.disk.written.bytes", tags, stat.writeBytes)
+                    meters.counter("kpod.disk.reads", tags, stat.reads)
+                    meters.counter("kpod.disk.writes", tags, stat.writes)
                 }
             } catch (e: Exception) {
                 log.debug("Failed to read disk I/O for pod {}/{}: {}", target.namespace, target.podName, e.message)
@@ -32,4 +33,6 @@ class DiskIOCollector(
             }
         }
     }
+
+    fun removeStaleEntries(podName: String, namespace: String) = meters.removePod(podName, namespace)
 }

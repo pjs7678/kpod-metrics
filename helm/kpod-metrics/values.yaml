@@ -170,6 +170,10 @@ config:
   #   diskIO: true
   #   ifaceNet: true
   #   filesystem: true
+  #   memory: true
+  #   cpuCgroup: true    # cgroup CPU usage / CFS throttling / limit
+  #   pressure: true     # PSI stall time (cgroup v2 only)
+  #   appType: true      # application detection from process cmdline
   #   dns: true
   #   dnsPorts: [53]
   #   tcpPeer: true

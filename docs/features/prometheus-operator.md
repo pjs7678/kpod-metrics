@@ -30,7 +30,7 @@ serviceMonitor:
 
 ## Alerting Rules
 
-The PrometheusRule provisions **18 alerting rules**:
+The PrometheusRule provisions **21 alerting rules**:
 
 | Alert | Description |
 |-------|-------------|

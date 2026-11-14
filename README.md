@@ -120,6 +120,32 @@ All metrics are labeled with `namespace`, `pod`, `container`, and `node`.
 | `kpod.mem.cgroup.peak.bytes` | Gauge | Peak memory usage |
 | `kpod.mem.cgroup.cache.bytes` | Gauge | Page cache usage |
 | `kpod.mem.cgroup.swap.bytes` | Gauge | Swap usage |
+| `kpod.mem.cgroup.rss.bytes` | Gauge | Anonymous (non-reclaimable) memory — what the OOM killer acts on |
+| `kpod.mem.cgroup.limit.bytes` | Gauge | Memory limit (absent when unlimited) |
+
+### CPU Cgroup Metrics
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `kpod.cpu.usage.seconds` | Counter | CPU time consumed (`cpu.stat` usage_usec / `cpuacct.usage`) |
+| `kpod.cpu.throttled.seconds` | Counter | Time stalled by CFS quota |
+| `kpod.cpu.throttled.periods` | Counter | CFS periods in which the container was throttled |
+| `kpod.cpu.periods` | Counter | CFS periods elapsed (throttle ratio = throttled.periods / periods) |
+| `kpod.cpu.limit.cores` | Gauge | CPU limit in cores (absent when unlimited) |
+
+### Pressure Stall (PSI) Metrics — cgroup v2, kernel 4.20+
+
+| Metric | Type | Extra Labels | Description |
+|--------|------|-------------|-------------|
+| `kpod.pressure.stall.seconds` | Counter | `resource` (cpu/memory/io), `kind` (some/full) | Wall time during which some/all tasks were stalled on the resource. `rate()` = stall fraction |
+
+### Application Detection
+
+| Metric | Type | Extra Labels | Description |
+|--------|------|-------------|-------------|
+| `kpod.container.application` | Gauge (1) | `application` | Software detected from process command lines (postgres, redis, kafka, nginx, java, python, ...) |
+
+Cgroup counters (`kpod.disk.*`, `kpod.net.iface.*`, `kpod.cpu.*`, `kpod.pressure.*`) export the kernel's cumulative value directly, so `rate()` / `increase()` work as with cAdvisor.
 
 ### Pod Lifecycle Metrics
 
@@ -168,6 +194,10 @@ Control which metrics are collected via the `kpod.profile` setting:
 | Disk I/O (cgroup) | yes | yes | yes |
 | Interface network (cgroup) | - | yes | yes |
 | Filesystem (cgroup) | - | yes | yes |
+| Memory (cgroup) | yes | yes | yes |
+| CPU usage / throttling (cgroup) | yes | yes | yes |
+| Pressure stall / PSI (cgroup) | - | yes | yes |
+| Application detection (/proc) | - | yes | yes |
 
 **Estimated cardinality per pod**: minimal ~20, standard ~39, comprehensive ~69 time series.
 
@@ -292,7 +322,7 @@ prometheusRule:
   enabled: true
 ```
 
-This provisions 18 alerting rules including: high runqueue latency, TCP retransmits/drops, syscall error rate, filesystem full, BPF map health, container restart rate, crash loop detection, memory pressure, collector skip rate, and fork/exec bomb detection. Plus 17 recording rules for precomputed p50/p90/p99 aggregations.
+This provisions 21 alerting rules including: high runqueue latency, TCP retransmits/drops, syscall error rate, filesystem full, BPF map health, container restart rate, crash loop detection, memory pressure, CPU throttling, memory near limit, PSI resource stalls, collector skip rate, and fork/exec bomb detection. Plus 17 recording rules for precomputed p50/p90/p99 aggregations.
 
 ### OTLP Export
 

@@ -64,6 +64,10 @@ class CardinalityEstimator(
         if (cg.diskIO) breakdown["diskIO"] = 4L * podCount * 2 // 2 devices avg
         if (cg.interfaceNetwork) breakdown["ifaceNet"] = 8L * podCount * 2 // 2 interfaces avg
         if (cg.filesystem) breakdown["filesystem"] = 3L * podCount * 2 // 2 mounts avg
+        if (cg.memory) breakdown["memory"] = 6L * podCount
+        if (cg.cpu) breakdown["cpuCgroup"] = 5L * podCount
+        if (cg.pressure) breakdown["pressure"] = 6L * podCount // cpu/memory/io x some/full
+        if (cg.appType) breakdown["appType"] = 1L * podCount
 
         // Self-monitoring: fixed ~20 series
         breakdown["selfMonitoring"] = 20L

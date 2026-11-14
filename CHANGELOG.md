@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- CPU cgroup collector (`cpuCgroup`): `kpod.cpu.usage.seconds`, `kpod.cpu.throttled.seconds`, `kpod.cpu.throttled.periods`, `kpod.cpu.periods`, `kpod.cpu.limit.cores` (cgroup v1 + v2)
+- PSI collector (`pressure`): `kpod.pressure.stall.seconds{resource,kind}` from `cpu/memory/io.pressure` (cgroup v2)
+- Application detection (`appType`): `kpod.container.application{application}` from process command lines
+- Memory: `kpod.mem.cgroup.rss.bytes` and `kpod.mem.cgroup.limit.bytes`
+- Alerts: `KpodCpuThrottled`, `KpodMemoryNearLimit`, `KpodResourceStall`
+
+### Fixed
+- `kpod.disk.*` and `kpod.net.iface.*` counters re-added the kernel's cumulative totals every cycle, inflating values ~N-fold after N cycles. They now export the cumulative value directly (FunctionCounter).
+- cgroup v1: memory (and new CPU) stats are read from the matching controller hierarchy instead of the blkio path the pod target resolves to
+- Disk and interface meters are now removed when a pod is deleted
+
 ## [1.11.0] - 2026-03-07
 
 ### Added

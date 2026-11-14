@@ -38,14 +38,14 @@ class InterfaceNetworkCollectorTest {
             containerDir.toString(), "test-node"))
         collector.collect(targets)
 
-        val rxBytes = registry.counter("kpod.net.iface.rx.bytes",
+        val rxBytes = registry.get("kpod.net.iface.rx.bytes").tags(
             "namespace", "default", "pod", "nginx-pod", "container", "nginx",
-            "node", "test-node", "interface", "eth0")
+            "node", "test-node", "interface", "eth0").functionCounter()
         assertEquals(9876543.0, rxBytes.count())
 
-        val txPackets = registry.counter("kpod.net.iface.tx.packets",
+        val txPackets = registry.get("kpod.net.iface.tx.packets").tags(
             "namespace", "default", "pod", "nginx-pod", "container", "nginx",
-            "node", "test-node", "interface", "eth0")
+            "node", "test-node", "interface", "eth0").functionCounter()
         assertEquals(3333.0, txPackets.count())
     }
 
@@ -58,6 +58,6 @@ class InterfaceNetworkCollectorTest {
         val targets = listOf(PodCgroupTarget("no-pid-pod", "default", "ghost",
             containerDir.toString(), "test-node"))
         collector.collect(targets)
-        assertNull(registry.find("kpod.net.iface.rx.bytes").tag("pod", "no-pid-pod").counter())
+        assertNull(registry.find("kpod.net.iface.rx.bytes").tag("pod", "no-pid-pod").functionCounter())
     }
 }
