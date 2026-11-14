@@ -28,11 +28,173 @@ data class MemoryStat(
     val usageBytes: Long,
     val peakBytes: Long,
     val cacheBytes: Long,
-    val swapBytes: Long
+    val swapBytes: Long,
+    val rssBytes: Long = 0L,
+    /** null = unlimited */
+    val limitBytes: Long? = null
+)
+
+data class CpuStat(
+    val usageSeconds: Double,
+    val periods: Long,
+    val throttledPeriods: Long,
+    val throttledSeconds: Double,
+    /** null = unlimited (no CFS quota) */
+    val limitCores: Double?
+)
+
+/** Cumulative PSI stall time (cgroup v2 `<resource>.pressure` files). */
+data class PressureStat(
+    val resource: String,
+    val someSeconds: Double,
+    /** null when the kernel does not report a `full` line (e.g. cpu before 5.13) */
+    val fullSeconds: Double?
 )
 
 class CgroupReader(private val version: CgroupVersion) {
     private val log = LoggerFactory.getLogger(CgroupReader::class.java)
+
+    companion object {
+        /** cgroup v1 reports "unlimited" as PAGE_COUNTER_MAX rounded to a page — anything this large is no limit. */
+        private const val V1_UNLIMITED_THRESHOLD = 1L shl 62
+        private val PRESSURE_RESOURCES = listOf("cpu", "memory", "io")
+    }
+
+    /**
+     * Pod target paths are resolved under one v1 hierarchy (blkio by default). Other
+     * controllers live in sibling hierarchies with the same relative path, e.g.
+     * /sys/fs/cgroup/blkio/kubepods/... -> /sys/fs/cgroup/memory/kubepods/...
+     * Returns the first candidate directory that exists, or the original path.
+     */
+    internal fun v1ControllerPath(containerCgroupPath: String, controllers: List<String>): String {
+        val path = Paths.get(containerCgroupPath)
+        for (i in 0 until path.nameCount) {
+            val segment = path.getName(i).toString()
+            if (segment !in setOf("blkio", "memory", "cpu", "cpuacct", "cpu,cpuacct", "cpuacct,cpu")) continue
+            val prefix = if (i == 0) path.root ?: Paths.get("") else path.root.resolve(path.subpath(0, i))
+            val suffix = if (i + 1 < path.nameCount) path.subpath(i + 1, path.nameCount).toString() else ""
+            for (controller in controllers) {
+                val candidate = prefix.resolve(controller).resolve(suffix)
+                if (Files.isDirectory(candidate)) return candidate.toString()
+            }
+            break
+        }
+        return containerCgroupPath
+    }
+
+    private fun readLong(dir: String, file: String): Long? = try {
+        val f = Paths.get(dir, file)
+        if (Files.exists(f)) Files.readString(f).trim().toLongOrNull() else null
+    } catch (_: Exception) { null }
+
+    private fun readKeyValues(dir: String, file: String): Map<String, Long> {
+        val f = Paths.get(dir, file)
+        if (!Files.exists(f)) return emptyMap()
+        return Files.readAllLines(f).mapNotNull { line ->
+            val parts = line.trim().split(' ', '\t').filter { it.isNotEmpty() }
+            if (parts.size == 2) parts[0] to (parts[1].toLongOrNull() ?: return@mapNotNull null) else null
+        }.toMap()
+    }
+
+    fun readCpuStats(containerCgroupPath: String): CpuStat? = try {
+        when (version) {
+            CgroupVersion.V2 -> readCpuV2(containerCgroupPath)
+            CgroupVersion.V1 -> readCpuV1(containerCgroupPath)
+        }
+    } catch (e: Exception) {
+        log.debug("Failed to read cpu stats from {}: {}", containerCgroupPath, e.message)
+        null
+    }
+
+    private fun readCpuV2(dir: String): CpuStat? {
+        if (!Files.exists(Paths.get(dir, "cpu.stat"))) return null
+        val stat = readKeyValues(dir, "cpu.stat")
+        val usageUsec = stat["usage_usec"] ?: return null
+        return CpuStat(
+            usageSeconds = usageUsec / 1e6,
+            periods = stat["nr_periods"] ?: 0L,
+            throttledPeriods = stat["nr_throttled"] ?: 0L,
+            throttledSeconds = (stat["throttled_usec"] ?: 0L) / 1e6,
+            limitCores = parseCpuMax(dir)
+        )
+    }
+
+    /** cpu.max: "<quota|max> <period>" */
+    internal fun parseCpuMax(dir: String): Double? {
+        val f = Paths.get(dir, "cpu.max")
+        if (!Files.exists(f)) return null
+        val parts = Files.readString(f).trim().split(' ')
+        if (parts.size != 2 || parts[0] == "max") return null
+        val quota = parts[0].toLongOrNull() ?: return null
+        val period = parts[1].toLongOrNull()?.takeIf { it > 0 } ?: return null
+        return quota.toDouble() / period
+    }
+
+    private fun readCpuV1(containerCgroupPath: String): CpuStat? {
+        val dir = v1ControllerPath(containerCgroupPath, listOf("cpu,cpuacct", "cpuacct,cpu", "cpuacct", "cpu"))
+        val usageNs = readLong(dir, "cpuacct.usage") ?: return null
+        val stat = readKeyValues(dir, "cpu.stat")
+        val quota = readLong(dir, "cpu.cfs_quota_us")
+        val period = readLong(dir, "cpu.cfs_period_us")
+        val limit = if (quota != null && quota > 0 && period != null && period > 0) quota.toDouble() / period else null
+        return CpuStat(
+            usageSeconds = usageNs / 1e9,
+            periods = stat["nr_periods"] ?: 0L,
+            throttledPeriods = stat["nr_throttled"] ?: 0L,
+            throttledSeconds = (stat["throttled_time"] ?: 0L) / 1e9,
+            limitCores = limit
+        )
+    }
+
+    /**
+     * PSI is cgroup v2 only. Files may be absent (CONFIG_PSI=n) or fail with
+     * EOPNOTSUPP when booted with psi=0 — both yield an empty list.
+     */
+    fun readPressure(containerCgroupPath: String): List<PressureStat> {
+        if (version != CgroupVersion.V2) return emptyList()
+        return PRESSURE_RESOURCES.mapNotNull { resource ->
+            try {
+                val f = Paths.get(containerCgroupPath, "$resource.pressure")
+                if (!Files.exists(f)) return@mapNotNull null
+                parsePressure(resource, Files.readAllLines(f))
+            } catch (e: Exception) {
+                log.debug("Failed to read {}.pressure from {}: {}", resource, containerCgroupPath, e.message)
+                null
+            }
+        }
+    }
+
+    internal fun parsePressure(resource: String, lines: List<String>): PressureStat? {
+        var some: Long? = null
+        var full: Long? = null
+        for (line in lines) {
+            val parts = line.trim().split(' ')
+            val total = parts.firstOrNull { it.startsWith("total=") }?.removePrefix("total=")?.toLongOrNull() ?: continue
+            when (parts[0]) {
+                "some" -> some = total
+                "full" -> full = total
+            }
+        }
+        return some?.let { PressureStat(resource, it / 1e6, full?.let { f -> f / 1e6 }) }
+    }
+
+    /** All PIDs in the cgroup (v2 cgroup.procs, v1 cgroup.procs then tasks), capped at [limit]. */
+    fun readPids(containerCgroupPath: String, limit: Int = 64): List<Int> {
+        val candidates = listOf("cgroup.procs", "tasks")
+        for (name in candidates) {
+            val f = Paths.get(containerCgroupPath, name)
+            if (!Files.exists(f)) continue
+            return try {
+                Files.newBufferedReader(f).useLines { lines ->
+                    lines.mapNotNull { it.trim().toIntOrNull() }.distinct().take(limit).toList()
+                }
+            } catch (e: Exception) {
+                log.debug("Failed to read {} from {}: {}", name, containerCgroupPath, e.message)
+                emptyList()
+            }
+        }
+        return emptyList()
+    }
 
     fun readMemoryStats(containerCgroupPath: String): MemoryStat? {
         return when (version) {
@@ -64,14 +226,19 @@ class CgroupReader(private val version: CgroupVersion) {
                     }.toMap()
             } else emptyMap()
             val cache = (statMap["inactive_file"] ?: 0L) + (statMap["active_file"] ?: 0L)
-            MemoryStat(usage, peak, cache, swap)
+            val limit = try {
+                val maxFile = Paths.get(containerCgroupPath, "memory.max")
+                if (Files.exists(maxFile)) Files.readString(maxFile).trim().toLongOrNull() else null
+            } catch (_: Exception) { null }
+            MemoryStat(usage, peak, cache, swap, rssBytes = statMap["anon"] ?: 0L, limitBytes = limit)
         } catch (e: Exception) {
             log.warn("Failed to read memory stats from {}: {}", containerCgroupPath, e.message)
             null
         }
     }
 
-    private fun readMemoryV1(containerCgroupPath: String): MemoryStat? {
+    private fun readMemoryV1(targetPath: String): MemoryStat? {
+        val containerCgroupPath = v1ControllerPath(targetPath, listOf("memory"))
         val usageFile = Paths.get(containerCgroupPath, "memory.usage_in_bytes")
         if (!Files.exists(usageFile)) return null
         return try {
@@ -97,7 +264,9 @@ class CgroupReader(private val version: CgroupVersion) {
                     }.toMap()
             } else emptyMap()
             val cache = statMap["total_cache"] ?: statMap["cache"] ?: 0L
-            MemoryStat(usage, peak, cache, swap)
+            val rss = statMap["total_rss"] ?: statMap["rss"] ?: 0L
+            val limit = readLong(containerCgroupPath, "memory.limit_in_bytes")?.takeIf { it < V1_UNLIMITED_THRESHOLD }
+            MemoryStat(usage, peak, cache, swap, rssBytes = rss, limitBytes = limit)
         } catch (e: Exception) {
             log.warn("Failed to read memory stats from {}: {}", containerCgroupPath, e.message)
             null

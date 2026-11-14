@@ -54,7 +54,10 @@ class MetricsCollectorService(
     private val collectorIntervals: CollectorIntervals = CollectorIntervals(),
     private val basePollIntervalMs: Long = 29000,
     private val startupJitterMs: Long = 0,
-    private val profilingPipeline: com.internal.kpodmetrics.profiling.ProfilingPipeline? = null
+    private val profilingPipeline: com.internal.kpodmetrics.profiling.ProfilingPipeline? = null,
+    private val cpuCgroupCollector: CpuCgroupCollector? = null,
+    private val pressureCollector: PressureCollector? = null,
+    private val appTypeCollector: AppTypeCollector? = null
 ) {
     private val log = LoggerFactory.getLogger(MetricsCollectorService::class.java)
     private val vtExecutor: ExecutorService = Executors.newVirtualThreadPerTaskExecutor()
@@ -92,7 +95,10 @@ class MetricsCollectorService(
         "diskIO" to collectorIntervals.diskIO,
         "ifaceNet" to collectorIntervals.ifaceNet,
         "filesystem" to collectorIntervals.filesystem,
-        "memory" to collectorIntervals.memory
+        "memory" to collectorIntervals.memory,
+        "cpuCgroup" to collectorIntervals.cpuCgroup,
+        "pressure" to collectorIntervals.pressure,
+        "appType" to collectorIntervals.appType
     )
 
     private val overrideMap: Map<String, Boolean?> = mapOf(
@@ -115,7 +121,10 @@ class MetricsCollectorService(
         "diskIO" to collectorOverrides.diskIO,
         "ifaceNet" to collectorOverrides.ifaceNet,
         "filesystem" to collectorOverrides.filesystem,
-        "memory" to collectorOverrides.memory
+        "memory" to collectorOverrides.memory,
+        "cpuCgroup" to collectorOverrides.cpuCgroup,
+        "pressure" to collectorOverrides.pressure,
+        "appType" to collectorOverrides.appType
     )
 
     private fun isCollectorEnabled(name: String): Boolean = overrideMap[name] ?: true
@@ -221,7 +230,10 @@ class MetricsCollectorService(
             diskIOCollector?.let { "diskIO" to { it.collect(targets) } },
             ifaceNetCollector?.let { "ifaceNet" to { it.collect(targets) } },
             fsCollector?.let { "filesystem" to { it.collect(targets) } },
-            memCollector?.let { "memory" to { it.collect(targets) } }
+            memCollector?.let { "memory" to { it.collect(targets) } },
+            cpuCgroupCollector?.let { "cpuCgroup" to { it.collect(targets) } },
+            pressureCollector?.let { "pressure" to { it.collect(targets) } },
+            appTypeCollector?.let { "appType" to { it.collect(targets) } }
         )
         val cgroupCollectors = allCgroupCollectors.filter { (name, _) ->
             val run = shouldRunCollector(name)
@@ -281,7 +293,10 @@ class MetricsCollectorService(
             diskIOCollector?.let { "diskIO" },
             ifaceNetCollector?.let { "ifaceNet" },
             fsCollector?.let { "filesystem" },
-            memCollector?.let { "memory" }
+            memCollector?.let { "memory" },
+            cpuCgroupCollector?.let { "cpuCgroup" },
+            pressureCollector?.let { "pressure" },
+            appTypeCollector?.let { "appType" }
         ).count { isCollectorEnabled(it) }
         return bpfCount + cgroupCount
     }
@@ -306,6 +321,11 @@ class MetricsCollectorService(
         // Clean gauge stores in cgroup collectors
         fsCollector?.removeStaleEntries(podName, namespace)
         memCollector?.removeStaleEntries(podName, namespace)
+        diskIOCollector?.removeStaleEntries(podName, namespace)
+        ifaceNetCollector?.removeStaleEntries(podName, namespace)
+        cpuCgroupCollector?.removeStaleEntries(podName, namespace)
+        pressureCollector?.removeStaleEntries(podName, namespace)
+        appTypeCollector?.removeStaleEntries(podName, namespace)
     }
 
     /**

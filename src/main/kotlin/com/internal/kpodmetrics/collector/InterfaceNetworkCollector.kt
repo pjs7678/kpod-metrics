@@ -14,6 +14,7 @@ class InterfaceNetworkCollector(
 ) {
     private val log = LoggerFactory.getLogger(InterfaceNetworkCollector::class.java)
     private val errorCounter: Counter = registry.counter("kpod.cgroup.read.errors", "collector", "ifaceNet")
+    private val meters = CumulativeMeters(registry)
 
     fun collect(targets: List<PodCgroupTarget>) {
         for (target in targets) {
@@ -22,14 +23,14 @@ class InterfaceNetworkCollector(
                 val stats = reader.readNetworkStats(procRoot, pid)
                 for (stat in stats) {
                     val tags = target.tags().and("interface", stat.interfaceName)
-                    registry.counter("kpod.net.iface.rx.bytes", tags).increment(stat.rxBytes.toDouble())
-                    registry.counter("kpod.net.iface.tx.bytes", tags).increment(stat.txBytes.toDouble())
-                    registry.counter("kpod.net.iface.rx.packets", tags).increment(stat.rxPackets.toDouble())
-                    registry.counter("kpod.net.iface.tx.packets", tags).increment(stat.txPackets.toDouble())
-                    registry.counter("kpod.net.iface.rx.errors", tags).increment(stat.rxErrors.toDouble())
-                    registry.counter("kpod.net.iface.tx.errors", tags).increment(stat.txErrors.toDouble())
-                    registry.counter("kpod.net.iface.rx.drops", tags).increment(stat.rxDrops.toDouble())
-                    registry.counter("kpod.net.iface.tx.drops", tags).increment(stat.txDrops.toDouble())
+                    meters.counter("kpod.net.iface.rx.bytes", tags, stat.rxBytes)
+                    meters.counter("kpod.net.iface.tx.bytes", tags, stat.txBytes)
+                    meters.counter("kpod.net.iface.rx.packets", tags, stat.rxPackets)
+                    meters.counter("kpod.net.iface.tx.packets", tags, stat.txPackets)
+                    meters.counter("kpod.net.iface.rx.errors", tags, stat.rxErrors)
+                    meters.counter("kpod.net.iface.tx.errors", tags, stat.txErrors)
+                    meters.counter("kpod.net.iface.rx.drops", tags, stat.rxDrops)
+                    meters.counter("kpod.net.iface.tx.drops", tags, stat.txDrops)
                 }
             } catch (e: Exception) {
                 log.debug("Failed to read network stats for pod {}/{}: {}", target.namespace, target.podName, e.message)
@@ -37,4 +38,6 @@ class InterfaceNetworkCollector(
             }
         }
     }
+
+    fun removeStaleEntries(podName: String, namespace: String) = meters.removePod(podName, namespace)
 }

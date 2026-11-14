@@ -94,7 +94,10 @@ class DiagnosticsEndpoint(
         "diskIO" to config.cgroup.diskIO,
         "ifaceNet" to config.cgroup.interfaceNetwork,
         "filesystem" to config.cgroup.filesystem,
-        "memory" to config.cgroup.memory
+        "memory" to config.cgroup.memory,
+        "cpuCgroup" to config.cgroup.cpu,
+        "pressure" to config.cgroup.pressure,
+        "appType" to config.cgroup.appType
     )
 
     private fun profileSummary(): Map<String, Any> = mapOf(
@@ -113,7 +116,10 @@ class DiagnosticsEndpoint(
             if (config.cgroup.diskIO) "diskIO" else null,
             if (config.cgroup.interfaceNetwork) "ifaceNet" else null,
             if (config.cgroup.filesystem) "filesystem" else null,
-            if (config.cgroup.memory) "memory" else null
+            if (config.cgroup.memory) "memory" else null,
+            if (config.cgroup.cpu) "cpuCgroup" else null,
+            if (config.cgroup.pressure) "pressure" else null,
+            if (config.cgroup.appType) "appType" else null
         )
     )
 

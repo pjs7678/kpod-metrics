@@ -33,14 +33,14 @@ class DiskIOCollectorTest {
             containerDir.toString(), "test-node"))
         collector.collect(targets)
 
-        val readCounter = registry.counter("kpod.disk.read.bytes",
+        val readCounter = registry.get("kpod.disk.read.bytes").tags(
             "namespace", "default", "pod", "nginx-pod", "container", "nginx",
-            "node", "test-node", "device", "8:0")
+            "node", "test-node", "device", "8:0").functionCounter()
         assertEquals(1048576.0, readCounter.count())
 
-        val writeOps = registry.counter("kpod.disk.writes",
+        val writeOps = registry.get("kpod.disk.writes").tags(
             "namespace", "default", "pod", "nginx-pod", "container", "nginx",
-            "node", "test-node", "device", "8:0")
+            "node", "test-node", "device", "8:0").functionCounter()
         assertEquals(50.0, writeOps.count())
     }
 
@@ -75,7 +75,7 @@ class DiskIOCollectorTest {
         )
         collector.collect(targets)
 
-        val readBytes = registry.find("kpod.disk.read.bytes").tag("pod", "good-pod").counter()
+        val readBytes = registry.find("kpod.disk.read.bytes").tag("pod", "good-pod").functionCounter()
         assertNotNull(readBytes)
         assertEquals(1000.0, readBytes?.count())
     }

@@ -37,7 +37,7 @@ data class MetricsProperties(
                 network = NetworkProperties(tcp = TcpProperties(enabled = false)),
                 syscall = SyscallProperties(enabled = false),
                 extended = ExtendedProperties(),
-                cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = false, filesystem = false, memory = true)
+                cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = false, filesystem = false, memory = true, cpu = true, pressure = false, appType = false)
             )
             "standard" -> ResolvedConfig(
                 cpu = CpuProperties(
@@ -47,7 +47,7 @@ data class MetricsProperties(
                 network = NetworkProperties(tcp = TcpProperties(enabled = true)),
                 syscall = SyscallProperties(enabled = false),
                 extended = ExtendedProperties(tcpdrop = true, execsnoop = true, dns = true, tcpPeer = true, http = true, redis = true, mysql = true, kafka = true, mongo = true),
-                cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = true, filesystem = true, memory = true)
+                cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = true, filesystem = true, memory = true, cpu = true, pressure = true, appType = true)
             )
             "comprehensive" -> ResolvedConfig(
                 cpu = CpuProperties(
@@ -66,7 +66,7 @@ data class MetricsProperties(
                     redis = true, mysql = true,
                     kafka = true, mongo = true
                 ),
-                cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = true, filesystem = true, memory = true)
+                cgroup = CgroupCollectorProperties(diskIO = true, interfaceNetwork = true, filesystem = true, memory = true, cpu = true, pressure = true, appType = true)
             )
             "custom" -> ResolvedConfig(cpu = cpu, network = network, syscall = syscall, extended = extended, cgroup = CgroupCollectorProperties())
             else -> throw IllegalArgumentException("Unknown profile: ${override ?: profile}")
@@ -198,7 +198,10 @@ data class CgroupCollectorProperties(
     val diskIO: Boolean = true,
     val interfaceNetwork: Boolean = true,
     val filesystem: Boolean = true,
-    val memory: Boolean = true
+    val memory: Boolean = true,
+    val cpu: Boolean = true,
+    val pressure: Boolean = true,
+    val appType: Boolean = true
 )
 
 data class CollectorIntervals(
@@ -221,7 +224,10 @@ data class CollectorIntervals(
     val diskIO: Long? = null,
     val ifaceNet: Long? = null,
     val filesystem: Long? = null,
-    val memory: Long? = null
+    val memory: Long? = null,
+    val cpuCgroup: Long? = null,
+    val pressure: Long? = null,
+    val appType: Long? = null
 )
 
 data class ProfilingProperties(
@@ -264,7 +270,10 @@ data class CollectorOverrides(
     val diskIO: Boolean? = null,
     val ifaceNet: Boolean? = null,
     val filesystem: Boolean? = null,
-    val memory: Boolean? = null
+    val memory: Boolean? = null,
+    val cpuCgroup: Boolean? = null,
+    val pressure: Boolean? = null,
+    val appType: Boolean? = null
 )
 
 val DEFAULT_TRACKED_SYSCALLS = listOf(

@@ -369,6 +369,24 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         return MemoryCgroupCollector(reader, registry)
     }
 
+    @Bean
+    fun cpuCgroupCollector(reader: CgroupReader, registry: MeterRegistry, config: ResolvedConfig): CpuCgroupCollector? {
+        if (!config.cgroup.cpu) return null
+        return CpuCgroupCollector(reader, registry)
+    }
+
+    @Bean
+    fun pressureCollector(reader: CgroupReader, registry: MeterRegistry, config: ResolvedConfig): PressureCollector? {
+        if (!config.cgroup.pressure) return null
+        return PressureCollector(reader, registry)
+    }
+
+    @Bean
+    fun appTypeCollector(reader: CgroupReader, registry: MeterRegistry, config: ResolvedConfig): AppTypeCollector? {
+        if (!config.cgroup.appType) return null
+        return AppTypeCollector(reader, props.cgroup.procRoot, registry)
+    }
+
     // --- Aggregated service ---
 
     @Bean
@@ -394,6 +412,9 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         ifaceNetCollector: Optional<InterfaceNetworkCollector>,
         fsCollector: Optional<FilesystemCollector>,
         memCollector: Optional<MemoryCgroupCollector>,
+        cpuCgroupCollector: Optional<CpuCgroupCollector>,
+        pressureCollector: Optional<PressureCollector>,
+        appTypeCollector: Optional<AppTypeCollector>,
         podCgroupMapper: PodCgroupMapper,
         bridge: BpfBridge,
         manager: BpfProgramManager,
@@ -424,7 +445,10 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
             props.collectorIntervals,
             props.pollInterval,
             props.startupJitter,
-            profilingPipeline.orElse(null)
+            profilingPipeline.orElse(null),
+            cpuCgroupCollector.orElse(null),
+            pressureCollector.orElse(null),
+            appTypeCollector.orElse(null)
         )
         this.metricsCollectorServiceInstance = service
         return service
