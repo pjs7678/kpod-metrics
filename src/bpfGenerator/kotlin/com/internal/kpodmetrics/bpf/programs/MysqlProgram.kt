@@ -363,7 +363,10 @@ val mysqlProgram = ebpf("mysql") {
     __u8 buf[MAX_PAYLOAD];
     __builtin_memset(buf, 0, sizeof(buf));
     __u32 to_read = iov0.iov_len;
-    if (to_read > MAX_PAYLOAD) to_read = MAX_PAYLOAD;
+    /* Clamp to MAX_PAYLOAD - 1, not MAX_PAYLOAD: the mask below is the verifier's bound, and
+       MAX_PAYLOAD & (MAX_PAYLOAD - 1) == 0, so every payload >= MAX_PAYLOAD (e.g. any real HTTP
+       response header) used to be read as 0 bytes and never parsed. */
+    if (to_read > MAX_PAYLOAD - 1) to_read = MAX_PAYLOAD - 1;
     to_read &= (MAX_PAYLOAD - 1);  /* provable bound for older verifiers */
     if (bpf_probe_read_user(buf, to_read, iov0.iov_base) < 0) return 0;
 
@@ -484,7 +487,10 @@ val mysqlProgram = ebpf("mysql") {
     __u8 buf[MAX_PAYLOAD];
     __builtin_memset(buf, 0, sizeof(buf));
     __u32 to_read = (__u32)ret;
-    if (to_read > MAX_PAYLOAD) to_read = MAX_PAYLOAD;
+    /* Clamp to MAX_PAYLOAD - 1, not MAX_PAYLOAD: the mask below is the verifier's bound, and
+       MAX_PAYLOAD & (MAX_PAYLOAD - 1) == 0, so every payload >= MAX_PAYLOAD (e.g. any real HTTP
+       response header) used to be read as 0 bytes and never parsed. */
+    if (to_read > MAX_PAYLOAD - 1) to_read = MAX_PAYLOAD - 1;
     to_read &= (MAX_PAYLOAD - 1);  /* provable bound for older verifiers */
     if (bpf_probe_read_user(buf, to_read, iov0.iov_base) < 0) return 0;
 

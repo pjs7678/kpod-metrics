@@ -51,11 +51,23 @@ object HttpInflightVal : BpfStruct("http_inflight_val") {
     val pad2 by u32()
 }
 
+/**
+ * tcp_recvmsg entry state, keyed by pid_tgid. The user buffer address is captured at entry:
+ * by the kretprobe the kernel has advanced msg_iter (for ITER_IOVEC, __iov points past the
+ * consumed segments), so re-reading the iovec from the msghdr there reads the wrong memory.
+ * A per-CPU slot (the previous design) was also overwritten whenever a blocking recv slept and
+ * another task on the same CPU entered tcp_recvmsg.
+ */
 object HttpRecvStash : BpfStruct("http_recv_stash") {
     val sockPtr by u64()
-    val msghdrPtr by u64()
+    val iovBase by u64()
+    val iovLen by u64()
     val cgroupId by u64()
     val sockCookie by u64()
+}
+
+object PidTgidKey : BpfStruct("pid_tgid_key") {
+    val pidTgid by u64()
 }
 
 // ── HTTP preamble ────────────────────────────────────────────────────
@@ -283,7 +295,7 @@ val httpProgram = ebpf("http") {
     val httpEvents by lruHashMap(HttpEventKey, HttpEventVal, maxEntries = 10240)
     val httpLatency by lruHashMap(HttpLatKey, HistValue, maxEntries = 10240)
     val httpInflight by lruHashMap(HttpInflightKey, HttpInflightVal, maxEntries = 8192)
-    val httpRecvStash by percpuArray(HttpRecvStash, maxEntries = 1)
+    val httpRecvStash by lruHashMap(PidTgidKey, HttpRecvStash, maxEntries = 10240)
     val tracingConfig by array(TracingConfig, maxEntries = 1)
     val spanEvents by ringBuf(maxEntries = 262144) // 256KB
 
@@ -304,7 +316,10 @@ val httpProgram = ebpf("http") {
     __u8 buf[MAX_PAYLOAD];
     __builtin_memset(buf, 0, sizeof(buf));
     __u32 to_read = iov0.iov_len;
-    if (to_read > MAX_PAYLOAD) to_read = MAX_PAYLOAD;
+    /* Clamp to MAX_PAYLOAD - 1, not MAX_PAYLOAD: the mask below is the verifier's bound, and
+       MAX_PAYLOAD & (MAX_PAYLOAD - 1) == 0, so every payload >= MAX_PAYLOAD (e.g. any real HTTP
+       response header) used to be read as 0 bytes and never parsed. */
+    if (to_read > MAX_PAYLOAD - 1) to_read = MAX_PAYLOAD - 1;
     to_read &= (MAX_PAYLOAD - 1);  /* provable bound for older verifiers */
     if (bpf_probe_read_user(buf, to_read, iov0.iov_base) < 0) return 0;
 
@@ -331,7 +346,7 @@ val httpProgram = ebpf("http") {
             .method = method,
             .direction = direction,
         };
-        bpf_map_update_elem(&http_inflight, &inf_key, &inf_val, BPF_NOEXIST);
+        bpf_map_update_elem(&http_inflight, &inf_key, &inf_val, BPF_ANY); /* latest request wins: a stale entry on a reused socket pointer kept its old ts */
         return 0;
     }
 
@@ -382,14 +397,19 @@ val httpProgram = ebpf("http") {
     struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
     if (!check_http_port(sk)) return 0;
 
-    __u32 zero = 0;
-    struct http_recv_stash *stash = bpf_map_lookup_elem(&http_recv_stash, &zero);
-    if (!stash) return 0;
+    struct msghdr *msg = (struct msghdr *)PT_REGS_PARM2(ctx);
+    struct iovec iov0;
+    if (read_first_iov(msg, &iov0) < 0) return 0;
 
-    stash->sock_ptr = (__u64)sk;
-    stash->msghdr_ptr = (__u64)PT_REGS_PARM2(ctx);
-    stash->cgroup_id = bpf_get_current_cgroup_id();
-    stash->sock_cookie = (__u64)sk;
+    struct pid_tgid_key sk_key = { .pid_tgid = bpf_get_current_pid_tgid() };
+    struct http_recv_stash st = {
+        .sock_ptr = (__u64)sk,
+        .iov_base = (__u64)iov0.iov_base,
+        .iov_len = (__u64)iov0.iov_len,
+        .cgroup_id = bpf_get_current_cgroup_id(),
+        .sock_cookie = (__u64)sk,
+    };
+    bpf_map_update_elem(&http_recv_stash, &sk_key, &st, BPF_ANY);
     (__s32)0;
 })""", BpfScalar.S32))
         returnValue(literal(0, BpfScalar.S32))
@@ -399,17 +419,20 @@ val httpProgram = ebpf("http") {
     kretprobe("tcp_recvmsg") {
         declareVar("_http_recv_exit", raw("""({
     long ret = (long)PT_REGS_RC(ctx);
-    if (ret < 8) return 0;
 
-    __u32 zero = 0;
-    struct http_recv_stash *stash = bpf_map_lookup_elem(&http_recv_stash, &zero);
+    /* Consume the stash before any early return, or a later recv by this thread on a
+       non-HTTP socket (no stash written) would pick up this stale one. */
+    struct pid_tgid_key sk_key = { .pid_tgid = bpf_get_current_pid_tgid() };
+    struct http_recv_stash *stash = bpf_map_lookup_elem(&http_recv_stash, &sk_key);
     if (!stash) return 0;
 
-    struct msghdr *msg = (struct msghdr *)stash->msghdr_ptr;
+    void *iov_base = (void *)stash->iov_base;
+    __u64 iov_len = stash->iov_len;
     __u64 cgroup_id = stash->cgroup_id;
     __u64 sock_cookie = stash->sock_cookie;
     struct sock *sk = (struct sock *)stash->sock_ptr;
-    if (!msg || !sk) return 0;
+    bpf_map_delete_elem(&http_recv_stash, &sk_key);
+    if (ret < 8 || !iov_base || !sk) return 0;
 
     __u16 dport, sport;
     read_sock_addr(sk, &dport, &sport);
@@ -417,15 +440,16 @@ val httpProgram = ebpf("http") {
     int sport_http = 0;
     if (bpf_map_lookup_elem(&http_ports, &pk)) sport_http = 1;
 
-    struct iovec iov0;
-    if (read_first_iov(msg, &iov0) < 0) return 0;
-
     __u8 buf[MAX_PAYLOAD];
     __builtin_memset(buf, 0, sizeof(buf));
     __u32 to_read = (__u32)ret;
-    if (to_read > MAX_PAYLOAD) to_read = MAX_PAYLOAD;
+    if (to_read > iov_len) to_read = (__u32)iov_len; /* data beyond the first segment is elsewhere */
+    /* Clamp to MAX_PAYLOAD - 1, not MAX_PAYLOAD: the mask below is the verifier's bound, and
+       MAX_PAYLOAD & (MAX_PAYLOAD - 1) == 0, so every payload >= MAX_PAYLOAD (e.g. any real HTTP
+       response header) used to be read as 0 bytes and never parsed. */
+    if (to_read > MAX_PAYLOAD - 1) to_read = MAX_PAYLOAD - 1;
     to_read &= (MAX_PAYLOAD - 1);  /* provable bound for older verifiers */
-    if (bpf_probe_read_user(buf, to_read, iov0.iov_base) < 0) return 0;
+    if (bpf_probe_read_user(buf, to_read, iov_base) < 0) return 0;
 
     struct http_inflight_key inf_key = {
         .cgroup_id = cgroup_id,
@@ -448,7 +472,7 @@ val httpProgram = ebpf("http") {
             .method = method,
             .direction = direction,
         };
-        bpf_map_update_elem(&http_inflight, &inf_key, &inf_val, BPF_NOEXIST);
+        bpf_map_update_elem(&http_inflight, &inf_key, &inf_val, BPF_ANY); /* latest request wins: a stale entry on a reused socket pointer kept its old ts */
         return 0;
     }
 

@@ -25,12 +25,12 @@ e2e/dogfood/verify.sh
 | `cpu-hog` | 12 spinners, no network | run-queue data; **no** TCP metrics (attribution) |
 | `mem-pressure` | ~100 MiB of a 128 MiB limit | memory, syscall (filter populated) |
 | `disk-writer` | 4 × O_DIRECT writers, in place | disk IO latency |
-| `web` / `client` | HTTP with 150 ms netem on client egress | TCP RTT > 67 ms (old ceiling), peer RTT ≈ 150 ms, bounded peer cardinality |
+| `web` / `client` | HTTP with 150 ms netem on client egress, 25% `/fail` → 503 | TCP RTT > 67 ms (old ceiling), peer RTT ≈ 150 ms, bounded peer cardinality, HTTP 200/503 matched on both sides |
 
 On Ubuntu/Debian nodes with `kernel.perf_event_paranoid` > 2 the non-privileged chart cannot attach
 kprobes/tracepoints; the agent logs the fix (`sysctl kernel.perf_event_paranoid=2` or
 `securityContext.privileged=true`).
 
-Known gaps found here and not yet fixed: HTTP response status codes are not captured
-(`status_code="0"` only); `tcpdrop` (kfree_skb, softirq) is still attributed to the interrupted
+Known gaps found here and not yet fixed: the Redis/MySQL/Kafka/Mongo programs still use a
+per-CPU recv stash that re-reads `msg_iter` at return (fixed for HTTP); `tcpdrop` (kfree_skb, softirq) is still attributed to the interrupted
 task; the BPF `*_stats` maps are never written, so `kpod_bpf_map_entries` stays 0.

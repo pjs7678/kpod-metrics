@@ -77,6 +77,14 @@ check "peer RTT series for $DOG < 20 (got $n)" '[ "$n" -lt 20 ]'
 check "no peer series keyed by ephemeral server-side ports" \
   "! grep -E '^kpod_net_tcp_peer_connections_total\\{.*direction=\"server\"' \"$SCRAPE\" | grep -vq 'remote_port=\"0\"'"
 
+echo "== HTTP status codes (payload clamp read 0 bytes; recv re-read an advanced iterator)"
+http() { awk -v pod="$1" -v st="$2" '$0 ~ "^kpod_http_requests_total\\{" && $0 ~ "pod=\""pod && $0 ~ "status_code=\""st"\"" {s+=$NF} END {print s+0}' "$SCRAPE"; }
+for side in client web; do
+  req=$(http "$side" 0); ok=$(http "$side" 200); err=$(http "$side" 503)
+  check "$side: every request matched to a response ($ok+$err of $req)" '[ "$req" != 0 ] && gt "$(python3 -c "print(($ok+$err)/$req)")" 0.9'
+  check "$side: 503 share near the workload's 25% (got $err/$req)" 'gt "$(python3 -c "print($err/$req if $req else 0)")" 0.15 && lt "$(python3 -c "print($err/$req if $req else 1)")" 0.35'
+done
+
 echo "== cgroup signals"
 t=$(awk '/^kpod_cpu_throttled_periods_total\{.*pod="cpu-throttled/ {print $NF; exit}' "$SCRAPE")
 a=$(awk '/^kpod_cpu_periods_total\{.*pod="cpu-throttled/ {print $NF; exit}' "$SCRAPE")
