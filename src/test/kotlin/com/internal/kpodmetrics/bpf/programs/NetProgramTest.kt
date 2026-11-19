@@ -3,6 +3,8 @@ package com.internal.kpodmetrics.bpf.programs
 import dev.ebpf.dsl.api.generateC
 import dev.ebpf.dsl.api.validate
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class NetProgramTest {
@@ -127,5 +129,20 @@ class NetProgramTest {
         val c = netProgram.generateC()
 
         assertThat(c).contains("bpf_get_current_cgroup_id()")
+    }
+
+    @Test
+    fun `softirq-context handlers attribute by socket owner, never by the current task`() {
+        val c = netProgram.generateC()
+        for (fn in listOf("tp_tcp_tcp_probe", "tp_tcp_tcp_retransmit_skb", "tp_sock_inet_sock_set_state")) {
+            val body = Regex("""int $fn\(void \*ctx\)\s*\{(.*?)\n\}""", RegexOption.DOT_MATCHES_ALL)
+                .find(c)?.groupValues?.get(1) ?: error("$fn not generated")
+            assertFalse(body.contains("bpf_get_current_cgroup_id"), "$fn must not use the interrupted task's cgroup")
+            assertTrue(body.contains("kpod_owner_"), "$fn looks up the socket owner")
+        }
+        // owners are recorded in process context
+        for (fn in listOf("kprobe_tcp_sendmsg", "kprobe_tcp_recvmsg", "kprobe_tcp_connect", "kretprobe_inet_csk_accept")) {
+            assertTrue(Regex("""int $fn\(.*?kpod_record_owner""", RegexOption.DOT_MATCHES_ALL).containsMatchIn(c), fn)
+        }
     }
 }

@@ -82,8 +82,10 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
             }
             registry.config().meterFilter(MeterFilter.commonTags(tags))
 
-            // Self-monitoring: track total meter count for cardinality observability
-            registry.gauge("kpod.registry.meters.total", registry) { it.meters.size.toDouble() }
+            // No meters may be registered here: Spring adds its own MeterFilters after the
+            // customizers, and a filter added after a meter does not apply to it (Micrometer
+            // warns "A MeterFilter is being configured after a Meter has been registered").
+            // The meter-count gauge is a MeterBinder (registryMeterCountBinder), which runs last.
 
             // Safety cap: deny new meters beyond threshold to prevent OOM from
             // unbounded cardinality growth (Kepler #2085, Coroot #195/#175)
@@ -105,12 +107,22 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         }
     }
 
+    /** Self-monitoring: total meter count, for cardinality observability. */
+    @Bean
+    fun registryMeterCountBinder(): io.micrometer.core.instrument.binder.MeterBinder =
+        io.micrometer.core.instrument.binder.MeterBinder { registry ->
+            registry.gauge("kpod.registry.meters.total", registry) { it.meters.size.toDouble() }
+        }
+
     @Bean
     fun kubernetesClient(): KubernetesClient = KubernetesClientBuilder().build()
 
     @Bean
-    fun podWatcher(kubernetesClient: KubernetesClient, cgroupResolver: CgroupResolver, registry: MeterRegistry): PodWatcher {
-        val watcher = PodWatcher(kubernetesClient, cgroupResolver, props, registry)
+    fun podWatcher(
+        kubernetesClient: KubernetesClient, cgroupResolver: CgroupResolver, registry: MeterRegistry,
+        pathResolver: org.springframework.beans.factory.ObjectProvider<com.internal.kpodmetrics.cgroup.CgroupPathResolver>
+    ): PodWatcher {
+        val watcher = PodWatcher(kubernetesClient, cgroupResolver, props, registry, pathResolver.ifAvailable)
         this.podWatcherInstance = watcher
         return watcher
     }
@@ -280,7 +292,10 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
 
     @Bean
     @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
-    fun podIpResolver(kubernetesClient: KubernetesClient) = PodIpResolver(kubernetesClient)
+    fun podIpResolver(kubernetesClient: KubernetesClient, registry: MeterRegistry) =
+        // Start the informers now so they are synced before the first collection cycle; started
+        // lazily, the first cycle's peers were unresolved and left stale empty-label series.
+        PodIpResolver(kubernetesClient, registry = registry).also { it.refresh() }
 
     @Bean
     @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
@@ -593,6 +608,10 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
 
                 // Configure DNS port filter
                 val resolvedCfg = props.resolveProfile()
+                if (resolvedCfg.syscall.enabled) {
+                    // empty would track nothing: the BPF side filters on this list
+                    it.configureTrackedSyscalls(resolvedCfg.syscall.trackedSyscalls.ifEmpty { com.internal.kpodmetrics.config.DEFAULT_TRACKED_SYSCALLS })
+                }
                 if (resolvedCfg.extended.dns) {
                     it.configureDnsPorts(resolvedCfg.extended.dnsPorts)
                 }

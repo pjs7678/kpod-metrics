@@ -2417,7 +2417,7 @@
             "uid": "${datasource}"
           },
           "expr": "(kpod_bpf_map_entries / kpod_bpf_map_capacity) * 100",
-          "legendFormat": "{{map_name}}",
+          "legendFormat": "{{map}}",
           "refId": "A"
         }
       ]
@@ -2482,8 +2482,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (map_name) (rate(kpod_bpf_map_update_errors_total[5m]))",
-          "legendFormat": "{{map_name}}",
+          "expr": "sum by (map) (rate(kpod_bpf_map_update_errors_total[5m]))",
+          "legendFormat": "{{map}}",
           "refId": "A"
         }
       ]

@@ -237,12 +237,24 @@ static __always_inline void read_sock_addr(struct sock *sk, __u16 *dport, __u16 
 """.trimIndent()
 
 private val KAFKA_POSTAMBLE = """
+// All-zero initial value for update_hist, read from a map: a 232-byte `struct hist_value x = {}`
+// on the stack, inlined next to the payload buffers, overflows the 512-byte BPF stack.
+// Never written, so it stays zero.
+struct {
+    __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+    __uint(max_entries, 1);
+    __type(key, __u32);
+    __type(value, struct hist_value);
+} hist_zero SEC(".maps");
+
 static __always_inline void update_hist(void *map, void *key, __u64 val_ns)
 {
     struct hist_value *hist = bpf_map_lookup_elem(map, key);
     if (!hist) {
-        struct hist_value new_hist = {};
-        bpf_map_update_elem(map, key, &new_hist, BPF_NOEXIST);
+        __u32 zero_key = 0;
+        struct hist_value *zero = bpf_map_lookup_elem(&hist_zero, &zero_key);
+        if (!zero) return;
+        bpf_map_update_elem(map, key, zero, BPF_NOEXIST);
         hist = bpf_map_lookup_elem(map, key);
         if (!hist) return;
     }

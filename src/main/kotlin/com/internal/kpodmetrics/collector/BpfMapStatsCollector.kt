@@ -14,6 +14,10 @@ class BpfMapStatsCollector(
     private val registry: MeterRegistry
 ) {
     private val log = LoggerFactory.getLogger(BpfMapStatsCollector::class.java)
+    // registry.gauge(name, tags, boxedValue) per cycle registered once, held the first boxed value
+    // weakly and never updated (later calls were ignored with "already registered"); the error
+    // counter re-added a cumulative kernel value every cycle. Both now export the current value.
+    private val meters = CumulativeMeters(registry)
 
     companion object {
         private const val MAP_STAT_ENTRIES = 0
@@ -53,14 +57,12 @@ class BpfMapStatsCollector(
 
             when (statIdx) {
                 MAP_STAT_ENTRIES ->
-                    registry.gauge("kpod.bpf.map.entries", tags, value) { it.toDouble() }
+                    meters.gauge("kpod.bpf.map.entries", tags, value.toDouble())
                 MAP_STAT_UPDATE_ERRORS ->
-                    registry.counter("kpod.bpf.map.update.errors.total", tags).increment(
-                        value.toDouble().coerceAtLeast(0.0)
-                    )
+                    meters.counter("kpod.bpf.map.update.errors", tags, value.toDouble().coerceAtLeast(0.0))
             }
         }
 
-        registry.gauge("kpod.bpf.map.capacity", tags, MAX_ENTRIES) { it.toDouble() }
+        meters.gauge("kpod.bpf.map.capacity", tags, MAX_ENTRIES.toDouble())
     }
 }

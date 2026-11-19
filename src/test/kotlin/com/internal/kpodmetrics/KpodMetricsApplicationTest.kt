@@ -71,6 +71,12 @@ class KpodMetricsPrometheusExportTest {
         assertTrue(text.contains("jvm_"), "Micrometer meters still present alongside")
         histograms.removePod("ctx-test", "ns")
     }
+
+    @Test
+    fun `no OTLP registry is auto-configured when kpod OTLP is disabled`() {
+        // Spring Boot's own OTLP export would otherwise push to localhost:4318 every minute
+        assertTrue(context.getBeansOfType(OtlpMeterRegistry::class.java).isEmpty())
+    }
 }
 
 @SpringBootTest

@@ -101,16 +101,20 @@ spec:
             description: "Pod {{`{{ $labels.pod }}`}} in {{`{{ $labels.namespace }}`}} is experiencing TCP drops."
 
         - alert: KpodHighSyscallErrorRate
+          # Errors are ret < 0 with no errno breakdown, so syscalls whose "errors" are normal flow
+          # control are excluded: EAGAIN on non-blocking read/recv, futex timeouts, EINPROGRESS
+          # from non-blocking connect. Unfiltered at 5% this fired on nearly every pod in dogfooding.
+          # openat is excluded too (ENOENT from PATH/config probing). Still heuristic, hence info.
           expr: >-
-            sum by (pod, namespace) (rate(kpod_syscall_errors_total[5m]))
-            / sum by (pod, namespace) (rate(kpod_syscall_count_total[5m]))
-            > 0.05
-          for: 10m
+            sum by (pod, namespace, syscall) (rate(kpod_syscall_errors_total{syscall!~"read|recvfrom|recvmsg|futex|epoll_wait|epoll_pwait|connect|accept|accept4|openat|open"}[5m]))
+            / sum by (pod, namespace, syscall) (rate(kpod_syscall_count_total{syscall!~"read|recvfrom|recvmsg|futex|epoll_wait|epoll_pwait|connect|accept|accept4|openat|open"}[5m]))
+            > 0.2
+          for: 15m
           labels:
-            severity: warning
+            severity: info
           annotations:
-            summary: "High syscall error rate on {{`{{ $labels.pod }}`}}"
-            description: "Pod {{`{{ $labels.pod }}`}} in {{`{{ $labels.namespace }}`}} has > 5% syscall error rate for 10 minutes."
+            summary: "High {{`{{ $labels.syscall }}`}} error rate on {{`{{ $labels.pod }}`}}"
+            description: "{{`{{ $labels.syscall }}`}} fails for more than 20% of calls in pod {{`{{ $labels.pod }}`}} ({{`{{ $labels.namespace }}`}}) for 15 minutes."
 
         - alert: KpodFilesystemAlmostFull
           expr: (kpod_fs_usage_bytes / kpod_fs_capacity_bytes) > 0.9
@@ -127,8 +131,8 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "BPF map {{`{{ $labels.map_name }}`}} near capacity"
-            description: "BPF map {{`{{ $labels.map_name }}`}} is above 80% utilization for 5 minutes."
+            summary: "BPF map {{`{{ $labels.map }}`}} near capacity"
+            description: "BPF map {{`{{ $labels.map }}`}} is above 80% utilization for 5 minutes."
 
         - alert: KpodBpfMapUpdateErrors
           expr: rate(kpod_bpf_map_update_errors_total[5m]) > 0
@@ -136,8 +140,8 @@ spec:
           labels:
             severity: critical
           annotations:
-            summary: "BPF map update errors on {{`{{ $labels.map_name }}`}}"
-            description: "BPF map {{`{{ $labels.map_name }}`}} is experiencing update errors, metrics may be lost."
+            summary: "BPF map update errors on {{`{{ $labels.map }}`}}"
+            description: "BPF map {{`{{ $labels.map }}`}} is experiencing update errors, metrics may be lost."
 
         - alert: KpodTargetDown
           expr: up{job=~".*kpod-metrics.*"} == 0
@@ -165,6 +169,28 @@ spec:
           annotations:
             summary: "No BPF programs loaded on {{`{{ $labels.instance }}`}}"
             description: "kpod-metrics instance {{`{{ $labels.instance }}`}} has zero BPF programs loaded for 5 minutes."
+
+        - alert: KpodNoPodsDiscovered
+          # Without discovered pods nothing is attributed: the scrape keeps only kpod's own
+          # metrics while the pod stays Ready. Usually the API server is unreachable (check
+          # networkPolicy.apiServerPorts) or RBAC is missing.
+          expr: kpod_discovery_pods == 0
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "kpod-metrics on {{`{{ $labels.instance }}`}} sees no pods"
+            description: "No pod cgroups resolved for 10 minutes, so no per-pod metrics are exported from this node. Check the pod logs for Kubernetes API errors (NetworkPolicy apiServerPorts, RBAC)."
+
+        - alert: KpodBpfProgramsFailed
+          # Partial failures leave whole metric families empty while the pod stays Ready.
+          expr: kpod_bpf_programs_failed > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{`{{ $value }}`}} BPF program(s) failed to load on {{`{{ $labels.instance }}`}}"
+            description: "Some eBPF programs did not load or attach, so their metrics are missing. GET /actuator/kpodDiagnostics on the pod (or check its logs) for the cause; 'Permission denied' on Ubuntu/Debian nodes usually means kernel.perf_event_paranoid > 2."
 
         - alert: KpodCgroupReadErrors
           expr: sum by (collector, instance) (rate(kpod_cgroup_read_errors_total[5m])) > 1
