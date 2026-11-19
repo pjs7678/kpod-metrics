@@ -28,8 +28,8 @@ Interpretation rules:
 - Throttling with low average CPU = bursty workload hitting its CFS quota: raise/remove the CPU limit.
 - PSI (pressure) is the most direct "slowed down by resource contention" evidence; prefer it over utilisation.
 - Memory: judge OOM risk on RSS/limit, not usage (usage includes reclaimable page cache).
-- Percentiles exist only for runqueue, TCP RTT, syscall and disk IO latency (kernel histograms; a value of
-  67 ms means "≥ 67 ms"). HTTP/DNS/DB latencies are means — never present them as percentiles.
+- Percentiles exist only for runqueue, TCP RTT, syscall and disk IO latency (kernel histograms; a value at the
+  top edge — runqueue 4.3 s, TCP RTT 8.6 s, syscall/disk 34 s — means "at least that"). HTTP/DNS/DB latencies are means — never present them as percentiles.
 - Report concrete values and the pod/container they came from. Never invent metrics not returned by a tool.
 """
 

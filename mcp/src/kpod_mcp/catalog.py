@@ -78,8 +78,14 @@ def _p(q: float, metric: str) -> str:
     return f"histogram_quantile({q}, sum by ($by, le) (rate({metric}_bucket{{$sel}}[$w])))"
 
 
-# Kernel histograms have no finite bucket above 2^26 ns, so quantiles saturate at this value.
-HIST_CAP_S = 2**26 / 1e9
+# Last finite bucket edge per kernel histogram (Log2Histograms.Spec.lastSlot: 2^(slot+11) ns).
+# Quantiles saturate at these values: a result equal to the cap means "at least this much".
+HIST_CAPS_S = {
+    "kpod_cpu_runqueue_latency_seconds": 2**32 / 1e9,  # ~4.3 s
+    "kpod_net_tcp_rtt_seconds": 2**33 / 1e9,  # ~8.6 s
+    "kpod_syscall_latency_seconds": 2**35 / 1e9,  # ~34 s
+    "kpod_disk_io_latency_seconds": 2**35 / 1e9,  # ~34 s
+}
 
 
 def _avg(metric: str, extra: str = "") -> str:
@@ -132,7 +138,7 @@ SIGNALS: dict[str, Signal] = {
             "disk_io_p99", "Disk IO latency p99",
             _p(0.99, "kpod_disk_io_latency_seconds"),
             "seconds", 0.05,
-            "99th percentile block IO latency, issue→completion. Saturates at 67 ms (means ≥ 67 ms).",
+            "99th percentile block IO latency, issue→completion. Saturates at ~34 s (means ≥ 34 s).",
             "biolatency collector (comprehensive profile)",
         ),
         Signal(
@@ -153,7 +159,7 @@ SIGNALS: dict[str, Signal] = {
             _p(0.99, "kpod_cpu_runqueue_latency_seconds"),
             "seconds", 0.01,
             "99th percentile of per-event run-queue wait (eBPF). >10 ms = CPU contention or throttling "
-            "adding visible latency. Saturates at 67 ms (means ≥ 67 ms).",
+            "adding visible latency. Saturates at ~4.3 s (means ≥ 4.3 s).",
             "cpu (eBPF) collector",
         ),
         Signal(
@@ -192,7 +198,7 @@ SIGNALS: dict[str, Signal] = {
             "tcp_rtt_p99", "TCP RTT p99",
             _p(0.99, "kpod_net_tcp_rtt_seconds"),
             "seconds", 0.05,
-            "99th percentile smoothed RTT per tcp_probe event. Saturates at 67 ms (means ≥ 67 ms).",
+            "99th percentile smoothed RTT per tcp_probe event. Saturates at ~8.6 s (means ≥ 8.6 s).",
             "network collector",
         ),
         Signal(

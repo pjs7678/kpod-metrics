@@ -14,7 +14,7 @@ fun main() {
         // TODO: cpuProfileProgram needs DSL features (perfEvent, stackVar) not yet available
         tcpPeerProgram, redisProgram, mysqlProgram, kafkaProgram, mongoProgram,
         // BCC-style tools (cachestat, tcpdrop overridden for kernel compat)
-        biolatency(), cachestatProgram, tcpdropProgram,
+        biolatency(slotShift = HIST_SLOT_SHIFT), cachestatProgram, tcpdropProgram,
         hardirqs(), softirqs(), execsnoop()
     )
 

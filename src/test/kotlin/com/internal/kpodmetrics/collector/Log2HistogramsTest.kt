@@ -44,16 +44,16 @@ class Log2HistogramsTest {
 
     @Test
     fun `exposes a classic Prometheus histogram with exact log2 slot edges`() {
-        // slot 20 = [2^20, 2^21) ns ≈ [1.05 ms, 2.10 ms)
-        hist.observe(Log2Histograms.RUNQUEUE, tags, slots(20 to 90L, 23 to 10L), sumNs = 150_000_000)
+        // slots are on ns >> 10: slot 10 = [2^20, 2^21) ns ≈ [1.05 ms, 2.10 ms)
+        hist.observe(Log2Histograms.RUNQUEUE, tags, slots(10 to 90L, 13 to 10L), sumNs = 150_000_000)
         val text = prom.scrape()
 
         assertTrue(text.contains("# TYPE kpod_cpu_runqueue_latency_seconds histogram"), text)
         val b = buckets(text, "kpod_cpu_runqueue_latency_seconds")
-        assertEquals(Math.scalb(1.0, 10) / 1e9, b.first().first, 1e-15, "first edge 2^10 ns")
-        assertEquals(Math.scalb(1.0, 26) / 1e9, b[b.size - 2].first, 1e-15, "last finite edge 2^26 ns")
+        assertEquals(Math.scalb(1.0, 11) / 1e9, b.first().first, 1e-15, "first edge 2^11 ns ≈ 2 µs")
+        assertEquals(Math.scalb(1.0, 32) / 1e9, b[b.size - 2].first, 1e-15, "last finite edge 2^32 ns ≈ 4.3 s")
         assertTrue(b.last().first.isInfinite())
-        assertEquals(18, b.size)
+        assertEquals(23, b.size)
         // cumulative and monotonic
         assertTrue(b.zipWithNext().all { (x, y) -> y.second >= x.second })
         assertEquals(0.0, b.first { it.first < Math.scalb(1.0, 20) / 1e9 }.second)
@@ -63,7 +63,7 @@ class Log2HistogramsTest {
         assertTrue(text.contains("""kpod_cpu_runqueue_latency_seconds_count{container="c",namespace="ns",node="n",pod="p"} 100"""), text)
         assertTrue(text.contains("""kpod_cpu_runqueue_latency_seconds_sum{container="c",namespace="ns",node="n",pod="p"} 0.15"""), text)
 
-        // p50 falls inside the slot-20 bucket, p95 inside slot 23 = [8.4 ms, 16.8 ms)
+        // p50 falls inside the slot-10 bucket, p95 inside slot 13 = [8.4 ms, 16.8 ms)
         val p50 = histogramQuantile(0.5, b)
         assertTrue(p50 in 1.048e-3..2.098e-3, "p50=$p50")
         val p95 = histogramQuantile(0.95, b)
@@ -78,29 +78,38 @@ class Log2HistogramsTest {
     }
 
     @Test
-    fun `clamp slot only feeds +Inf so quantiles never exceed the last real edge`() {
-        hist.observe(Log2Histograms.DISK_IO, tags, slots(26 to 10L), sumNs = 10L * 500_000_000)
+    fun `slots above lastSlot and the kernel clamp only feed +Inf so quantiles never exceed the last edge`() {
+        // slot 25 is a real kernel slot but above DISK_IO.lastSlot (24); slot 26 is the clamp
+        hist.observe(Log2Histograms.DISK_IO, tags, slots(25 to 4L, 26 to 6L), sumNs = 10L * 60_000_000_000)
         val b = buckets(prom.scrape(), "kpod_disk_io_latency_seconds")
-        assertEquals(0.0, b[b.size - 2].second, "no finite bucket contains clamped events")
+        assertEquals(0.0, b[b.size - 2].second, "no finite bucket contains out-of-range events")
         assertEquals(10.0, b.last().second)
-        assertEquals(Math.scalb(1.0, 26) / 1e9, histogramQuantile(0.99, b), 1e-12)
+        assertEquals(Math.scalb(1.0, 35) / 1e9, histogramQuantile(0.99, b), 1e-12)
+    }
+
+    @Test
+    fun `latencies far above the old 67 ms ceiling get real buckets`() {
+        // 300 ms = 300e6 ns; >> 10 ≈ 292_968; log2 = 18 → slot 18 = [2^28, 2^29) ns ≈ [268 ms, 537 ms)
+        hist.observe(Log2Histograms.DISK_IO, tags, slots(18 to 100L), sumNs = 100L * 300_000_000)
+        val p99 = histogramQuantile(0.99, buckets(prom.scrape(), "kpod_disk_io_latency_seconds"))
+        assertTrue(p99 in 0.268..0.537, "p99=$p99")
     }
 
     @Test
     fun `values below the first edge are counted in the first bucket`() {
-        hist.observe(Log2Histograms.TCP_RTT, tags, slots(0 to 1L, 5 to 2L, 13 to 3L), sumNs = 0)
+        hist.observe(Log2Histograms.TCP_RTT, tags, slots(0 to 1L, 1 to 2L, 3 to 3L), sumNs = 0)
         val b = buckets(prom.scrape(), "kpod_net_tcp_rtt_seconds")
-        assertEquals(Math.scalb(1.0, 14) / 1e9, b.first().first, 1e-15)
+        assertEquals(Math.scalb(1.0, 14) / 1e9, b.first().first, 1e-15, "first edge 2^14 ns ≈ 16 µs")
         assertEquals(6.0, b.first().second)
     }
 
     @Test
-    fun `stride produces coarser but still exact edges ending at the last finite slot`() {
+    fun `stride produces coarser but still exact edges ending at lastSlot`() {
         val edges = Log2Histograms.SYSCALL.edgeSlots.toList()
-        assertEquals(listOf(9, 11, 13, 15, 17, 19, 21, 23, 25), edges)
-        val cum = Log2Histograms.cumulativeBuckets(Log2Histograms.SYSCALL, slots(10 to 1L, 12 to 1L, 26 to 1L))
-        // slot 10 ≤ edge slot 11, slot 12 ≤ edge slot 13
-        assertArrayEquals(longArrayOf(0, 1, 2, 2, 2, 2, 2, 2, 2, 3), cum)
+        assertEquals((0..24 step 2).toList(), edges)
+        val cum = Log2Histograms.cumulativeBuckets(Log2Histograms.SYSCALL, slots(1 to 1L, 3 to 1L, 26 to 1L))
+        // slot 1 ≤ edge slot 2, slot 3 ≤ edge slot 4, clamp only in +Inf
+        assertArrayEquals(longArrayOf(0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3), cum)
     }
 
     @Test

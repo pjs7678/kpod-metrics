@@ -417,7 +417,7 @@ def catalog(search: str | None) -> str:
         "namespace/pod/container to `exported_*`.",
         "**Histograms** (runqueue, TCP RTT, syscall, disk IO) come from kernel log2 buckets: "
         "`histogram_quantile(q, sum by (le, ...) (rate(x_bucket[5m])))` works; edges are powers of two in ns "
-        "and values ≥ 67 ms saturate at 67 ms. **Other latencies** (HTTP, DNS, Redis/MySQL/Kafka/Mongo, IRQ) are "
+        "from ~2 µs, and quantiles saturate at the last edge (runqueue 4.3 s, TCP RTT 8.6 s, syscall/disk IO 34 s). **Other latencies** (HTTP, DNS, Redis/MySQL/Kafka/Mongo, IRQ) are "
         "summaries without buckets: use `rate(x_sum)/rate(x_count)` (mean of per-cycle averages) — "
         "`histogram_quantile` returns nothing for them.",
         "",
