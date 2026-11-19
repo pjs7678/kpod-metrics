@@ -80,6 +80,7 @@ nav:
       - Grafana Dashboard: features/grafana.md
       - OTLP Export: features/otlp.md
       - Prometheus Operator: features/prometheus-operator.md
+      - AI Assistant (MCP): features/ai-assistant.md
   - Architecture:
       - Overview: architecture/overview.md
       - Kotlin eBPF DSL: architecture/ebpf-dsl.md

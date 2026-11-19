@@ -10,11 +10,13 @@ All notable changes to this project will be documented in this file.
 - Application detection (`appType`): `kpod.container.application{application}` from process command lines
 - Memory: `kpod.mem.cgroup.rss.bytes` and `kpod.mem.cgroup.limit.bytes`
 - Alerts: `KpodCpuThrottled`, `KpodMemoryNearLimit`, `KpodResourceStall`
+- `kpod-mcp`: MCP server so AI assistants (Claude Code, Claude Desktop, Cursor, ...) can query and diagnose kpod-metrics data — overview, pod report with trends, top-N, dependency graph (Mermaid), PromQL, agent health, plus `diagnose_pod` / `cluster_health` / `rightsize` prompts. Also usable as a terminal CLI.
 
 ### Fixed
 - `kpod.disk.*` and `kpod.net.iface.*` counters re-added the kernel's cumulative totals every cycle, inflating values ~N-fold after N cycles. They now export the cumulative value directly (FunctionCounter).
 - cgroup v1: memory (and new CPU) stats are read from the matching controller hierarchy instead of the blkio path the pod target resolves to
 - Disk and interface meters are now removed when a pod is deleted
+- ServiceMonitor: `honorLabels: true`, so Prometheus Operator no longer replaces kpod's `namespace`/`pod`/`container` labels with the DaemonSet pod's own (they were renamed to `exported_*`)
 
 ## [1.11.0] - 2026-03-07
 
