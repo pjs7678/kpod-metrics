@@ -324,6 +324,19 @@ prometheusRule:
 
 This provisions 21 alerting rules including: high runqueue latency, TCP retransmits/drops, syscall error rate, filesystem full, BPF map health, container restart rate, crash loop detection, memory pressure, CPU throttling, memory near limit, PSI resource stalls, collector skip rate, and fork/exec bomb detection. Plus 17 recording rules for precomputed p50/p90/p99 aggregations.
 
+### AI Assistant (MCP)
+
+Ask an AI assistant about your cluster in plain language — _"why is checkout slow?"_, _"which pods are
+CPU-throttled?"_ — using `kpod-mcp`, an MCP server that runs on your machine with your kubeconfig:
+
+```bash
+claude mcp add kpod -- uvx --from "git+https://github.com/pjs7678/kpod-metrics#subdirectory=mcp" kpod-mcp
+```
+
+Tools: overview of unhealthy pods, per-pod report with trends and day-over-day comparison, top-N by
+signal, service dependency graph (Mermaid), PromQL, agent health. Works with Claude Desktop, Cursor and
+any MCP client, or as a terminal CLI (`kpod-mcp report shop/checkout-...`). See [mcp/README.md](mcp/README.md).
+
 ### OTLP Export
 
 Push metrics to any OpenTelemetry-compatible collector alongside Prometheus scraping:

@@ -19,6 +19,10 @@ spec:
   endpoints:
     - port: metrics
       path: /actuator/prometheus
+      # kpod's namespace/pod/container labels describe the *monitored* pod. Without this,
+      # Prometheus Operator overwrites them with the DaemonSet pod's own target labels and
+      # renames ours to exported_*, breaking dashboards, alerts and per-pod queries.
+      honorLabels: true
       interval: {{ .Values.serviceMonitor.interval }}
       scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
 {{- end }}

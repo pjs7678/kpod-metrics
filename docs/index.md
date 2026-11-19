@@ -56,6 +56,7 @@ See the [Quick Start guide](getting-started/quickstart.md) for detailed setup in
 - **L7 protocol detection** for HTTP, DNS, Redis, MySQL, Kafka, MongoDB
 - **Grafana dashboards** included with 9 metric rows
 - **Prometheus Operator** support with ServiceMonitor and 21 alerting rules
+- **AI assistant (MCP)**: ask Claude Code, Claude Desktop or Cursor about pod health, throttling and dependencies
 - **OTLP export** for OpenTelemetry-compatible backends
 - **Three profiles** (minimal, standard, comprehensive) to control overhead
 - **Kotlin eBPF DSL** — BPF programs defined in type-safe Kotlin, not raw C
