@@ -6,7 +6,7 @@ Metrics collected via eBPF programs attached to kernel tracepoints.
 
 | Metric | Type | Description |
 |--------|------|-------------|
-| `kpod.cpu.runqueue.latency` | DistributionSummary | Time spent waiting in the CPU run queue (seconds) |
+| `kpod.cpu.runqueue.latency` | Histogram | Time spent waiting in the CPU run queue, per event (seconds) |
 | `kpod.cpu.context.switches` | Counter | Context switch count |
 
 ## Network
@@ -17,7 +17,7 @@ Metrics collected via eBPF programs attached to kernel tracepoints.
 | `kpod.net.tcp.bytes.received` | Counter | TCP bytes received |
 | `kpod.net.tcp.retransmits` | Counter | TCP retransmissions |
 | `kpod.net.tcp.connections` | Counter | TCP connection count |
-| `kpod.net.tcp.rtt` | DistributionSummary | TCP round-trip time (seconds) |
+| `kpod.net.tcp.rtt` | Histogram | Smoothed TCP round-trip time, per tcp_probe event (seconds) |
 | `kpod.net.tcp.drops` | Counter | TCP packet drops |
 
 ## Memory
@@ -37,13 +37,13 @@ Metrics collected via eBPF programs attached to kernel tracepoints.
 |--------|------|-------------|-------------|
 | `kpod.syscall.count` | Counter | `syscall` | Syscall invocations |
 | `kpod.syscall.errors` | Counter | `syscall` | Syscall errors |
-| `kpod.syscall.latency` | DistributionSummary | `syscall` | Syscall latency |
+| `kpod.syscall.latency` | Histogram | `syscall` | Syscall latency, per call |
 
 ## Disk I/O
 
 | Metric | Type | Description |
 |--------|------|-------------|
-| `kpod.disk.io.latency` | DistributionSummary | Block I/O latency (seconds) |
+| `kpod.disk.io.latency` | Histogram | Block I/O latency, per request (seconds) |
 
 ## Interrupts
 

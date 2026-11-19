@@ -27,6 +27,8 @@ import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.config.MeterFilter
 import io.micrometer.registry.otlp.OtlpConfig
 import io.micrometer.registry.otlp.OtlpMeterRegistry
+import io.prometheus.metrics.model.registry.PrometheusRegistry
+import org.springframework.beans.factory.ObjectProvider
 import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -48,6 +50,7 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
     private var metricsCollectorServiceInstance: MetricsCollectorService? = null
     private var kubeletPodProviderInstance: KubeletPodProvider? = null
     private var registryInstance: MeterRegistry? = null
+    private var log2HistogramsInstance: Log2Histograms? = null
     @Volatile private var bpfCleanedUp = false
 
     @Bean
@@ -135,6 +138,22 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         return manager
     }
 
+    /**
+     * Kernel log2 latency histograms, exported as native Prometheus histograms via the client
+     * registry (Micrometer cannot ingest pre-bucketed data) and mirrored to OTLP as timers.
+     */
+    @Bean
+    fun log2Histograms(
+        prometheusRegistry: ObjectProvider<PrometheusRegistry>,
+        otlpRegistry: ObjectProvider<OtlpMeterRegistry>
+    ): Log2Histograms {
+        val histograms = Log2Histograms(otlpRegistry.ifAvailable)
+        prometheusRegistry.ifAvailable?.register(histograms)
+            ?: log.warn("No Prometheus registry: BPF latency histograms will not be exposed on /actuator/prometheus")
+        this.log2HistogramsInstance = histograms
+        return histograms
+    }
+
     @Bean
     @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
     fun cpuSchedulingCollector(
@@ -142,8 +161,9 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         manager: BpfProgramManager,
         resolver: CgroupResolver,
         registry: MeterRegistry,
-        config: ResolvedConfig
-    ) = CpuSchedulingCollector(bridge, manager, resolver, registry, config, props.nodeName)
+        config: ResolvedConfig,
+        histograms: Log2Histograms
+    ) = CpuSchedulingCollector(bridge, manager, resolver, registry, config, props.nodeName, histograms)
 
     @Bean
     @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
@@ -152,8 +172,9 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         manager: BpfProgramManager,
         resolver: CgroupResolver,
         registry: MeterRegistry,
-        config: ResolvedConfig
-    ) = NetworkCollector(bridge, manager, resolver, registry, config, props.nodeName)
+        config: ResolvedConfig,
+        histograms: Log2Histograms
+    ) = NetworkCollector(bridge, manager, resolver, registry, config, props.nodeName, histograms)
 
     @Bean
     @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
@@ -178,8 +199,9 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         manager: BpfProgramManager,
         resolver: CgroupResolver,
         registry: MeterRegistry,
-        config: ResolvedConfig
-    ) = SyscallCollector(bridge, manager, resolver, registry, config, props.nodeName)
+        config: ResolvedConfig,
+        histograms: Log2Histograms
+    ) = SyscallCollector(bridge, manager, resolver, registry, config, props.nodeName, histograms)
 
     // --- BCC-style tool collectors ---
 
@@ -190,8 +212,9 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
         manager: BpfProgramManager,
         resolver: CgroupResolver,
         registry: MeterRegistry,
-        config: ResolvedConfig
-    ) = BiolatencyCollector(bridge, manager, resolver, registry, config, props.nodeName)
+        config: ResolvedConfig,
+        histograms: Log2Histograms
+    ) = BiolatencyCollector(bridge, manager, resolver, registry, config, props.nodeName, histograms)
 
     @Bean
     @ConditionalOnProperty("kpod.bpf.enabled", havingValue = "true", matchIfMissing = true)
@@ -607,6 +630,7 @@ class BpfAutoConfiguration(private val props: MetricsProperties) {
                 }
                 watcher.setOnPodRemovedCallback { podName, namespace ->
                     service.cleanupPodMetrics(podName, namespace)
+                    log2HistogramsInstance?.removePod(podName, namespace)
                 }
             }
             try {

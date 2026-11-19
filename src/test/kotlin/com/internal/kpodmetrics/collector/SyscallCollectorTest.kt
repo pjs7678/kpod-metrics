@@ -18,6 +18,7 @@ class SyscallCollectorTest {
     private lateinit var cgroupResolver: CgroupResolver
     private lateinit var registry: MeterRegistry
     private lateinit var collector: SyscallCollector
+    private lateinit var histograms: Log2Histograms
 
     private val isArm64 = System.getProperty("os.arch").let { it == "aarch64" || it == "arm64" }
     // Syscall numbers differ per architecture
@@ -38,7 +39,8 @@ class SyscallCollectorTest {
         ))
 
         val config = MetricsProperties().resolveProfile("comprehensive")
-        collector = SyscallCollector(bridge, programManager, cgroupResolver, registry, config, "test-node")
+        histograms = Log2Histograms()
+        collector = SyscallCollector(bridge, programManager, cgroupResolver, registry, config, "test-node", histograms)
     }
 
     @Test
@@ -55,7 +57,7 @@ class SyscallCollectorTest {
         val meters = registry.meters
         assertTrue(meters.any { it.id.name == "kpod.syscall.count" && it.id.getTag("syscall") == "write" })
         assertTrue(meters.any { it.id.name == "kpod.syscall.errors" && it.id.getTag("syscall") == "write" })
-        assertTrue(meters.any { it.id.name == "kpod.syscall.latency" && it.id.getTag("syscall") == "write" })
+        assertEquals(1, histograms.seriesCount(Log2Histograms.SYSCALL))
 
         val countCounter = registry.counter("kpod.syscall.count",
             "namespace", "default", "pod", "test-pod", "container", "app",
@@ -146,9 +148,9 @@ class SyscallCollectorTest {
         buf.putLong(count)
         buf.putLong(errorCount)
         buf.putLong(latencySumNs)
-        // Fill remaining 27 latency slots with zeros
+        // 27 latency slots; all calls in slot 16 (~65-131 µs)
         for (i in 0 until 27) {
-            buf.putLong(0L)
+            buf.putLong(if (i == 16) count else 0L)
         }
         return buf.array()
     }

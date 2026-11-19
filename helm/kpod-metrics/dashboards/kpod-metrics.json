@@ -1229,7 +1229,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (pod) (kpod_disk_io_latency_sum{namespace=~\"$namespace\", pod=~\"$pod\"}) / sum by (pod) (kpod_disk_io_latency_count{namespace=~\"$namespace\", pod=~\"$pod\"})",
+          "expr": "sum by (pod) (kpod_disk_io_latency_seconds_sum{namespace=~\"$namespace\", pod=~\"$pod\"}) / sum by (pod) (kpod_disk_io_latency_seconds_count{namespace=~\"$namespace\", pod=~\"$pod\"})",
           "legendFormat": "{{pod}} mean",
           "refId": "A"
         },
@@ -2270,7 +2270,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (pod) (kpod_irq_hw_latency_sum{namespace=~\"$namespace\", pod=~\"$pod\"}) / sum by (pod) (kpod_irq_hw_latency_count{namespace=~\"$namespace\", pod=~\"$pod\"})",
+          "expr": "sum by (pod) (kpod_irq_hw_latency_seconds_sum{namespace=~\"$namespace\", pod=~\"$pod\"}) / sum by (pod) (kpod_irq_hw_latency_seconds_count{namespace=~\"$namespace\", pod=~\"$pod\"})",
           "legendFormat": "{{pod}}",
           "refId": "A"
         }
@@ -2336,7 +2336,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (pod) (kpod_irq_sw_latency_sum{namespace=~\"$namespace\", pod=~\"$pod\"}) / sum by (pod) (kpod_irq_sw_latency_count{namespace=~\"$namespace\", pod=~\"$pod\"})",
+          "expr": "sum by (pod) (kpod_irq_sw_latency_seconds_sum{namespace=~\"$namespace\", pod=~\"$pod\"}) / sum by (pod) (kpod_irq_sw_latency_seconds_count{namespace=~\"$namespace\", pod=~\"$pod\"})",
           "legendFormat": "{{pod}}",
           "refId": "A"
         }
@@ -3113,7 +3113,7 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "label_values(kpod_cpu_runqueue_latency_count, namespace)",
+        "definition": "label_values(kpod_cpu_runqueue_latency_seconds_count, namespace)",
         "hide": 0,
         "includeAll": true,
         "label": "Namespace",
@@ -3122,7 +3122,7 @@
         "options": [],
         "query": {
           "qryType": 1,
-          "query": "label_values(kpod_cpu_runqueue_latency_count, namespace)"
+          "query": "label_values(kpod_cpu_runqueue_latency_seconds_count, namespace)"
         },
         "refresh": 2,
         "regex": "",
@@ -3136,7 +3136,7 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "label_values(kpod_cpu_runqueue_latency_count{namespace=~\"$namespace\"}, pod)",
+        "definition": "label_values(kpod_cpu_runqueue_latency_seconds_count{namespace=~\"$namespace\"}, pod)",
         "hide": 0,
         "includeAll": true,
         "label": "Pod",
@@ -3145,7 +3145,7 @@
         "options": [],
         "query": {
           "qryType": 1,
-          "query": "label_values(kpod_cpu_runqueue_latency_count{namespace=~\"$namespace\"}, pod)"
+          "query": "label_values(kpod_cpu_runqueue_latency_seconds_count{namespace=~\"$namespace\"}, pod)"
         },
         "refresh": 2,
         "regex": "",
@@ -3159,7 +3159,7 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "label_values(kpod_cpu_runqueue_latency_count, node)",
+        "definition": "label_values(kpod_cpu_runqueue_latency_seconds_count, node)",
         "hide": 0,
         "includeAll": true,
         "label": "Node",
@@ -3168,7 +3168,7 @@
         "options": [],
         "query": {
           "qryType": 1,
-          "query": "label_values(kpod_cpu_runqueue_latency_count, node)"
+          "query": "label_values(kpod_cpu_runqueue_latency_seconds_count, node)"
         },
         "refresh": 2,
         "regex": "",

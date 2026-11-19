@@ -88,7 +88,7 @@ async def test_top_rejects_unknown_signal(ctx):
 def test_catalog_search():
     out = analysis.catalog("pressure")
     assert "kpod_pressure_stall_seconds_total" in out and "kpod_redis" not in out
-    assert "histogram_quantile` will return nothing" in out
+    assert "histogram_quantile` returns nothing for them" in out
 
 
 async def test_prometheus_outage_is_not_reported_as_missing_data(ctx, prom):

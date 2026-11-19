@@ -18,6 +18,7 @@ class CpuSchedulingCollectorTest {
     private lateinit var cgroupResolver: CgroupResolver
     private lateinit var registry: MeterRegistry
     private lateinit var collector: CpuSchedulingCollector
+    private lateinit var histograms: Log2Histograms
 
     @BeforeEach
     fun setup() {
@@ -32,7 +33,8 @@ class CpuSchedulingCollectorTest {
         ))
 
         val config = MetricsProperties().resolveProfile()
-        collector = CpuSchedulingCollector(bridge, programManager, cgroupResolver, registry, config, "test-node")
+        histograms = Log2Histograms()
+        collector = CpuSchedulingCollector(bridge, programManager, cgroupResolver, registry, config, "test-node", histograms)
     }
 
     @Test
@@ -50,8 +52,10 @@ class CpuSchedulingCollectorTest {
 
         collector.collect()
 
-        val meters = registry.meters
-        assertTrue(meters.any { it.id.name == "kpod.cpu.runqueue.latency" })
+        assertEquals(1, histograms.seriesCount(Log2Histograms.RUNQUEUE))
+        val bucket = Log2Histograms.cumulativeBuckets(Log2Histograms.RUNQUEUE,
+            LongArray(27).also { it[10] = 10 })
+        assertEquals(10L, bucket.last())
     }
 
     @Test

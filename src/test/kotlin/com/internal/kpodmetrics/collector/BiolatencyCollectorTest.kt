@@ -18,6 +18,7 @@ class BiolatencyCollectorTest {
     private lateinit var cgroupResolver: CgroupResolver
     private lateinit var registry: MeterRegistry
     private lateinit var collector: BiolatencyCollector
+    private lateinit var histograms: Log2Histograms
 
     @BeforeEach
     fun setup() {
@@ -32,7 +33,8 @@ class BiolatencyCollectorTest {
         ))
 
         val config = MetricsProperties().resolveProfile("comprehensive")
-        collector = BiolatencyCollector(bridge, programManager, cgroupResolver, registry, config, "test-node")
+        histograms = Log2Histograms()
+        collector = BiolatencyCollector(bridge, programManager, cgroupResolver, registry, config, "test-node", histograms)
     }
 
     @Test
@@ -47,7 +49,7 @@ class BiolatencyCollectorTest {
 
         collector.collect()
 
-        assertTrue(registry.meters.any { it.id.name == "kpod.disk.io.latency" })
+        assertEquals(1, histograms.seriesCount(Log2Histograms.DISK_IO))
     }
 
     @Test
@@ -62,7 +64,7 @@ class BiolatencyCollectorTest {
 
         collector.collect()
 
-        assertTrue(registry.meters.none { it.id.name == "kpod.disk.io.latency" })
+        assertEquals(0, histograms.seriesCount(Log2Histograms.DISK_IO))
     }
 
     @Test
@@ -95,9 +97,9 @@ class BiolatencyCollectorTest {
 
     private fun buildHistValue(count: Long, sumNs: Long): ByteArray {
         val buf = ByteBuffer.allocate(232).order(ByteOrder.LITTLE_ENDIAN)
-        // 27 histogram slots
+        // 27 histogram slots; all events in slot 20 (~1-2 ms)
         for (i in 0 until 27) {
-            buf.putLong(0L)
+            buf.putLong(if (i == 20) count else 0L)
         }
         buf.putLong(count)
         buf.putLong(sumNs)

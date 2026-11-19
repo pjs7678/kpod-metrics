@@ -5,7 +5,6 @@ import com.internal.kpodmetrics.bpf.BpfProgramManager
 import com.internal.kpodmetrics.bpf.CgroupResolver
 import com.internal.kpodmetrics.bpf.generated.SyscallMapReader
 import com.internal.kpodmetrics.config.ResolvedConfig
-import io.micrometer.core.instrument.DistributionSummary
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
 import org.slf4j.LoggerFactory
@@ -16,7 +15,8 @@ class SyscallCollector(
     private val cgroupResolver: CgroupResolver,
     private val registry: MeterRegistry,
     private val config: ResolvedConfig,
-    private val nodeName: String
+    private val nodeName: String,
+    private val histograms: Log2Histograms = Log2Histograms()
 ) {
     private val log = LoggerFactory.getLogger(SyscallCollector::class.java)
 
@@ -74,14 +74,10 @@ class SyscallCollector(
             registry.counter("kpod.syscall.count", tags).increment(count.toDouble())
             registry.counter("kpod.syscall.errors", tags).increment(errorCount.toDouble())
 
-            if (count > 0) {
-                val avgLatencySeconds = (latencySumNs.toDouble() / count.toDouble()) / 1_000_000_000.0
-                DistributionSummary.builder("kpod.syscall.latency")
-                    .tags(tags)
-                    .baseUnit("seconds")
-                    .register(registry)
-                    .record(avgLatencySeconds)
-            }
+            histograms.observe(
+                Log2Histograms.SYSCALL, tags,
+                SyscallMapReader.SyscallStatsLayout.decodeLatencySlotsArray(valueBytes), latencySumNs
+            )
         }
     }
 

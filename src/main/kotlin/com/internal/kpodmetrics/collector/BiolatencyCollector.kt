@@ -5,7 +5,6 @@ import com.internal.kpodmetrics.bpf.BpfProgramManager
 import com.internal.kpodmetrics.bpf.CgroupResolver
 import com.internal.kpodmetrics.bpf.generated.BiolatencyMapReader
 import com.internal.kpodmetrics.config.ResolvedConfig
-import io.micrometer.core.instrument.DistributionSummary
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
 import org.slf4j.LoggerFactory
@@ -16,7 +15,8 @@ class BiolatencyCollector(
     private val cgroupResolver: CgroupResolver,
     private val registry: MeterRegistry,
     private val config: ResolvedConfig,
-    private val nodeName: String
+    private val nodeName: String,
+    private val histograms: Log2Histograms = Log2Histograms()
 ) {
     private val log = LoggerFactory.getLogger(BiolatencyCollector::class.java)
 
@@ -47,13 +47,10 @@ class BiolatencyCollector(
                 "node", nodeName
             )
 
-            if (count > 0) {
-                DistributionSummary.builder("kpod.disk.io.latency")
-                    .tags(tags)
-                    .baseUnit("seconds")
-                    .register(registry)
-                    .record(sumNs.toDouble() / 1_000_000_000.0)
-            }
+            histograms.observe(
+                Log2Histograms.DISK_IO, tags,
+                BiolatencyMapReader.HistValueLayout.decodeSlotsArray(valueBytes), sumNs
+            )
         }
     }
 }
