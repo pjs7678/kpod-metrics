@@ -256,43 +256,69 @@ JNIEXPORT void JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeMapUpda
  * Returns: number of entries read (>= 0), or -1 on error, or -2 if batch
  * operations are not supported (caller should fall back to legacy path).
  */
+/*
+ * Drains up to maxBatch entries with BPF_MAP_LOOKUP_AND_DELETE_BATCH.
+ *
+ * Returns the number of entries copied (>= 0), -2 if batch ops are unsupported (caller falls
+ * back to iterate+delete), or -errno on any other failure.
+ *
+ * out_batch must be a real buffer: for hash maps the kernel always writes the resume token
+ * there, and a NULL out_batch makes every call fail with EFAULT. Passing NULL (as this function
+ * once did) silently drained nothing, so every hash-map-based metric was empty. The kernel
+ * returns ENOENT once the whole map has been walked; that is the normal end, not an error.
+ */
 JNIEXPORT jint JNICALL Java_com_internal_kpodmetrics_bpf_BpfBridge_nativeMapBatchLookupAndDelete(
     JNIEnv *env, jobject self,
     jint mapFd, jbyteArray keys, jbyteArray values,
     jint keySize, jint valueSize, jint maxBatch) {
     (void)self;
-    (void)keySize;
-    (void)valueSize;
+    if (keySize <= 0 || valueSize <= 0 || maxBatch <= 0) return -EINVAL;
 
     jbyte *keysBuf = (*env)->GetByteArrayElements(env, keys, NULL);
-    if (!keysBuf) return -1;
+    if (!keysBuf) return -ENOMEM;
     jbyte *valuesBuf = (*env)->GetByteArrayElements(env, values, NULL);
     if (!valuesBuf) {
         (*env)->ReleaseByteArrayElements(env, keys, keysBuf, JNI_ABORT);
-        return -1;
+        return -ENOMEM;
     }
 
-    __u32 count = (__u32)maxBatch;
     DECLARE_LIBBPF_OPTS(bpf_map_batch_opts, opts,
         .elem_flags = 0,
         .flags = 0,
     );
 
-    int err = bpf_map_lookup_and_delete_batch(mapFd, NULL, NULL,
-        keysBuf, valuesBuf, &count, &opts);
+    /* Resume token: opaque to userspace; 8 bytes covers every map type's token. */
+    __u64 in_batch = 0, out_batch = 0;
+    int first = 1;
+    __u32 total = 0;
+    int result = 0;
+
+    while (total < (__u32)maxBatch) {
+        __u32 n = (__u32)maxBatch - total;
+        int err = bpf_map_lookup_and_delete_batch(mapFd,
+            first ? NULL : &in_batch, &out_batch,
+            keysBuf + (size_t)total * keySize, valuesBuf + (size_t)total * valueSize,
+            &n, &opts);
+        /* libbpf >= 1.0 returns -errno; n holds the entries processed, even with ENOENT. */
+        if (err == 0 || err == -ENOENT) total += n;
+        if (err == -ENOENT) break;            /* walked the whole map */
+        if (err) {
+            if (total == 0 && (err == -EINVAL || err == -ENOTSUP || err == -EOPNOTSUPP ||
+                               err == -ENOSYS || err == -524 /* ENOTSUPP */)) {
+                result = -2;
+            } else if (total == 0) {
+                result = err;
+            }
+            /* With entries already deleted and copied, return them rather than lose them. */
+            break;
+        }
+        in_batch = out_batch;
+        first = 0;
+    }
 
     (*env)->ReleaseByteArrayElements(env, keys, keysBuf, 0);
     (*env)->ReleaseByteArrayElements(env, values, valuesBuf, 0);
-
-    if (err && errno == ENOSYS) {
-        return -2; /* batch not supported */
-    }
-    /* ENOENT means we read all entries (map is now empty) -- not an error */
-    if (err && errno != ENOENT) {
-        return -1;
-    }
-
-    return (jint)count;
+    return result < 0 ? result : (jint)total;
 }
 
 static int perf_event_open_cpu(int cpu, int freq) {

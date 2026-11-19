@@ -212,6 +212,7 @@ class DiagnosticsEndpointTest {
         every { service.getLastCollectorErrors() } returns emptyMap()
         every { manager.failedPrograms } returns setOf("syscall")
         every { manager.isProgramLoaded(any()) } returns true
+        every { manager.permissionDiagnosis } returns null
 
         val config = ResolvedConfig(
             cpu = CpuProperties(),
@@ -225,5 +226,23 @@ class DiagnosticsEndpointTest {
         @Suppress("UNCHECKED_CAST")
         val recs = result["recommendations"] as List<String>
         assertTrue(recs.any { it.contains("syscall") })
+    }
+
+    @Test
+    fun `recommendations surface the permission diagnosis instead of the generic hint`() {
+        val manager = mockk<BpfProgramManager>()
+        every { service.getLastSuccessfulCycle() } returns Instant.now()
+        every { service.isShuttingDown() } returns false
+        every { service.getEnabledCollectorCount() } returns 1
+        every { service.getLastCollectorErrors() } returns emptyMap()
+        every { manager.failedPrograms } returns setOf("cpu_sched")
+        every { manager.isProgramLoaded(any()) } returns false
+        every { manager.permissionDiagnosis } returns "BPF attach denied for [cpu_sched]: kernel.perf_event_paranoid=4"
+
+        val endpoint = DiagnosticsEndpoint(service, manager, ResolvedConfig(cpu = CpuProperties(), network = NetworkProperties(), syscall = SyscallProperties()))
+        @Suppress("UNCHECKED_CAST")
+        val recs = endpoint.diagnostics()["recommendations"] as List<String>
+        assertTrue(recs.any { it.contains("perf_event_paranoid=4") }, recs.toString())
+        assertTrue(recs.none { it.contains("Check kernel support") }, recs.toString())
     }
 }

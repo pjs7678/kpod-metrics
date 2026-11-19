@@ -63,6 +63,7 @@ struct span_event {
     __u16 status_code;
     __u8 direction;
     __u8 pad[3];
+    __u8 url_path[64];  // must match SpanEvent (SpanStructs.kt) and SpanCollector.SPAN_EVENT_SIZE
 };
 
 static __always_inline __u32 log2l(__u64 v) {

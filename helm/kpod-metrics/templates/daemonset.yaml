@@ -46,6 +46,12 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.hostIP
+            # Sizes the JVM from the real limit (see Dockerfile ENTRYPOINT); without a limit this
+            # is node allocatable memory.
+            - name: KPOD_MEMORY_LIMIT_BYTES
+              valueFrom:
+                resourceFieldRef:
+                  resource: limits.memory
             - name: KPOD_DISCOVERY_MODE
               value: {{ .Values.config.discovery.mode }}
             - name: SPRING_CONFIG_ADDITIONAL_LOCATION

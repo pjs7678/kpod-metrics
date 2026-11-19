@@ -49,7 +49,7 @@ class BpfMapStatsCollectorTest {
 
         assertTrue(registry.meters.any { it.id.name == "kpod.bpf.map.entries" })
         assertTrue(registry.meters.any { it.id.name == "kpod.bpf.map.capacity" })
-        assertTrue(registry.meters.any { it.id.name == "kpod.bpf.map.update.errors.total" })
+        assertTrue(registry.meters.any { it.id.name == "kpod.bpf.map.update.errors" })
     }
 
     @Test

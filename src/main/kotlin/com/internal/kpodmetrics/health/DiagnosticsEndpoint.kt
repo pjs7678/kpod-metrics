@@ -187,7 +187,8 @@ class DiagnosticsEndpoint(
             recs.add("${errors.size} collector(s) have errors: ${errors.keys.joinToString()}")
         }
         if (programManager != null && programManager.failedPrograms.isNotEmpty()) {
-            recs.add("BPF programs failed to load: ${programManager.failedPrograms.joinToString()}. Check kernel support.")
+            recs.add(programManager.permissionDiagnosis
+                ?: "BPF programs failed to load: ${programManager.failedPrograms.joinToString()}. Check kernel support.")
         }
         if (registry != null) {
             val expected = allExpectedPrograms()

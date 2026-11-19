@@ -24,12 +24,14 @@ spec:
           protocol: UDP
         - port: 53
           protocol: TCP
-    # Allow K8s API access (pod discovery)
+    # Allow K8s API access (pod discovery). NetworkPolicy matches the API server's endpoint
+    # port after Service DNAT (kubectl get endpointslices -l kubernetes.io/service-name=kubernetes),
+    # not the Service's 443.
     - ports:
-        - port: 443
+        {{- range .Values.networkPolicy.apiServerPorts }}
+        - port: {{ . }}
           protocol: TCP
-        - port: 6443
-          protocol: TCP
+        {{- end }}
     {{- if .Values.otlp.enabled }}
     # Allow OTLP metrics push
     - ports:
@@ -43,5 +45,8 @@ spec:
     - ports:
         - port: 4040
           protocol: TCP
+    {{- end }}
+    {{- with .Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
     {{- end }}
 {{- end }}

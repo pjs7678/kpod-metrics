@@ -31,6 +31,15 @@ object TcpPeerHistValue : BpfStruct("tcp_peer_hist_value") {
     val sumUs by u64()
 }
 
+/** Socket owner for tcp_probe attribution: the cgroup, plus the server port when we are the client. */
+object PeerOwnerVal : BpfStruct("peer_owner_val") {
+    val cgroupId by u64()
+    val serverPort by u16()
+    val role by u8()
+    val pad by u8()
+    val pad2 by u32()
+}
+
 // ── TCP peer preamble ───────────────────────────────────────────────
 
 private val TCP_PEER_PREAMBLE = """
@@ -42,7 +51,25 @@ private val TCP_PEER_PREAMBLE = """
 $COMMON_PREAMBLE
 """.trimIndent()
 
-private val TCP_PEER_POSTAMBLE = """
+private val TCP_PEER_POSTAMBLE = SOCK_FLOW_HELPERS + """
+/*
+ * Process context (connect / accept): remember who owns the flow and which port identifies the
+ * peer. tcp_probe runs in softirq context, where the current cgroup is an arbitrary interrupted
+ * task, and where dport is the client's ephemeral port when we are the server — keying RTT by it
+ * created a new series per connection (unbounded cardinality).
+ */
+static __always_inline void kpod_peer_record(struct sock *sk, __u8 role, __u16 server_port)
+{
+    struct flow_key k = {};
+    if (!sk || kpod_flow_from_sk(sk, &k) < 0) return;
+    struct peer_owner_val v = {
+        .cgroup_id = bpf_get_current_cgroup_id(),
+        .server_port = server_port,
+        .role = role,
+    };
+    bpf_map_update_elem(&peer_owner, &k, &v, BPF_ANY);
+}
+
 static __always_inline void inc_counter(void *map, void *key)
 {
     struct counter_value *val = bpf_map_lookup_elem(map, key);
@@ -68,6 +95,8 @@ val tcpPeerProgram = ebpf("tcp_peer") {
     // ── Maps ─────────────────────────────────────────────────────────
     val tcpPeerConns by lruHashMap(TcpPeerConnKey, CounterValue, maxEntries = 10240)
     val tcpPeerRtt by lruHashMap(TcpPeerRttKey, TcpPeerHistValue, maxEntries = 10240)
+    @Suppress("UNUSED_VARIABLE")
+    val peerOwner by lruHashMap(FlowKey, PeerOwnerVal, maxEntries = 32768)
 
     // ── kprobe/tcp_connect ───────────────────────────────────────────
     kprobe("tcp_connect") {
@@ -83,6 +112,7 @@ val tcpPeerProgram = ebpf("tcp_peer") {
         return 0;
     __u16 dport = __builtin_bswap16(dport_be);
     __u64 cgroup_id = bpf_get_current_cgroup_id();
+    kpod_peer_record(sk, DIR_CLIENT, dport);
     struct tcp_peer_conn_key key = {
         .cgroup_id = cgroup_id,
         .remote_ip4 = daddr,
@@ -105,15 +135,13 @@ val tcpPeerProgram = ebpf("tcp_peer") {
         return 0;
     if (daddr == 0 || daddr == LOOPBACK_IP4)
         return 0;
-    __u16 dport_be;
-    if (bpf_probe_read(&dport_be, sizeof(dport_be), &sk->__sk_common.skc_dport) < 0)
-        return 0;
-    __u16 dport = __builtin_bswap16(dport_be);
     __u64 cgroup_id = bpf_get_current_cgroup_id();
+    kpod_peer_record(sk, DIR_SERVER, 0);
+    /* remote_port = 0: the client's port is ephemeral, one series per connection otherwise */
     struct tcp_peer_conn_key key = {
         .cgroup_id = cgroup_id,
         .remote_ip4 = daddr,
-        .remote_port = dport,
+        .remote_port = 0,
         .direction = DIR_SERVER,
     };
     inc_counter(&tcp_peer_conns, &key);
@@ -129,16 +157,21 @@ val tcpPeerProgram = ebpf("tcp_peer") {
         (struct trace_event_raw_tcp_probe *)ctx;
     __u32 srtt = tp->srtt;
     if (srtt == 0) return 0;
-    __u64 rtt_us = (__u64)srtt * 8;
-    __u64 cgroup_id = bpf_get_current_cgroup_id();
-    __u16 dport = tp->dport;
-    __u32 daddr;
-    bpf_probe_read_kernel(&daddr, sizeof(daddr), tp->daddr);
-    if (daddr == 0 || daddr == LOOPBACK_IP4) return 0;
+    /* tcp_probe already stores srtt_us >> 3, i.e. microseconds; multiplying by 8 inflated
+       peer RTT 8x (dogfood: 1.2 s reported for a 150 ms path). */
+    __u64 rtt_us = (__u64)srtt;
+    struct flow_key fk = {};
+    if (kpod_sockaddr_v4(tp->saddr, &fk.saddr) < 0 || kpod_sockaddr_v4(tp->daddr, &fk.daddr) < 0)
+        return 0;
+    if (fk.daddr == 0 || fk.daddr == LOOPBACK_IP4) return 0;
+    fk.sport = tp->sport;
+    fk.dport = tp->dport;
+    struct peer_owner_val *owner = bpf_map_lookup_elem(&peer_owner, &fk);
+    if (!owner) return 0; /* unknown flow: skip rather than misattribute */
     struct tcp_peer_rtt_key key = {
-        .cgroup_id = cgroup_id,
-        .remote_ip4 = daddr,
-        .remote_port = dport,
+        .cgroup_id = owner->cgroup_id,
+        .remote_ip4 = fk.daddr,
+        .remote_port = owner->server_port,
     };
     struct tcp_peer_hist_value *hist = bpf_map_lookup_elem(&tcp_peer_rtt, &key);
     if (hist) {

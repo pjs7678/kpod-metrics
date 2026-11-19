@@ -21,6 +21,13 @@ management:
     export:
       prometheus:
         enabled: true
+  # micrometer-registry-otlp is on the classpath for kpod.otlp; without this, Spring Boot
+  # auto-configures a second OTLP registry that pushes to localhost:4318 every minute even
+  # when kpod.otlp.enabled=false. kpod's own registry (kpod.otlp.*) is unaffected.
+  otlp:
+    metrics:
+      export:
+        enabled: false
 
 kpod:
   profile: standard

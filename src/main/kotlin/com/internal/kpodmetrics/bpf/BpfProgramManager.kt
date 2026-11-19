@@ -16,6 +16,12 @@ class BpfProgramManager(
     private val loadedPrograms = mutableMapOf<String, Long>()
     private val _failedPrograms = mutableSetOf<String>()
     val failedPrograms: Set<String> get() = _failedPrograms.toSet()
+    private val failureReasons = mutableMapOf<String, String>()
+
+    /** Actionable explanation when programs failed for permission reasons, else null. */
+    @Volatile
+    var permissionDiagnosis: String? = null
+        private set
 
     private val loadedCount = AtomicInteger(0)
     private val failedCount = AtomicInteger(0)
@@ -76,6 +82,11 @@ class BpfProgramManager(
         log.info("Loaded {} BPF programs: {}{}",
             loadedPrograms.size, loadedPrograms.keys,
             if (_failedPrograms.isNotEmpty()) ", failed: $_failedPrograms" else "")
+        permissionDiagnosis = AttachPermissionDiagnosis.diagnose(
+            failureReasons.filterKeys { it in _failedPrograms },
+            AttachPermissionDiagnosis.readParanoid(),
+            AttachPermissionDiagnosis.readCapEff()
+        )?.also { log.error(it) }
 
         // Warn about LRU hash map sharding on high-CPU nodes (Tracee #3930):
         // kernel shards LRU maps across CPUs, so effective per-shard capacity = max_entries / num_cpus
@@ -120,6 +131,7 @@ class BpfProgramManager(
             true
         } catch (e: Exception) {
             log.warn("Failed to load BPF program '{}' from {}: {}", name, path, e.message)
+            failureReasons[name] = e.message ?: e.javaClass.simpleName
             false
         }
     }
@@ -179,6 +191,29 @@ class BpfProgramManager(
         } catch (e: Exception) {
             log.debug("Could not enable BPF stats (kernel 5.1+ required): {}", e.message)
         }
+    }
+
+    /**
+     * Fills the syscall program's trk_syscalls filter. The program only records syscalls in this
+     * map; it was never populated before, so syscall metrics were always empty.
+     * @return the names that were configured
+     */
+    fun configureTrackedSyscalls(names: List<String>, table: SyscallTable = SyscallTable.forArch()): List<String> {
+        if (!isProgramLoaded("syscall")) return emptyList()
+        val mapFd = getMapFd("syscall", "trk_syscalls")
+        val configured = mutableListOf<String>()
+        for (name in names) {
+            val nr = table.numberOf(name)
+            if (nr == null) {
+                log.warn("Unknown syscall '{}' for this architecture; not tracked", name)
+                continue
+            }
+            val key = java.nio.ByteBuffer.allocate(4).order(java.nio.ByteOrder.LITTLE_ENDIAN).putInt(nr).array()
+            bridge.mapUpdate(mapFd, key, byteArrayOf(1))
+            configured.add(name)
+        }
+        log.info("Syscall filter configured: {}", configured)
+        return configured
     }
 
     fun configureDnsPorts(ports: List<Int>) {

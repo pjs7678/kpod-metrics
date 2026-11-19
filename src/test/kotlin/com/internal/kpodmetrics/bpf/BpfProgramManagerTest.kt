@@ -83,4 +83,33 @@ class BpfProgramManagerTest {
 
         assertEquals(7, fd)
     }
+
+    @Test
+    fun `tracked syscalls are written to the BPF filter map by architecture number`() {
+        val config = MetricsProperties(profile = "comprehensive").resolveProfile()
+        manager = BpfProgramManager(bridge, "/test/bpf", config)
+        every { bridge.openObject(any()) } returns 1L
+        every { bridge.loadObject(any()) } returns 0
+        every { bridge.attachAll(any()) } returns 0
+        every { bridge.getMapFd(any(), "trk_syscalls") } returns 42
+        manager.loadAll()
+
+        val keys = mutableListOf<ByteArray>()
+        every { bridge.mapUpdate(42, capture(keys), any(), any()) } returns Unit
+        val configured = manager.configureTrackedSyscalls(
+            listOf("read", "epoll_wait", "nonexistent"), SyscallTable.ARM64)
+
+        // epoll_wait is aliased to epoll_pwait (22) on arm64; unknown names are skipped
+        assertEquals(listOf("read", "epoll_wait"), configured)
+        val nrs = keys.map { java.nio.ByteBuffer.wrap(it).order(java.nio.ByteOrder.LITTLE_ENDIAN).int }
+        assertEquals(listOf(63, 22), nrs)
+    }
+
+    @Test
+    fun `syscall tables map both ways`() {
+        assertEquals(257, SyscallTable.X86_64.numberOf("openat"))
+        assertEquals("openat", SyscallTable.X86_64.nameOf(257))
+        assertEquals("epoll_pwait", SyscallTable.ARM64.nameOf(SyscallTable.ARM64.numberOf("epoll_wait")!!))
+        assertEquals("syscall_999", SyscallTable.ARM64.nameOf(999))
+    }
 }

@@ -22,8 +22,11 @@ class PodCgroupMapper(
         for ((_, pod) in podProvider.getDiscoveredPods()) {
             val podPath = pathResolver.resolvePodPath(pod.uid, pod.qosClass) ?: continue
             val containerCgroups = pathResolver.listContainerPaths(podPath)
-            val filteredLabels = if (includeLabels.isEmpty()) emptyMap()
-                else pod.labels.filterKeys { it in includeLabels }
+            // Every pod gets every included key ("" when absent): Prometheus requires one tag-key
+            // set per meter name, and Micrometer silently rejects any meter whose keys differ from
+            // the first registration, so a pod with a different label subset lost its metrics.
+            // An empty label value is equivalent to an absent label in PromQL.
+            val filteredLabels = includeLabels.associateWith { pod.labels[it] ?: "" }
             val scrubbedLabels = scrubLabels(filteredLabels)
             for (container in pod.containers) {
                 val matchedCgroup = containerCgroups.find { cg ->
@@ -48,7 +51,7 @@ class PodCgroupMapper(
     private fun scrubLabels(labels: Map<String, String>): Map<String, String> {
         if (scrubLabelValues.isEmpty()) return labels
         return labels.mapValues { (key, value) ->
-            if (scrubLabelValues.any { it.containsMatchIn(key) }) {
+            if (value.isNotEmpty() && scrubLabelValues.any { it.containsMatchIn(key) }) {
                 REDACTED
             } else {
                 value

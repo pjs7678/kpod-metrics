@@ -2,6 +2,8 @@ package com.internal.kpodmetrics.k8s
 
 import com.internal.kpodmetrics.bpf.CgroupResolver
 import com.internal.kpodmetrics.bpf.PodInfo
+import com.internal.kpodmetrics.cgroup.CgroupPathResolver
+import com.internal.kpodmetrics.model.CgroupVersion
 import com.internal.kpodmetrics.config.FilterProperties
 import com.internal.kpodmetrics.config.MetricsProperties
 import com.internal.kpodmetrics.discovery.PodProvider
@@ -26,7 +28,8 @@ class PodWatcher(
     private val kubernetesClient: KubernetesClient,
     private val cgroupResolver: CgroupResolver,
     private val properties: MetricsProperties,
-    private val registry: MeterRegistry? = null
+    private val registry: MeterRegistry? = null,
+    private val pathResolver: CgroupPathResolver? = null
 ) : PodProvider {
     private val log = LoggerFactory.getLogger(PodWatcher::class.java)
     private var watch: Watch? = null
@@ -73,6 +76,11 @@ class PodWatcher(
             }
         }
         log.info("Initial pod scan complete: {} pods found, {} containers registered", pods.size, registered)
+        if (registered == 0 && pods.any { !it.status?.containerStatuses.isNullOrEmpty() }) {
+            log.warn("No container cgroup IDs resolved for {} running pods: BPF metrics cannot be attributed " +
+                "to pods. Check that the host cgroup v2 tree is mounted at kpod.cgroup.root ({}) and that " +
+                "container directories exist under its kubepods hierarchy.", pods.size, properties.cgroup.root)
+        }
 
         // Watch for changes
         watch = kubernetesClient.pods()
@@ -140,9 +148,10 @@ class PodWatcher(
     private fun registerPod(pod: Pod): Int {
         val podInfos = extractPodInfos(pod)
         val podUid = pod.metadata?.uid
+        val qos = toDiscoveredPod(pod)?.qosClass
         var count = 0
         for (info in podInfos) {
-            val cgroupId = resolveCgroupId(info) ?: continue
+            val cgroupId = resolveCgroupId(info, qos) ?: continue
             cgroupResolver.register(cgroupId, info)
             if (podUid != null) {
                 podCgroupIds.getOrPut(podUid) { ConcurrentHashMap.newKeySet() }.add(cgroupId)
@@ -166,17 +175,29 @@ class PodWatcher(
     }
 
     /**
-     * Resolves the cgroup ID (inode number of the cgroupfs directory) for a container.
+     * Resolves the cgroup ID for a container: the inode number of its cgroup v2 directory, which
+     * is what bpf_get_current_cgroup_id() returns.
      *
-     * Scans /host/proc/<pid>/cgroup (or /proc/<pid>/cgroup when not in a container) to find
-     * a process belonging to the given container ID, then stats the corresponding cgroupfs
-     * directory to obtain its inode number, which is the value returned by bpf_get_current_cgroup_id().
+     * Primary: locate the container directory under the *host* cgroup root (kpod.cgroup.root,
+     * /host/sys/fs/cgroup) with the same resolver the cgroup-file collectors use, and stat it.
+     *
+     * The previous approach (scan every /host/proc/<pid>/cgroup for the container ID, then stat
+     * the path under the container's own /sys/fs/cgroup) resolved nothing whenever the agent ran
+     * in a private cgroup namespace — the default for containerd and Docker on cgroup v2: the
+     * /proc path is relative to the reader's namespace ("/../../kubepods/...") and the agent's
+     * /sys/fs/cgroup is its own subtree. Every BPF metric was then silently dropped. It also read
+     * every process's cgroup file per container. It remains only as a fallback.
      */
-    internal fun resolveCgroupId(podInfo: PodInfo): Long? {
+    internal fun resolveCgroupId(podInfo: PodInfo, qos: QosClass? = null): Long? {
         val containerId = podInfo.containerId
         if (containerId.isBlank()) return null
 
         containerCgroupCache[containerId]?.let { return it }
+
+        resolveViaCgroupFs(podInfo, qos)?.let { inode ->
+            containerCgroupCache[containerId] = inode
+            return inode
+        }
 
         // Try /host/proc first (mounted from host in DaemonSet), fall back to /proc
         val procDir = sequenceOf(Path.of("/host/proc"), Path.of("/proc"))
@@ -198,16 +219,14 @@ class PodWatcher(
 
                     if (!content.contains(containerId)) continue
 
-                    // Found a process in this container; extract the cgroup path
+                    // Found a process in this container; extract the cgroup path. A path with ".."
+                    // is relative to our own cgroup namespace and cannot be located reliably.
                     val cgroupPath = parseCgroupPathFromProc(content) ?: continue
-                    val fullPath = Path.of("/sys/fs/cgroup").resolve(cgroupPath.removePrefix("/"))
+                    if (cgroupPath.contains("..")) continue
+                    val fullPath = Path.of(properties.cgroup.root).resolve(cgroupPath.removePrefix("/"))
                     if (!Files.isDirectory(fullPath)) continue
 
-                    val attrs = Files.readAttributes(fullPath, BasicFileAttributes::class.java)
-                    val fileKey = attrs.fileKey()?.toString() ?: return null
-                    // fileKey format: "(dev=XXX,ino=YYY)"
-                    val inoMatch = Regex("ino=(\\d+)").find(fileKey)
-                    val inode = inoMatch?.groupValues?.get(1)?.toLongOrNull()
+                    val inode = inodeOf(fullPath)
                     if (inode != null) {
                         log.debug(
                             "Resolved cgroup ID {} for container {} (pod {}/{})",
@@ -222,6 +241,30 @@ class PodWatcher(
             log.debug("Failed to resolve cgroup ID for container {}: {}", containerId, e.message)
         }
         return null
+    }
+
+    private fun resolveViaCgroupFs(podInfo: PodInfo, qos: QosClass?): Long? {
+        val resolver = pathResolver ?: return null
+        if (resolver.version != CgroupVersion.V2) return null // BPF cgroup ids are v2 ids
+        val classes = listOfNotNull(qos) + QosClass.entries.filter { it != qos }
+        for (q in classes) {
+            val podPath = resolver.resolvePodPath(podInfo.podUid, q) ?: continue
+            val match = resolver.listContainerPaths(podPath).firstOrNull { cg ->
+                cg.containerId == podInfo.containerId ||
+                    podInfo.containerId.startsWith(cg.containerId) ||
+                    cg.containerId.startsWith(podInfo.containerId)
+            } ?: continue
+            return inodeOf(Path.of(match.path))
+        }
+        return null
+    }
+
+    private fun inodeOf(path: Path): Long? = try {
+        // fileKey format: "(dev=XXX,ino=YYY)"
+        val key = Files.readAttributes(path, BasicFileAttributes::class.java).fileKey()?.toString()
+        key?.let { Regex("ino=(\\d+)").find(it)?.groupValues?.get(1)?.toLongOrNull() }
+    } catch (_: Exception) {
+        null
     }
 
     private fun updateRestartGauges(pod: DiscoveredPod) {

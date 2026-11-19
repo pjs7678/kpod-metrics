@@ -130,4 +130,40 @@ class PodCgroupMapperTest {
         assertEquals(1, targets.size)
         assertEquals("app", targets[0].containerName)
     }
+
+    @Test
+    fun `pods with different label subsets get identical tag keys and all register in Prometheus`() {
+        val pods = listOf(
+            Triple("aaaaaaaa-0000-0000-0000-000000000001", "c1", mapOf("app" to "web")),
+            Triple("aaaaaaaa-0000-0000-0000-000000000002", "c2",
+                mapOf("app" to "op", "app.kubernetes.io/name" to "operator", "app.kubernetes.io/component" to "ctl")),
+            Triple("aaaaaaaa-0000-0000-0000-000000000003", "c3", emptyMap()),
+        )
+        for ((uid, cid, _) in pods) {
+            val podDir = tempDir.resolve("kubepods.slice/kubepods-burstable.slice/kubepods-burstable-pod${uid.replace("-", "_")}.slice")
+            podDir.createDirectories()
+            podDir.resolve("cri-containerd-$cid.scope").createDirectories()
+        }
+        val resolver = CgroupPathResolver(tempDir.toString(), CgroupVersion.V2)
+        val provider = object : PodProvider {
+            override fun getDiscoveredPods(): Map<String, DiscoveredPod> = pods.associate { (uid, cid, labels) ->
+                uid to DiscoveredPod(uid, "pod-$cid", "default", QosClass.BURSTABLE,
+                    listOf(ContainerInfo("main", cid)), labels = labels)
+            }
+        }
+        val mapper = PodCgroupMapper(provider, resolver, "n",
+            includeLabels = listOf("app", "app.kubernetes.io/name", "app.kubernetes.io/component"),
+            scrubLabelValues = listOf(Regex(".*component.*")))
+        val targets = mapper.resolve()
+        assertEquals(3, targets.size)
+        val keySets = targets.map { t -> t.tags().map { it.key }.toSet() }.toSet()
+        assertEquals(1, keySets.size, "one tag-key set across pods: $keySets")
+        // absent label stays empty (not REDACTED) even when its key matches a scrub pattern
+        assertEquals("", targets.first { it.podName == "pod-c3" }.labels["app.kubernetes.io/component"])
+
+        val prom = io.micrometer.prometheusmetrics.PrometheusMeterRegistry(io.micrometer.prometheusmetrics.PrometheusConfig.DEFAULT)
+        targets.forEach { prom.counter("kpod.test.bytes", it.tags()).increment() }
+        val text = prom.scrape()
+        for (p in listOf("pod-c1", "pod-c2", "pod-c3")) assertTrue(text.contains("pod=\"$p\""), "$p exported:\n$text")
+    }
 }

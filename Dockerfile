@@ -77,6 +77,16 @@ RUN BPF_ARCH=$(cat /tmp/bpf_arch) && \
     done && \
     if [ -n "$FAILED" ]; then echo "WARNING: legacy build failed for:${FAILED}"; fi
 
+# A program may fail one variant (kernel-header differences), but one that builds in neither
+# would ship an image that silently lacks the feature (http once did, unnoticed). Fail instead.
+RUN MISSING="" && \
+    for f in /build/bpf/*.bpf.c; do \
+      name=$(basename "$f" .bpf.c); \
+      [ -f "/build/bpf/core/${name}.bpf.o" ] || [ -f "/build/bpf/legacy/${name}.bpf.o" ] || \
+        MISSING="${MISSING} ${name}"; \
+    done && \
+    if [ -n "$MISSING" ]; then echo "ERROR: BPF programs failed in both CO-RE and legacy builds:${MISSING}"; exit 1; fi
+
 # Stage 3: Build JNI native library
 FROM ubuntu:24.04 AS jni-builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -117,7 +127,11 @@ COPY --from=jni-builder /build/jni/build/libkpod_bpf.so /app/lib/
 COPY --from=jni-builder /runtime-libs/* /app/lib/
 COPY --from=app-builder /build/build/libs/*.jar /app/kpod-metrics.jar
 
-ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+UseG1GC -Xss256k"
+# Heap is 45% of the memory limit, not 75%: the rest of the limit also has to hold Metaspace
+# (~80 MiB for this Spring Boot app), code cache, thread stacks, libbpf buffers, and the
+# kernel memory of the BPF maps, which is charged to this container's cgroup (~75 MiB with
+# the comprehensive profile). At 75% the agent was OOMKilled within minutes.
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=45 -XX:+UseG1GC -Xss256k"
 ENV LD_LIBRARY_PATH=/app/lib
 
 EXPOSE 9090
@@ -125,4 +139,8 @@ EXPOSE 9090
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:9090/actuator/health || exit 1
 
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -Djava.library.path=/app/lib -jar /app/kpod-metrics.jar"]
+# exec: the JVM must be PID 1 to receive SIGTERM (graceful shutdown, BPF cleanup).
+# -XX:MaxRAM from KPOD_MEMORY_LIMIT_BYTES (downward API): the JVM cannot always see the
+# container limit itself, e.g. when the runtime shares the host cgroup namespace (Docker /
+# cri-dockerd), where it sized the heap from host RAM.
+ENTRYPOINT ["sh", "-c", "exec java ${KPOD_MEMORY_LIMIT_BYTES:+-XX:MaxRAM=$KPOD_MEMORY_LIMIT_BYTES} $JAVA_OPTS -Djava.library.path=/app/lib -jar /app/kpod-metrics.jar"]

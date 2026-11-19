@@ -15,14 +15,18 @@ resources:
     memory: 256Mi
   limits:
     cpu: 500m
+    # The JVM heap is sized at 45% of this (KPOD_MEMORY_LIMIT_BYTES). The rest covers Metaspace,
+    # native memory and the BPF maps' kernel memory, which is charged to this container. Raise
+    # it on nodes with many CPUs (per-CPU maps) or when enabling the comprehensive profile on busy
+    # nodes; watch container_memory_working_set_bytes for the kpod pods.
     memory: 512Mi
 
 updateStrategy:
   maxUnavailable: 1
 
 extraEnv: []
-# - name: JAVA_OPTS
-#   value: "-Xmx384m"
+# - name: JAVA_OPTS   # replaces the image default; keep the heap well under the limit
+#   value: "-XX:MaxRAMPercentage=45 -XX:+UseG1GC -Xss256k"
 
 probes:
   startup:
@@ -59,7 +63,10 @@ podSecurityContext:
 
 securityContext:
   # Set to true for kind/minikube or environments without proper seccomp profiles.
-  # In production, false + BPF/PERFMON capabilities is preferred.
+  # In production, false + BPF/PERFMON capabilities is preferred, but it needs
+  # kernel.perf_event_paranoid <= 2 on the nodes: Ubuntu/Debian kernels default to 4, where
+  # attaching kprobes/tracepoints requires CAP_SYS_ADMIN and every program fails with
+  # "Permission denied" (see KpodBpfProgramsFailed / /actuator/kpodDiagnostics).
   privileged: false
   allowPrivilegeEscalation: false
   # seccompProfile:
@@ -71,6 +78,13 @@ pdb:
 
 networkPolicy:
   enabled: true
+  # Ports of the API server *endpoints* (after Service DNAT), not the Service's 443. If pod
+  # discovery fails with "Connection refused", check:
+  #   kubectl get endpointslices -l kubernetes.io/service-name=kubernetes
+  apiServerPorts: [443, 6443]
+  # Additional egress rules (NetworkPolicyEgressRule list), e.g. an OTLP collector on a
+  # non-default port.
+  extraEgress: []
 
 grafana:
   dashboard:

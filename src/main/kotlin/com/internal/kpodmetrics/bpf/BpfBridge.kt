@@ -137,7 +137,10 @@ class BpfBridge {
             // Batch not supported, fall back to legacy path
             return legacyLookupAndDelete(mapFd, keySize, valueSize)
         }
-        if (count <= 0) return emptyList()
+        // A failed drain used to look exactly like an empty map; surface it so the collector's
+        // error metrics and diagnostics show it.
+        if (count < 0) throw BpfMapException("BPF map batch lookup-and-delete failed on fd $mapFd: errno ${-count}")
+        if (count == 0) return emptyList()
 
         val results = ArrayList<Pair<ByteArray, ByteArray>>(count)
         for (i in 0 until count) {

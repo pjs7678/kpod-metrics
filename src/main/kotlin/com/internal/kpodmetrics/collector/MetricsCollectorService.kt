@@ -19,6 +19,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 class MetricsCollectorService(
@@ -66,6 +67,11 @@ class MetricsCollectorService(
     private val shuttingDown = AtomicBoolean(false)
     private val collecting = AtomicBoolean(false)
     private val firstRun = AtomicBoolean(true)
+    // Strongly held: Micrometer gauges reference their state weakly. Gauging a boxed Int
+    // (the old code) exported NaN once it was collected, and never changed before that.
+    private val discoveredTargets = AtomicInteger(0).also {
+        registry?.gauge("kpod.discovery.pods.total", it)
+    }
     private val cycleTimer: Timer? = registry?.timer("kpod.collection.cycle.duration")
     private val timeoutCounter: Counter? = registry?.counter("kpod.collection.timeouts.total")
     private val collectorTimers = ConcurrentHashMap<String, Timer>()
@@ -224,7 +230,7 @@ class MetricsCollectorService(
             emptyList()
         }
 
-        registry?.gauge("kpod.discovery.pods.total", targets.size)
+        discoveredTargets.set(targets.size)
 
         val allCgroupCollectors = listOfNotNull(
             diskIOCollector?.let { "diskIO" to { it.collect(targets) } },

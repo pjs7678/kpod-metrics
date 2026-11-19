@@ -13,7 +13,7 @@ data class ContainerCgroup(
 
 class CgroupPathResolver(
     private val cgroupRoot: String,
-    private val version: CgroupVersion
+    val version: CgroupVersion
 ) {
     fun resolvePodPath(podUid: String, qosClass: QosClass, subsystem: String? = null): String? {
         val path = when (version) {
