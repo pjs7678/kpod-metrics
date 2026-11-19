@@ -16,20 +16,22 @@ import java.util.concurrent.TimeUnit
 /**
  * Exports the kernel's per-event log2 latency histograms as real Prometheus histograms.
  *
- * The BPF programs bucket every event into `slots[log2(ns)]` (27 slots, see histSlot in
- * kotlin-ebpf-dsl: slot s holds values in [2^s, 2^(s+1)) ns, slot 0 also holds 0..1 ns, and
- * the last slot is a clamp for everything >= 2^26 ns ≈ 67 ms). Collectors drain the maps
- * every cycle, so each observation here is a per-cycle delta that is accumulated into
- * monotonic bucket counters.
+ * The BPF programs bucket every event into `slots[log2(ns >> SLOT_SHIFT)]` (27 slots, see
+ * histSlot in kotlin-ebpf-dsl and HIST_SLOT_SHIFT in the BPF generator): slot s holds values in
+ * [2^(s+SHIFT), 2^(s+1+SHIFT)) ns, slot 0 also holds everything below 2^(1+SHIFT) ns ≈ 2 µs,
+ * and slot 26 is a clamp for everything >= 2^36 ns ≈ 68.7 s. Collectors drain the maps every
+ * cycle, so each observation here is a per-cycle delta that is accumulated into monotonic
+ * bucket counters.
  *
  * Why not Micrometer DistributionSummary + publishPercentileHistogram: Micrometer has no
  * "record N events" API, so we could only record one aggregate per cycle — percentiles over
  * per-cycle averages are meaningless — or call record() once per kernel event (millions per
  * cycle for runqueue latency). Writing the kernel buckets directly is exact and O(slots).
  *
- * Bucket bounds are exact slot edges: `le = 2^(s+1) ns`. The clamp slot only feeds `+Inf`,
- * so histogram_quantile never reports a fabricated value above 67 ms (it reports 67 ms,
- * i.e. "at least"), which is the honest answer the kernel data supports.
+ * Bucket bounds are exact slot edges: `le = 2^(s+1+SHIFT) ns`. Each spec exports edges up to its
+ * own [Spec.lastSlot]; slots above it (including the kernel clamp slot) only feed `+Inf`, so
+ * histogram_quantile never reports a fabricated value above the last edge — it reports the
+ * last edge, i.e. "at least this much", which is the honest answer the data supports.
  *
  * Exposition: registered on the Prometheus client registry as a MultiCollector, giving
  * `<name>_bucket{le}`, `<name>_count` (= events), `<name>_sum` (= total seconds).
@@ -42,24 +44,27 @@ class Log2Histograms(private val otlpRegistry: MeterRegistry? = null) : MultiCol
      * @param name Prometheus base name, must end in `_seconds`.
      * @param firstSlot first slot whose upper edge becomes a bucket; lower slots merge into it.
      * @param stride emit every n-th slot edge (coarser buckets, fewer series).
+     * @param lastSlot last slot whose upper edge becomes a finite bucket; higher slots only
+     *   reach `+Inf`. Lower it to drop edges a signal never realistically needs.
      */
     class Spec(
         val name: String,
         val help: String,
         val firstSlot: Int,
         val stride: Int = 1,
+        val lastSlot: Int = LAST_FINITE_SLOT,
         val otlpName: String
     ) {
         init {
             require(name.endsWith("_seconds")) { "histogram name must end in _seconds: $name" }
-            require(firstSlot in 0..LAST_FINITE_SLOT && stride >= 1)
+            require(lastSlot in 0..LAST_FINITE_SLOT && firstSlot in 0..lastSlot && stride >= 1)
         }
 
-        /** Slot indices whose upper edge is a finite `le`. Always ends at the last finite slot. */
+        /** Slot indices whose upper edge is a finite `le`. Always ends at [lastSlot]. */
         val edgeSlots: IntArray = buildList {
             var s = firstSlot
-            while (s < LAST_FINITE_SLOT) { add(s); s += stride }
-            add(LAST_FINITE_SLOT)
+            while (s < lastSlot) { add(s); s += stride }
+            add(lastSlot)
         }.toIntArray()
 
         /** Finite upper bounds in seconds, followed by +Inf. */
@@ -163,10 +168,12 @@ class Log2Histograms(private val otlpRegistry: MeterRegistry? = null) : MultiCol
 
     companion object {
         const val SLOTS = 27
-        /** The last slot (26) is a clamp for >= 2^26 ns; slot 25 is the last with a real edge. */
+        /** Slots are computed on `ns >> SLOT_SHIFT`. Must equal HIST_SLOT_SHIFT in the BPF generator. */
+        const val SLOT_SHIFT = 10
+        /** The last slot (26) is a clamp for >= 2^36 ns; slot 25 is the last with a real edge. */
         const val LAST_FINITE_SLOT = SLOTS - 2
 
-        fun slotUpperEdgeNs(slot: Int): Double = Math.scalb(1.0, slot + 1)
+        fun slotUpperEdgeNs(slot: Int): Double = Math.scalb(1.0, slot + 1 + SLOT_SHIFT)
 
         /** Cumulative counts per bucket of [spec] (finite edges, then +Inf). */
         internal fun cumulativeBuckets(spec: Spec, slots: LongArray): LongArray {
@@ -193,23 +200,24 @@ class Log2Histograms(private val otlpRegistry: MeterRegistry? = null) : MultiCol
             return Labels.of(names, values)
         }
 
-        // Specs for the BPF histograms. firstSlot/stride chosen per domain to keep series low:
-        // values below the first edge are still counted (merged into the first bucket).
+        // Specs for the BPF histograms. Edge of slot s = 2^(s+11) ns. first/last/stride are chosen
+        // per domain to keep series low: values below the first edge merge into the first
+        // bucket, values above the last edge only reach +Inf.
         val RUNQUEUE = Spec(
             "kpod_cpu_runqueue_latency_seconds", "Time tasks waited in the CPU run queue (per event, eBPF)",
-            firstSlot = 9, otlpName = "kpod.cpu.runqueue.latency" // first edge 2^10 ns ≈ 1 µs
+            firstSlot = 0, lastSlot = 21, otlpName = "kpod.cpu.runqueue.latency" // 2 µs .. 4.3 s, 22 edges
         )
         val TCP_RTT = Spec(
             "kpod_net_tcp_rtt_seconds", "Smoothed TCP round-trip time per tcp_probe event (eBPF)",
-            firstSlot = 13, otlpName = "kpod.net.tcp.rtt" // first edge 2^14 ns ≈ 16 µs (srtt has µs resolution)
+            firstSlot = 3, lastSlot = 22, otlpName = "kpod.net.tcp.rtt" // 16 µs .. 8.6 s (srtt has µs resolution)
         )
         val SYSCALL = Spec(
             "kpod_syscall_latency_seconds", "Syscall latency per call (eBPF)",
-            firstSlot = 9, stride = 2, otlpName = "kpod.syscall.latency" // x4 buckets: multiplied by syscall label
+            firstSlot = 0, stride = 2, lastSlot = 24, otlpName = "kpod.syscall.latency" // 2 µs .. 34 s, x4: 13 edges (× syscall label)
         )
         val DISK_IO = Spec(
             "kpod_disk_io_latency_seconds", "Block I/O latency per request, issue to completion (eBPF)",
-            firstSlot = 13, otlpName = "kpod.disk.io.latency" // first edge ≈ 16 µs
+            firstSlot = 3, lastSlot = 24, otlpName = "kpod.disk.io.latency" // 16 µs .. 34 s
         )
     }
 }

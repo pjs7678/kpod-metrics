@@ -88,12 +88,12 @@ val cpuSchedProgram = ebpf("cpu_sched") {
             }
             val hval = runqLatency.lookup(hkey)
             ifNonNull(hval) { he ->
-                val slot = declareVar("slot", histSlot(deltaNs, 27))
+                val slot = declareVar("slot", histSlot(histUnits(deltaNs), 27))
                 he[HistValue.slots].at(slot).atomicAdd(literal(1u, BpfScalar.U64))
                 he[HistValue.count].atomicAdd(literal(1u, BpfScalar.U64))
                 he[HistValue.sumNs].atomicAdd(deltaNs)
             }.elseThen {
-                val slot2 = declareVar("slot2", histSlot(deltaNs, 27))
+                val slot2 = declareVar("slot2", histSlot(histUnits(deltaNs), 27))
                 val newHval = stackVar(HistValue) {
                     it[HistValue.count] = literal(1u, BpfScalar.U64)
                     it[HistValue.sumNs] = deltaNs

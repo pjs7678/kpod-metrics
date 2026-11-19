@@ -95,8 +95,9 @@ All metrics are labeled with `namespace`, `pod`, `container`, and `node`.
 **Latency histograms.** The four `Histogram` metrics above are exported from the kernel's own per-event
 log2 buckets as native Prometheus histograms (`_bucket{le}`, `_count` = events, `_sum` = seconds), so
 `histogram_quantile()` and the `kpod:*:p50/p90/p99` recording rules work. Bucket edges are exact powers
-of two in nanoseconds (≈1 µs … 67 ms); interpolation within a factor-2 bucket bounds quantile error.
-Events slower than 2^26 ns (≈67 ms) land only in `+Inf`, so a reported p99 of 67 ms means "≥ 67 ms".
+of two in nanoseconds (≈2 µs up to 4.3 s for runqueue, 8.6 s for TCP RTT, 34 s for syscall and disk IO);
+interpolation within a factor-2 bucket bounds quantile error. Slower events land only in `+Inf`, so a
+reported p99 equal to the top edge means "at least that".
 Other latency metrics (`kpod.http.*`, `kpod.dns.latency`, L7, IRQ) are summaries: use `_sum / _count`.
 
 ### Cgroup Metrics

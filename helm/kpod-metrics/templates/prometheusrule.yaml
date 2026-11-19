@@ -72,8 +72,8 @@ spec:
     - name: kpod-metrics
       rules:
         - alert: KpodHighRunqueueLatency
-          # Seconds. The kernel histogram's last finite bucket is 2^26 ns (~67 ms), so thresholds
-          # must stay below that or the alert can never fire.
+          # Seconds. Bucket edges are powers of two (2^(s+11) ns); the last finite edge is 2^32 ns
+          # (~4.3 s), so thresholds must stay below that or the alert can never fire.
           expr: histogram_quantile(0.99, sum by (le, pod, namespace) (rate(kpod_cpu_runqueue_latency_seconds_bucket[5m]))) > 0.05
           for: 5m
           labels:
