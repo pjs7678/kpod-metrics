@@ -18,6 +18,7 @@ class NetworkCollectorTest {
     private lateinit var cgroupResolver: CgroupResolver
     private lateinit var registry: MeterRegistry
     private lateinit var collector: NetworkCollector
+    private lateinit var histograms: Log2Histograms
 
     @BeforeEach
     fun setup() {
@@ -32,7 +33,8 @@ class NetworkCollectorTest {
         ))
 
         val config = MetricsProperties().resolveProfile()
-        collector = NetworkCollector(bridge, programManager, cgroupResolver, registry, config, "test-node")
+        histograms = Log2Histograms()
+        collector = NetworkCollector(bridge, programManager, cgroupResolver, registry, config, "test-node", histograms)
     }
 
     @Test
@@ -48,13 +50,15 @@ class NetworkCollectorTest {
             rttSumUs = 50000, rttCount = 10
         )
         every { bridge.mapBatchLookupAndDelete(10, 8, 48, any()) } returns listOf(keyBytes to valueBytes)
+        every { programManager.getMapFd("net", "rtt_hist") } returns 11
+        every { bridge.mapBatchLookupAndDelete(11, 8, 232, any()) } returns listOf(keyBytes to buildRttHist(slot = 19, count = 10))
 
         collector.collect()
 
         val meters = registry.meters
         assertTrue(meters.any { it.id.name == "kpod.net.tcp.retransmits" })
         assertTrue(meters.any { it.id.name == "kpod.net.tcp.connections" })
-        assertTrue(meters.any { it.id.name == "kpod.net.tcp.rtt" })
+        assertEquals(1, histograms.seriesCount(Log2Histograms.TCP_RTT))
         // bytes.sent/received removed — cAdvisor provides container_network_transmit/receive_bytes_total
         assertFalse(meters.any { it.id.name == "kpod.net.tcp.bytes.sent" })
         assertFalse(meters.any { it.id.name == "kpod.net.tcp.bytes.received" })
@@ -101,7 +105,7 @@ class NetworkCollectorTest {
 
         collector.collect()
 
-        assertTrue(registry.meters.none { it.id.name == "kpod.net.tcp.rtt" })
+        assertEquals(0, histograms.seriesCount(Log2Histograms.TCP_RTT))
         assertTrue(registry.meters.any { it.id.name == "kpod.net.tcp.retransmits" })
     }
 
@@ -114,6 +118,14 @@ class NetworkCollectorTest {
 
         verify(exactly = 0) { programManager.getMapFd(any(), any()) }
         assertTrue(registry.meters.isEmpty())
+    }
+
+    private fun buildRttHist(slot: Int, count: Long): ByteArray {
+        val buf = ByteBuffer.allocate(232).order(ByteOrder.LITTLE_ENDIAN)
+        for (i in 0 until 27) buf.putLong(if (i == slot) count else 0L)
+        buf.putLong(count)
+        buf.putLong(count * (1L shl slot))
+        return buf.array()
     }
 
     private fun buildTcpStatsValue(

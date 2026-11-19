@@ -54,7 +54,7 @@
       },
       "targets": [
         {
-          "expr": "kpod_net_tcp_peer_rtt_seconds{namespace=~\"$namespace\", pod=~\"$pod\"}",
+          "expr": "sum by (pod, remote_ip, remote_port) (rate(kpod_net_tcp_peer_rtt_seconds_sum{namespace=~\"$namespace\", pod=~\"$pod\"}[5m])) / sum by (pod, remote_ip, remote_port) (rate(kpod_net_tcp_peer_rtt_seconds_count{namespace=~\"$namespace\", pod=~\"$pod\"}[5m]))",
           "legendFormat": "{{pod}} → {{remote_ip}}:{{remote_port}}"
         }
       ]

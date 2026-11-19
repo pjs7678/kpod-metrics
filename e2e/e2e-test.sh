@@ -378,9 +378,9 @@ assert_metric_gt_zero \
     "warn"
 
 assert_metric_gt_zero \
-    "kpod_dns_latency_count" \
+    "kpod_dns_latency_seconds_count" \
     "e2e-dns-worker" \
-    "kpod_dns_latency_count{pod=e2e-dns-worker} > 0" \
+    "kpod_dns_latency_seconds_count{pod=e2e-dns-worker} > 0" \
     "warn"
 
 # Check for NXDOMAIN errors (nonexistent.example.com should trigger rcode=3)

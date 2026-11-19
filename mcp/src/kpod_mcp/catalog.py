@@ -73,6 +73,15 @@ def _ratio(num: str, den: str) -> str:
     return f"(sum by ($by) ({num}) / sum by ($by) ({den}))"
 
 
+def _p(q: float, metric: str) -> str:
+    """histogram_quantile over a kernel log2 histogram (exact power-of-two bucket edges)."""
+    return f"histogram_quantile({q}, sum by ($by, le) (rate({metric}_bucket{{$sel}}[$w])))"
+
+
+# Kernel histograms have no finite bucket above 2^26 ns, so quantiles saturate at this value.
+HIST_CAP_S = 2**26 / 1e9
+
+
 def _avg(metric: str, extra: str = "") -> str:
     m = f"{metric}{{$sel{extra}}}"
     return _ratio(f"rate({m.replace('{', '_sum{', 1)}[$w])", f"rate({m.replace('{', '_count{', 1)}[$w])")
@@ -120,6 +129,13 @@ SIGNALS: dict[str, Signal] = {
             "pressure collector, cgroup v2",
         ),
         Signal(
+            "disk_io_p99", "Disk IO latency p99",
+            _p(0.99, "kpod_disk_io_latency_seconds"),
+            "seconds", 0.05,
+            "99th percentile block IO latency, issue→completion. Saturates at 67 ms (means ≥ 67 ms).",
+            "biolatency collector (comprehensive profile)",
+        ),
+        Signal(
             "io_pressure", "IO stall (PSI some)",
             'sum by ($by) (rate(kpod_pressure_stall_seconds_total{$sel, resource="io", kind="some"}[$w]))',
             "ratio", 0.1, "Fraction of wall time stalled on block IO.", "pressure collector, cgroup v2",
@@ -130,6 +146,14 @@ SIGNALS: dict[str, Signal] = {
             "s_per_s", 0.1,
             "Seconds spent runnable-but-not-running per second (eBPF sched_switch). Approximates CPU contention "
             "from noisy neighbours.",
+            "cpu (eBPF) collector",
+        ),
+        Signal(
+            "runqueue_p99", "Runqueue latency p99",
+            _p(0.99, "kpod_cpu_runqueue_latency_seconds"),
+            "seconds", 0.01,
+            "99th percentile of per-event run-queue wait (eBPF). >10 ms = CPU contention or throttling "
+            "adding visible latency. Saturates at 67 ms (means ≥ 67 ms).",
             "cpu (eBPF) collector",
         ),
         Signal(
@@ -163,6 +187,13 @@ SIGNALS: dict[str, Signal] = {
             "tcp_rtt", "TCP RTT (avg)",
             _avg("kpod_net_tcp_rtt_seconds"),
             "seconds", 0.05, "Smoothed RTT averaged across connections.", "network collector",
+        ),
+        Signal(
+            "tcp_rtt_p99", "TCP RTT p99",
+            _p(0.99, "kpod_net_tcp_rtt_seconds"),
+            "seconds", 0.05,
+            "99th percentile smoothed RTT per tcp_probe event. Saturates at 67 ms (means ≥ 67 ms).",
+            "network collector",
         ),
         Signal(
             "net_rx", "Network RX",
@@ -238,19 +269,19 @@ SIGNALS: dict[str, Signal] = {
 
 # Signals shown in the cluster overview: the ones with a meaningful "unhealthy" threshold.
 OVERVIEW_SIGNALS = [
-    "cpu_throttling", "cpu_pressure", "cpu_limit_utilization", "runqueue_wait",
+    "cpu_throttling", "cpu_pressure", "cpu_limit_utilization", "runqueue_p99",
     "memory_limit_utilization", "memory_pressure", "io_pressure",
-    "tcp_retransmits", "tcp_drops", "http_error_ratio", "http_latency",
+    "tcp_retransmits", "tcp_drops", "tcp_rtt_p99", "disk_io_p99", "http_error_ratio", "http_latency",
     "dns_errors", "redis_error_ratio", "mysql_error_ratio", "kafka_error_ratio", "mongo_error_ratio",
     "restarts",
 ]
 
 # Signals in a single-pod report, grouped.
 POD_REPORT_GROUPS: list[tuple[str, list[str]]] = [
-    ("CPU", ["cpu_usage", "cpu_limit_utilization", "cpu_throttling", "cpu_pressure", "runqueue_wait"]),
+    ("CPU", ["cpu_usage", "cpu_limit_utilization", "cpu_throttling", "cpu_pressure", "runqueue_wait", "runqueue_p99"]),
     ("Memory", ["memory_rss", "memory_usage", "memory_limit_utilization", "memory_pressure"]),
-    ("Disk", ["disk_read", "disk_write", "io_pressure"]),
-    ("Network", ["net_rx", "net_tx", "tcp_retransmits", "tcp_drops", "tcp_rtt"]),
+    ("Disk", ["disk_read", "disk_write", "io_pressure", "disk_io_p99"]),
+    ("Network", ["net_rx", "net_tx", "tcp_retransmits", "tcp_drops", "tcp_rtt", "tcp_rtt_p99"]),
     ("Protocols", [
         "http_rps", "http_error_ratio", "http_latency", "dns_errors", "dns_latency",
         "redis_error_ratio", "redis_latency", "mysql_error_ratio", "mysql_latency",
@@ -276,9 +307,8 @@ METRICS: list[tuple[str, str, str, str]] = [
     ("kpod_cpu_throttled_periods_total", "counter", "", "CFS periods throttled."),
     ("kpod_cpu_periods_total", "counter", "", "CFS periods elapsed."),
     ("kpod_cpu_limit_cores", "gauge", "", "CPU limit; absent if unlimited."),
-    ("kpod_cpu_runqueue_latency_seconds_{sum,count,max}", "summary", "",
-     "eBPF runqueue wait. Each sample = total wait of one collection cycle, so rate(_sum) = wait s/s; "
-     "_sum/_count is NOT per-event latency. No _bucket series."),
+    ("kpod_cpu_runqueue_latency_seconds_{bucket,sum,count}", "histogram", "le",
+     "eBPF run-queue wait per event. histogram_quantile works; rate(_sum) = wait seconds per second."),
     ("kpod_cpu_context_switches_total", "counter", "", "Context switches."),
     ("kpod_pressure_stall_seconds_total", "counter", "resource=cpu|memory|io, kind=some|full",
      "PSI stall time. rate() = stalled fraction of wall time."),
@@ -287,10 +317,10 @@ METRICS: list[tuple[str, str, str, str]] = [
     ("kpod_mem_cgroup_limit_bytes", "gauge", "", "Memory limit; absent if unlimited."),
     ("kpod_mem_cgroup_{peak,cache,swap}_bytes", "gauge", "", "Peak / page cache / swap."),
     ("kpod_disk_{read,written}_bytes_total, kpod_disk_{reads,writes}_total", "counter", "device", "cgroup io.stat."),
-    ("kpod_disk_io_latency_seconds_{sum,count,max}", "summary", "", "eBPF block IO latency (comprehensive profile)."),
+    ("kpod_disk_io_latency_seconds_{bucket,sum,count}", "histogram", "le", "eBPF block IO latency per request (comprehensive profile)."),
     ("kpod_net_iface_{rx,tx}_{bytes,packets,errors,drops}_total", "counter", "interface", "Pod netns /proc/net/dev."),
     ("kpod_net_tcp_{retransmits,connections,drops}_total", "counter", "", "eBPF TCP events."),
-    ("kpod_net_tcp_rtt_seconds_{sum,count,max}", "summary", "", "Per-cycle average smoothed RTT."),
+    ("kpod_net_tcp_rtt_seconds_{bucket,sum,count}", "histogram", "le", "Smoothed RTT per tcp_probe event."),
     ("kpod_net_tcp_peer_connections_total", "counter", "remote_ip, remote_port, remote_pod, remote_service",
      "Outbound connections per peer — the service dependency graph."),
     ("kpod_net_tcp_peer_rtt_seconds_{sum,count,max}", "summary", "remote_*", "RTT per peer."),
@@ -305,6 +335,7 @@ METRICS: list[tuple[str, str, str, str]] = [
     ("kpod_dns_latency_seconds_{sum,count,max}", "summary", "", "DNS latency."),
     ("kpod_dns_top_domains_total", "counter", "domain", "Queried domains (capped)."),
     ("kpod_syscall_{count,errors}_total", "counter", "syscall", "Comprehensive profile."),
+    ("kpod_syscall_latency_seconds_{bucket,sum,count}", "histogram", "syscall, le", "Per-call latency (x4 buckets)."),
     ("kpod_proc_{execs,forks,exits}_total", "counter", "", "Process lifecycle (eBPF)."),
     ("kpod_container_restarts", "gauge", "", "Restart count from the Kubernetes API."),
     ("kpod_container_application", "gauge (=1)", "application", "Detected software (postgres, redis, java, ...)."),

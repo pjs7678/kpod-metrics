@@ -415,8 +415,11 @@ def catalog(search: str | None) -> str:
         "# kpod-metrics catalog",
         f"Common labels on every pod metric: `{COMMON}`. Prometheus Operator without `honorLabels` renames "
         "namespace/pod/container to `exported_*`.",
-        "Latency summaries have **no histogram buckets**: use `rate(x_sum)/rate(x_count)` for a mean; "
-        "`histogram_quantile` will return nothing.",
+        "**Histograms** (runqueue, TCP RTT, syscall, disk IO) come from kernel log2 buckets: "
+        "`histogram_quantile(q, sum by (le, ...) (rate(x_bucket[5m])))` works; edges are powers of two in ns "
+        "and values ≥ 67 ms saturate at 67 ms. **Other latencies** (HTTP, DNS, Redis/MySQL/Kafka/Mongo, IRQ) are "
+        "summaries without buckets: use `rate(x_sum)/rate(x_count)` (mean of per-cycle averages) — "
+        "`histogram_quantile` returns nothing for them.",
         "",
         "## Metrics",
         fmt.table(["Name", "Type", "Extra labels", "Meaning"], rows) if rows else "_No metric matches._",

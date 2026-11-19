@@ -5,7 +5,6 @@ import com.internal.kpodmetrics.bpf.BpfProgramManager
 import com.internal.kpodmetrics.bpf.CgroupResolver
 import com.internal.kpodmetrics.bpf.generated.NetMapReader
 import com.internal.kpodmetrics.config.ResolvedConfig
-import io.micrometer.core.instrument.DistributionSummary
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
 import org.slf4j.LoggerFactory
@@ -16,7 +15,8 @@ class NetworkCollector(
     private val cgroupResolver: CgroupResolver,
     private val registry: MeterRegistry,
     private val config: ResolvedConfig,
-    private val nodeName: String
+    private val nodeName: String,
+    private val histograms: Log2Histograms = Log2Histograms()
 ) {
     private val log = LoggerFactory.getLogger(NetworkCollector::class.java)
 
@@ -27,6 +27,7 @@ class NetworkCollector(
     fun collect() {
         if (config.network.tcp.enabled) {
             collectTcpStats()
+            collectRttHistogram()
         }
     }
 
@@ -40,10 +41,6 @@ class NetworkCollector(
             // container_network_transmit/receive_bytes_total
             val retransmits = NetMapReader.TcpStatsLayout.decodeRetransmits(valueBytes)
             val connections = NetMapReader.TcpStatsLayout.decodeConnections(valueBytes)
-            val rttSumUs = NetMapReader.TcpStatsLayout.decodeRttSumUs(valueBytes)
-            val rttCount = NetMapReader.TcpStatsLayout.decodeRttCount(valueBytes)
-            // Convert RTT from microseconds to nanoseconds for validation
-            if (!BpfValueValidation.isValidLatency(rttCount, rttSumUs * 1000, log, "net_rtt")) return@collectMap
 
             val tags = Tags.of(
                 "namespace", podInfo.namespace,
@@ -54,15 +51,29 @@ class NetworkCollector(
 
             registry.counter("kpod.net.tcp.retransmits", tags).increment(retransmits.toDouble())
             registry.counter("kpod.net.tcp.connections", tags).increment(connections.toDouble())
+        }
+    }
 
-            if (rttCount > 0) {
-                val avgRttSeconds = (rttSumUs.toDouble() / rttCount.toDouble()) / 1_000_000.0
-                DistributionSummary.builder("kpod.net.tcp.rtt")
-                    .tags(tags)
-                    .baseUnit("seconds")
-                    .register(registry)
-                    .record(avgRttSeconds)
-            }
+    /**
+     * RTT distribution from the per-event rtt_hist map (tcp_probe). The tcp_stats rtt_sum/rtt_count
+     * fields carry the same events without buckets, so RTT is exported only from here.
+     */
+    private fun collectRttHistogram() {
+        val mapFd = programManager.getMapFd("net", "rtt_hist")
+        collectMap(mapFd, NetMapReader.HistKeyLayout.SIZE, NetMapReader.HistValueLayout.SIZE) { keyBytes, valueBytes ->
+            val cgroupId = NetMapReader.HistKeyLayout.decodeCgroupId(keyBytes)
+            val podInfo = cgroupResolver.resolve(cgroupId) ?: return@collectMap
+            val count = NetMapReader.HistValueLayout.decodeCount(valueBytes)
+            val sumNs = NetMapReader.HistValueLayout.decodeSumNs(valueBytes)
+            if (!BpfValueValidation.isValidLatency(count, sumNs, log, "net_rtt")) return@collectMap
+
+            val tags = Tags.of(
+                "namespace", podInfo.namespace,
+                "pod", podInfo.podName,
+                "container", podInfo.containerName,
+                "node", nodeName
+            )
+            histograms.observe(Log2Histograms.TCP_RTT, tags, NetMapReader.HistValueLayout.decodeSlotsArray(valueBytes), sumNs)
         }
     }
 

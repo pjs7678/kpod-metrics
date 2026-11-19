@@ -41,7 +41,11 @@ def test_metric_names_use_prometheus_exposition_names():
     q = SIGNALS["http_latency"].promql(Labels(), selector(Labels()), "5m")
     assert "kpod_http_request_duration_seconds_sum" in q and "kpod_http_request_duration_seconds_count" in q
     assert "kpod_cpu_runqueue_latency_seconds_sum" in SIGNALS["runqueue_wait"].template
-    assert "_bucket" not in "".join(s.template for s in SIGNALS.values())
+    # Quantiles only over the four kernel histograms; protocol latencies are summaries without buckets.
+    bucketed = {n for n, s in SIGNALS.items() if "_bucket" in s.template}
+    assert bucketed == {"runqueue_p99", "tcp_rtt_p99", "disk_io_p99"}
+    for n in bucketed:
+        assert "sum by (" in SIGNALS[n].template and ", le)" in SIGNALS[n].template
 
 
 @pytest.mark.parametrize("bad", ['web"}) or vector(1', "Web", "a b", "x" * 300, "-x"])

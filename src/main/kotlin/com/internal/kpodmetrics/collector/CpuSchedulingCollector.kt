@@ -7,7 +7,6 @@ import com.internal.kpodmetrics.bpf.generated.CpuSchedMapReader
 import com.internal.kpodmetrics.config.ResolvedConfig
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
-import io.micrometer.core.instrument.DistributionSummary
 import org.slf4j.LoggerFactory
 
 class CpuSchedulingCollector(
@@ -16,7 +15,8 @@ class CpuSchedulingCollector(
     private val cgroupResolver: CgroupResolver,
     private val registry: MeterRegistry,
     private val config: ResolvedConfig,
-    private val nodeName: String
+    private val nodeName: String,
+    private val histograms: Log2Histograms = Log2Histograms()
 ) {
     private val log = LoggerFactory.getLogger(CpuSchedulingCollector::class.java)
 
@@ -50,11 +50,10 @@ class CpuSchedulingCollector(
                 "node", nodeName
             )
 
-            DistributionSummary.builder("kpod.cpu.runqueue.latency")
-                .tags(tags)
-                .baseUnit("seconds")
-                .register(registry)
-                .record(sumNs.toDouble() / 1_000_000_000.0)
+            histograms.observe(
+                Log2Histograms.RUNQUEUE, tags,
+                CpuSchedMapReader.HistValueLayout.decodeSlotsArray(valueBytes), sumNs
+            )
         }
     }
 

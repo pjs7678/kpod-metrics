@@ -13,6 +13,10 @@ All notable changes to this project will be documented in this file.
 - `kpod-mcp`: MCP server so AI assistants (Claude Code, Claude Desktop, Cursor, ...) can query and diagnose kpod-metrics data — overview, pod report with trends, top-N, dependency graph (Mermaid), PromQL, agent health, plus `diagnose_pod` / `cluster_health` / `rightsize` prompts. Also usable as a terminal CLI.
 
 ### Fixed
+- **Latency percentiles**: runqueue, TCP RTT, syscall and disk IO latency are now real Prometheus histograms built from the kernel's per-event log2 buckets (previously one aggregate sample per 30 s cycle and no `_bucket` series). The `kpod:*:p50/p90/p99` recording rules, `KpodHighRunqueueLatency` and the dashboard percentile panels now return data. `_count`/`_sum` now count events/seconds instead of collection cycles; `_max` is no longer exported for these four. Values ≥ 2^26 ns (~67 ms) only fall into `+Inf`. OTLP receives them as timers (count + total time).
+- Recording rules, dashboards and the e2e test referenced summary series without the `_seconds` unit suffix (e.g. `kpod_cpu_runqueue_latency_count`), leaving the dashboard's namespace/pod/node variables, disk/IRQ latency panels and DNS checks empty
+- `KpodHighRunqueueLatency` compared seconds against `100000000` (never fired); now `> 0.05`
+- TCP peer RTT panel queried a non-existent bare series; now `rate(_sum)/rate(_count)`
 - `kpod.disk.*` and `kpod.net.iface.*` counters re-added the kernel's cumulative totals every cycle, inflating values ~N-fold after N cycles. They now export the cumulative value directly (FunctionCounter).
 - cgroup v1: memory (and new CPU) stats are read from the matching controller hierarchy instead of the blkio path the pod target resolves to
 - Disk and interface meters are now removed when a pod is deleted

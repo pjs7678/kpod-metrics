@@ -190,7 +190,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "kpod_dns_latency_sum{namespace=~\"$namespace\", pod=~\"$pod\"} / kpod_dns_latency_count{namespace=~\"$namespace\", pod=~\"$pod\"}",
+          "expr": "kpod_dns_latency_seconds_sum{namespace=~\"$namespace\", pod=~\"$pod\"} / kpod_dns_latency_seconds_count{namespace=~\"$namespace\", pod=~\"$pod\"}",
           "legendFormat": "{{pod}} avg latency",
           "refId": "A"
         }

@@ -67,20 +67,20 @@ All metrics are labeled with `namespace`, `pod`, `container`, and `node`.
 
 | Metric | Type | Description |
 |--------|------|-------------|
-| `kpod.cpu.runqueue.latency` | DistributionSummary | Time spent waiting in the CPU run queue (seconds) |
+| `kpod.cpu.runqueue.latency` | Histogram | Time spent waiting in the CPU run queue, per event (seconds) |
 | `kpod.cpu.context.switches` | Counter | Context switch count |
 | `kpod.net.tcp.bytes.sent` | Counter | TCP bytes sent |
 | `kpod.net.tcp.bytes.received` | Counter | TCP bytes received |
 | `kpod.net.tcp.retransmits` | Counter | TCP retransmissions |
 | `kpod.net.tcp.connections` | Counter | TCP connection count |
-| `kpod.net.tcp.rtt` | DistributionSummary | TCP round-trip time (seconds) |
+| `kpod.net.tcp.rtt` | Histogram | Smoothed TCP round-trip time, per tcp_probe event (seconds) |
 | `kpod.mem.oom.kills` | Counter | OOM kill events |
 | `kpod.mem.major.page.faults` | Counter | Major page faults |
 | `kpod.syscall.count` | Counter | Syscall invocations (+ `syscall` label) |
 | `kpod.syscall.errors` | Counter | Syscall errors (+ `syscall` label) |
-| `kpod.syscall.latency` | DistributionSummary | Syscall latency (+ `syscall` label) |
+| `kpod.syscall.latency` | Histogram | Syscall latency, per call (+ `syscall` label) |
 | `kpod.net.tcp.drops` | Counter | TCP packet drops |
-| `kpod.disk.io.latency` | DistributionSummary | Block I/O latency (seconds) |
+| `kpod.disk.io.latency` | Histogram | Block I/O latency, per request (seconds) |
 | `kpod.mem.cache.accesses` | Counter | Page cache accesses |
 | `kpod.mem.cache.additions` | Counter | Page cache additions (misses) |
 | `kpod.mem.cache.dirtied` | Counter | Page cache dirty pages |
@@ -91,6 +91,13 @@ All metrics are labeled with `namespace`, `pod`, `container`, and `node`.
 | `kpod.proc.execs` | Counter | Process exec events |
 | `kpod.proc.forks` | Counter | Process fork events |
 | `kpod.proc.exits` | Counter | Process exit events |
+
+**Latency histograms.** The four `Histogram` metrics above are exported from the kernel's own per-event
+log2 buckets as native Prometheus histograms (`_bucket{le}`, `_count` = events, `_sum` = seconds), so
+`histogram_quantile()` and the `kpod:*:p50/p90/p99` recording rules work. Bucket edges are exact powers
+of two in nanoseconds (≈1 µs … 67 ms); interpolation within a factor-2 bucket bounds quantile error.
+Events slower than 2^26 ns (≈67 ms) land only in `+Inf`, so a reported p99 of 67 ms means "≥ 67 ms".
+Other latency metrics (`kpod.http.*`, `kpod.dns.latency`, L7, IRQ) are summaries: use `_sum / _count`.
 
 ### Cgroup Metrics
 

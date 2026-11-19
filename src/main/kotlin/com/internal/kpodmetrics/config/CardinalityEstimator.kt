@@ -1,5 +1,6 @@
 package com.internal.kpodmetrics.config
 
+import com.internal.kpodmetrics.collector.Log2Histograms
 import org.slf4j.LoggerFactory
 
 class CardinalityEstimator(
@@ -31,28 +32,28 @@ class CardinalityEstimator(
     fun estimate(podCount: Int): Estimate {
         val breakdown = mutableMapOf<String, Long>()
 
-        // CPU: runqueue_latency histogram (buckets * pods) + context_switches counter
+        // Histograms from kernel log2 buckets: le buckets (incl. +Inf) + _sum + _count
+        fun histSeries(spec: Log2Histograms.Spec) = spec.upperBounds.size + 2L
+
+        // CPU: runqueue_latency histogram + context_switches counter
         if (config.cpu.scheduling.enabled) {
-            val buckets = config.cpu.scheduling.histogramBuckets.size + 3L // +sum, +count, +inf
-            breakdown["cpu"] = (buckets + 1) * podCount
+            breakdown["cpu"] = (histSeries(Log2Histograms.RUNQUEUE) + 1) * podCount
         }
 
-        // Network: TCP counters (retransmits, connections, bytes, drops) + RTT histogram
+        // Network: TCP counters (retransmits, connections) + RTT histogram
         if (config.network.tcp.enabled) {
-            val rttBuckets = config.network.tcp.rttHistogramBuckets.size + 3L
-            breakdown["network"] = (4 + rttBuckets) * podCount
+            breakdown["network"] = (2 + histSeries(Log2Histograms.TCP_RTT)) * podCount
         }
 
         // Syscall: count + errors + latency histogram per syscall per pod
         if (config.syscall.enabled) {
             val syscallCount = config.syscall.trackedSyscalls.size.toLong().coerceAtLeast(1)
-            val latBuckets = config.syscall.latencyHistogramBuckets.size + 3L
-            breakdown["syscall"] = (2 + latBuckets) * syscallCount * podCount
+            breakdown["syscall"] = (2 + histSeries(Log2Histograms.SYSCALL)) * syscallCount * podCount
         }
 
         // Extended BCC tools: ~2-4 series per pod each
         val ext = config.extended
-        if (ext.biolatency) breakdown["biolatency"] = 2L * podCount
+        if (ext.biolatency) breakdown["biolatency"] = histSeries(Log2Histograms.DISK_IO) * podCount
         if (ext.cachestat) breakdown["cachestat"] = 4L * podCount
         if (ext.tcpdrop) breakdown["tcpdrop"] = 2L * podCount
         if (ext.hardirqs) breakdown["hardirqs"] = 2L * podCount
