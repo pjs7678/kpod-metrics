@@ -11,6 +11,11 @@ object CounterValue : BpfStruct("counter_value") {
     val count by u64()
 }
 
+/** Per-thread key (bpf_get_current_pid_tgid) for kprobe→kretprobe state. */
+object PidTgidKey : BpfStruct("pid_tgid_key") {
+    val pidTgid by u64()
+}
+
 object HistKey : BpfStruct("hist_key") {
     val cgroupId by u64()
 }

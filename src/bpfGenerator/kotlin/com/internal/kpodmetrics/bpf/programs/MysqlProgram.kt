@@ -59,7 +59,8 @@ object MysqlErrKey : BpfStruct("mysql_err_key") {
 
 object MysqlRecvStash : BpfStruct("mysql_rcv_stash") {
     val sockPtr by u64()
-    val msghdrPtr by u64()
+    val iovBase by u64()  // user buffer captured at tcp_recvmsg entry (msg_iter is advanced by return)
+    val iovLen by u64()
     val cgroupId by u64()
     val sockCookie by u64()
 }
@@ -344,7 +345,7 @@ val mysqlProgram = ebpf("mysql") {
     val mysqlLatency by lruHashMap(MysqlLatKey, HistValue, maxEntries = 10240)
     val mysqlInflight by lruHashMap(MysqlInflightKey, MysqlInflightVal, maxEntries = 8192)
     val mysqlErrors by lruHashMap(MysqlErrKey, CounterValue, maxEntries = 10240)
-    val mysqlRcvStash by percpuArray(MysqlRecvStash, maxEntries = 1)
+    val mysqlRcvStash by lruHashMap(PidTgidKey, MysqlRecvStash, maxEntries = 10240)
     val tracingConfig by array(TracingConfig, maxEntries = 1)
     val spanEvents by ringBuf(maxEntries = 262144) // 256KB
 
@@ -452,14 +453,21 @@ val mysqlProgram = ebpf("mysql") {
     struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
     if (!check_mysql_port(sk)) return 0;
 
-    __u32 zero = 0;
-    struct mysql_rcv_stash *stash = bpf_map_lookup_elem(&mysql_rcv_stash, &zero);
-    if (!stash) return 0;
+    struct msghdr *msg = (struct msghdr *)PT_REGS_PARM2(ctx);
+    struct iovec iov0;
+    if (read_first_iov(msg, &iov0) < 0) return 0;
 
-    stash->sock_ptr = (__u64)sk;
-    stash->msghdr_ptr = (__u64)PT_REGS_PARM2(ctx);
-    stash->cgroup_id = bpf_get_current_cgroup_id();
-    stash->sock_cookie = (__u64)sk;
+    /* Keyed by thread, not a per-CPU slot: a blocking recv sleeps between entry and return,
+       and another task entering tcp_recvmsg on this CPU would overwrite a per-CPU stash. */
+    struct pid_tgid_key sk_key = { .pid_tgid = bpf_get_current_pid_tgid() };
+    struct mysql_rcv_stash st = {
+        .sock_ptr = (__u64)sk,
+        .iov_base = (__u64)iov0.iov_base,
+        .iov_len = (__u64)iov0.iov_len,
+        .cgroup_id = bpf_get_current_cgroup_id(),
+        .sock_cookie = (__u64)sk,
+    };
+    bpf_map_update_elem(&mysql_rcv_stash, &sk_key, &st, BPF_ANY);
     (__s32)0;
 })""", BpfScalar.S32))
         returnValue(literal(0, BpfScalar.S32))
@@ -469,30 +477,31 @@ val mysqlProgram = ebpf("mysql") {
     kretprobe("tcp_recvmsg") {
         declareVar("_mysql_recv_exit", raw("""({
     long ret = (long)PT_REGS_RC(ctx);
-    if (ret < 5) return 0;
 
-    __u32 zero = 0;
-    struct mysql_rcv_stash *stash = bpf_map_lookup_elem(&mysql_rcv_stash, &zero);
+    /* Consume the stash before any early return, or a later recv by this thread on a
+       non-Mysql socket (no stash written) would pick up this stale one. */
+    struct pid_tgid_key sk_key = { .pid_tgid = bpf_get_current_pid_tgid() };
+    struct mysql_rcv_stash *stash = bpf_map_lookup_elem(&mysql_rcv_stash, &sk_key);
     if (!stash) return 0;
 
-    struct msghdr *msg = (struct msghdr *)stash->msghdr_ptr;
+    void *iov_base = (void *)stash->iov_base;
+    __u64 iov_len = stash->iov_len;
     __u64 cgroup_id = stash->cgroup_id;
     __u64 sock_cookie = stash->sock_cookie;
     struct sock *sk = (struct sock *)stash->sock_ptr;
-    if (!msg || !sk) return 0;
-
-    struct iovec iov0;
-    if (read_first_iov(msg, &iov0) < 0) return 0;
+    bpf_map_delete_elem(&mysql_rcv_stash, &sk_key);
+    if (ret < 5 || !iov_base || !sk) return 0;
 
     __u8 buf[MAX_PAYLOAD];
     __builtin_memset(buf, 0, sizeof(buf));
     __u32 to_read = (__u32)ret;
+    if (to_read > iov_len) to_read = (__u32)iov_len; /* data beyond the first segment is elsewhere */
     /* Clamp to MAX_PAYLOAD - 1, not MAX_PAYLOAD: the mask below is the verifier's bound, and
        MAX_PAYLOAD & (MAX_PAYLOAD - 1) == 0, so every payload >= MAX_PAYLOAD (e.g. any real HTTP
        response header) used to be read as 0 bytes and never parsed. */
     if (to_read > MAX_PAYLOAD - 1) to_read = MAX_PAYLOAD - 1;
     to_read &= (MAX_PAYLOAD - 1);  /* provable bound for older verifiers */
-    if (bpf_probe_read_user(buf, to_read, iov0.iov_base) < 0) return 0;
+    if (bpf_probe_read_user(buf, to_read, iov_base) < 0) return 0;
 
     struct mysql_inflight_key inf_key = {
         .cgroup_id = cgroup_id,

@@ -144,3 +144,56 @@ spec:
                 sleep 0.2
               done
           resources: { limits: { cpu: 100m, memory: 64Mi } }
+---
+# Redis server + client. Exercises the L7 recv path for a second protocol: GET returns a
+# 200-byte bulk string (> MAX_PAYLOAD 64, the old clamp read 0 bytes), and every 4th command is
+# LPUSH on a string key, which replies -WRONGTYPE (error attribution). Persistent connection
+# (one redis-cli process reading commands from a pipe), like a real client pool.
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: redis, namespace: kpod-dogfood }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: redis } }
+  template:
+    metadata: { labels: { app: redis } }
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.4-alpine
+          args: ["--save", "", "--appendonly", "no"]
+          ports: [{ containerPort: 6379 }]
+          resources: { limits: { cpu: 100m, memory: 64Mi } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: redis, namespace: kpod-dogfood }
+spec:
+  selector: { app: redis }
+  ports: [{ port: 6379, targetPort: 6379 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: redis-client, namespace: kpod-dogfood }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: redis-client } }
+  template:
+    metadata: { labels: { app: redis-client } }
+    spec:
+      containers:
+        - name: cli
+          image: redis:7.4-alpine
+          command:
+            - sh
+            - -c
+            - |
+              v=$(head -c 200 /dev/zero | tr '\0' 'x')
+              until redis-cli -h redis.kpod-dogfood.svc ping >/dev/null 2>&1; do sleep 2; done
+              i=0
+              while :; do
+                i=$((i+1))
+                if [ $((i % 4)) -eq 0 ]; then echo "LPUSH k x"; elif [ $((i % 2)) -eq 0 ]; then echo "GET k"; else echo "SET k $v"; fi
+                sleep 0.2
+              done | redis-cli -h redis.kpod-dogfood.svc >/dev/null
+          resources: { limits: { cpu: 100m, memory: 32Mi } }

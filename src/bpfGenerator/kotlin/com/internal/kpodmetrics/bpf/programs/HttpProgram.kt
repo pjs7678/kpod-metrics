@@ -66,10 +66,6 @@ object HttpRecvStash : BpfStruct("http_recv_stash") {
     val sockCookie by u64()
 }
 
-object PidTgidKey : BpfStruct("pid_tgid_key") {
-    val pidTgid by u64()
-}
-
 // ── HTTP preamble ────────────────────────────────────────────────────
 
 private val HTTP_PREAMBLE = """

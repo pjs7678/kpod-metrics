@@ -31,6 +31,7 @@ On Ubuntu/Debian nodes with `kernel.perf_event_paranoid` > 2 the non-privileged 
 kprobes/tracepoints; the agent logs the fix (`sysctl kernel.perf_event_paranoid=2` or
 `securityContext.privileged=true`).
 
-Known gaps found here and not yet fixed: the Redis/MySQL/Kafka/Mongo programs still use a
-per-CPU recv stash that re-reads `msg_iter` at return (fixed for HTTP); `tcpdrop` (kfree_skb, softirq) is still attributed to the interrupted
-task; the BPF `*_stats` maps are never written, so `kpod_bpf_map_entries` stays 0.
+Known gaps found here and not yet fixed: the L7 collectors record one per-cycle mean per series
+into `kpod_<proto>_request_duration_seconds`, so its `_count` is collection cycles, not requests,
+and the BPF histogram slots are discarded (no percentiles); `tcpdrop` (kfree_skb, softirq) is
+still attributed to the interrupted task; the BPF `*_stats` maps are never written, so `kpod_bpf_map_entries` stays 0.
