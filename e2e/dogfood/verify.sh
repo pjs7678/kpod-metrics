@@ -85,6 +85,17 @@ for side in client web; do
   check "$side: 503 share near the workload's 25% (got $err/$req)" 'gt "$(python3 -c "print($err/$req if $req else 0)")" 0.15 && lt "$(python3 -c "print($err/$req if $req else 1)")" 0.35'
 done
 
+echo "== Redis (persistent connection; 200-byte GET replies; every 4th command is -WRONGTYPE)"
+rds() { awk -v pod="$1" -v pat="$2" '$0 ~ "^"pat"\\{" && $0 ~ "pod=\""pod {s+=$NF} END {print s+0}' "$SCRAPE"; }
+for side in redis-client "redis-[0-9a-f]+-"; do
+  all=$(rds "$side" kpod_redis_requests_total)
+  lp=$(awk -v pod="$side" '/^kpod_redis_requests_total\{/ && $0 ~ "pod=\""pod && /command="LPUSH"/ {s+=$NF} END {print s+0}' "$SCRAPE")
+  get=$(awk -v pod="$side" '/^kpod_redis_requests_total\{/ && $0 ~ "pod=\""pod && /command="GET"/ {s+=$NF} END {print s+0}' "$SCRAPE")
+  wt=$(awk -v pod="$side" '/^kpod_redis_errors_total\{/ && $0 ~ "pod=\""pod && /error_type="WRONGTYPE"/ {s+=$NF} END {print s+0}' "$SCRAPE")
+  check "$side: GET (200-byte reply) and LPUSH commands seen ($get, $lp of $all)" '[ "$get" != 0 ] && [ "$lp" != 0 ]'
+  check "$side: every LPUSH answered -WRONGTYPE ($wt of $lp)" '[ "$lp" != 0 ] && gt "$(python3 -c "print($wt/$lp)")" 0.9'
+done
+
 echo "== cgroup signals"
 t=$(awk '/^kpod_cpu_throttled_periods_total\{.*pod="cpu-throttled/ {print $NF; exit}' "$SCRAPE")
 a=$(awk '/^kpod_cpu_periods_total\{.*pod="cpu-throttled/ {print $NF; exit}' "$SCRAPE")

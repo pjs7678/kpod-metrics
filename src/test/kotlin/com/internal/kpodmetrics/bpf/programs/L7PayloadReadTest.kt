@@ -35,15 +35,29 @@ class L7PayloadReadTest {
         }
     }
 
+    /** Stash map name and the kretprobe's minimum-length check, per program. */
+    private val recvStash = mapOf(
+        "http" to ("http_recv_stash" to "ret < 8"), "redis" to ("redis_rcv_stash" to "ret < 3"),
+        "mysql" to ("mysql_rcv_stash" to "ret < 5"), "kafka" to ("kafka_rcv_stash" to "ret < 12"),
+        "mongo" to ("mongo_rcv_stash" to "ret < 21"),
+    )
+
     @Test
-    fun `http recv reads the buffer captured at entry, keyed by thread`() {
-        val c = httpProgram.generateC()
-        val exit = Regex("""int kretprobe_tcp_recvmsg\(.*?\n\}""", RegexOption.DOT_MATCHES_ALL).find(c)!!.value
-        assertFalse(exit.contains("read_first_iov"), "msg_iter has advanced by return; must not re-read it")
-        assertTrue(exit.contains("bpf_probe_read_user(buf, to_read, iov_base)"))
-        assertTrue(exit.contains("bpf_get_current_pid_tgid()"), "stash keyed by thread, not per-CPU")
-        // stash consumed before the length check
-        assertTrue(exit.indexOf("bpf_map_delete_elem(&http_recv_stash") < exit.indexOf("ret < 8"))
-        assertFalse(c.contains("BPF_MAP_TYPE_PERCPU_ARRAY);\n    __uint(max_entries, 1);\n    __type(key, __u32);\n    __type(value, struct http_recv_stash)"))
+    fun `recv reads the buffer captured at entry, keyed by thread`() {
+        for ((name, prog) in programs) {
+            val (stash, lenCheck) = recvStash.getValue(name)
+            val c = prog.generateC()
+            val exit = Regex("""int kretprobe_tcp_recvmsg\(.*?\n\}""", RegexOption.DOT_MATCHES_ALL).find(c)!!.value
+            assertFalse(exit.contains("read_first_iov"), "$name: msg_iter has advanced by return; must not re-read it")
+            assertTrue(exit.contains("bpf_probe_read_user(buf, to_read, iov_base)"), name)
+            assertTrue(exit.contains("if (to_read > iov_len)"), "$name: read must stay within the first iovec")
+            assertTrue(exit.contains("bpf_get_current_pid_tgid()"), "$name: stash keyed by thread, not per-CPU")
+            val del = exit.indexOf("bpf_map_delete_elem(&$stash")
+            assertTrue(del in 0 until exit.indexOf(lenCheck), "$name: stash consumed before the length check")
+            assertFalse(
+                Regex("""PERCPU_ARRAY\);[^}]*struct $stash\)""").containsMatchIn(c),
+                "$name: per-CPU stash is overwritten while a recv sleeps",
+            )
+        }
     }
 }
